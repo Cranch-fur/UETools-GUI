@@ -978,7 +978,7 @@ void GUI::Draw()
 	{
 		if (ImGui::BeginMainMenuBar())
 		{
-			ImGui::Text("UETools GUI (v5.2)");
+			ImGui::Text("UETools GUI (v%s)", APP_VERSION_STRING_SHORT);
 			if (ImGui::IsItemHovered())
 			{
 				ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
@@ -1049,17 +1049,17 @@ void GUI::Draw()
 	}
 
 #ifdef ACTOR_TRACE
-		Features::ActorTrace::ThreadSafeDraw();
+		Features::ActorTrace::Draw_ThreadSafe();
 #endif
 
 #ifdef ACTORS_TRACKING
 	if (Features::ActorsTracker::enabled)
-		Features::ActorsTracker::ThreadSafeDraw();
+		Features::ActorsTracker::Draw_ThreadSafe();
 #endif
 
 #ifdef COLLISION_VISUALIZER
 	if (Features::CollisionVisualizer::enabled)
-		Features::CollisionVisualizer::ThreadSafeDraw();
+		Features::CollisionVisualizer::Draw_ThreadSafe();
 #endif
 }
 
@@ -1670,13 +1670,13 @@ void Features::Debug::Update()
 	Features::Debug::lastUpdateTime = ImGui::GetTime();
 }
 
-void Features::Debug::ThreadSafeUpdate()
+void Features::Debug::Update_ThreadSafe()
 {
 	__try
 	{
 		Features::Debug::Update();
 	}
-	__except (Utilities::Exception::Handle(GetExceptionInformation(), __FUNCSIG__)) {}
+	__except (EXCEPTION()) {}
 }
 
 
@@ -2126,7 +2126,7 @@ void Features::DirectionalMovement::Worker()
 				Unreal::Actor::SweepTo(character, finalLocation);
 			}
 		}
-		__except (Utilities::Exception::Handle(GetExceptionInformation(), __FUNCSIG__)) {}
+		__except (EXCEPTION()) {}
 
 		/* Sleep for a defined delay to control the update rate (tick) of the movement logic. */
 		Sleep(Math::Seconds_ToMilliseconds(Features::DirectionalMovement::delay));
@@ -2382,13 +2382,13 @@ void Features::ActorTrace::Draw()
 	}
 }
 
-void Features::ActorTrace::ThreadSafeDraw()
+void Features::ActorTrace::Draw_ThreadSafe()
 {
 	__try
 	{
 		Features::ActorTrace::Draw();
 	}
-	__except (Utilities::Exception::Handle(GetExceptionInformation(), __FUNCSIG__)) {}
+	__except (EXCEPTION()) {}
 }
 #endif
 
@@ -2446,13 +2446,13 @@ void Features::ActorsTracker::Draw()
 	}
 }
 
-void Features::ActorsTracker::ThreadSafeDraw()
+void Features::ActorsTracker::Draw_ThreadSafe()
 {
 	__try
 	{
 		Features::ActorsTracker::Draw();
 	}
-	__except (Utilities::Exception::Handle(GetExceptionInformation(), __FUNCSIG__)) {}
+	__except (EXCEPTION()) {}
 }
 #endif
 
@@ -2562,13 +2562,13 @@ void Features::CollisionVisualizer::Draw()
 	}
 }
 
-void Features::CollisionVisualizer::ThreadSafeDraw()
+void Features::CollisionVisualizer::Draw_ThreadSafe()
 {
 	__try
 	{
 		Features::CollisionVisualizer::Draw();
 	}
-	__except (Utilities::Exception::Handle(GetExceptionInformation(), __FUNCSIG__)) {}
+	__except (EXCEPTION()) {}
 }
 #endif
 
@@ -3990,7 +3990,7 @@ void Templates::Menus::Debug::Sub_Engine()
 						{
 							bool wasConstructed = Unreal::Console::Construct() && Unreal::InputSettings::AssignConsoleBindings();
 							if (wasConstructed) // Only gather debug information if we're aware of changes.
-								Features::Debug::ThreadSafeUpdate();
+								Features::Debug::Update_ThreadSafe();
 
 							GUI::PlayActionSound(wasConstructed);
 						}
@@ -4313,7 +4313,7 @@ void Templates::Menus::Debug::Sub_PlayerController()
 				{
 					bool wasConstructed = Unreal::CheatManager::Construct();
 					if (wasConstructed) // Only gather debug information if we're aware of changes.
-						Features::Debug::ThreadSafeUpdate();
+						Features::Debug::Update_ThreadSafe();
 
 					GUI::PlayActionSound(wasConstructed);
 				}
@@ -4744,7 +4744,7 @@ void Templates::Menus::Debug::Sub_Actors()
 
 						for (std::wstring& actorPath : actorPathCollection) // <-- Reference!
 						{
-							std::wstring normalizedPath = Utilities::String::NormalizeObjectPath(actorPath);
+							std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(actorPath);
 							if (Unreal::Actor::SoftSummon(normalizedPath, spawnTransform) 
 							 || Unreal::StaticMeshActor::SoftSummon(normalizedPath, spawnTransform)
 							 || Unreal::SkeletalMeshActor::SoftSummon(normalizedPath, spawnTransform))
@@ -5384,7 +5384,7 @@ void Templates::Menus::Debug::Sub_Actors()
 					if (ImGui::Button("Set##ActorMaterial"))
 					{
 						std::wstring materialPath = Utilities::String::ToWString(Features::ActorMaterial::materialInstancePathBuffer);
-						std::wstring normalizedPath = Utilities::String::NormalizeObjectPath(materialPath);
+						std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(materialPath);
 
 						GUI::PlayActionSound(Unreal::Actor::SetMaterial(actor.reference, normalizedPath));
 					}
@@ -6006,7 +6006,7 @@ void Templates::Menus::Debug::Sub_Actors()
 								if (ImGui::Button("Play##PawnAnimationMontage"))
 								{
 									std::wstring assetPath = Utilities::String::ToWString(Features::PawnAnimation::animationPathBuffer);
-									std::wstring normalizedPath = Utilities::String::NormalizeObjectPath(assetPath);
+									std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(assetPath);
 									GUI::PlayActionSound(Unreal::Pawn::PlayAnimationMontage(pawn, normalizedPath, Features::PawnAnimation::animationMontageStartAt, Features::PawnAnimation::animationMontagePlayRate, Features::PawnAnimation::animationMontageStopAllMontages));
 								}
 
@@ -6024,7 +6024,7 @@ void Templates::Menus::Debug::Sub_Actors()
 								if (ImGui::Button("Play##PawnAnimation"))
 								{
 									std::wstring assetPath = Utilities::String::ToWString(Features::PawnAnimation::animationPathBuffer);
-									std::wstring normalizedPath = Utilities::String::NormalizeObjectPath(assetPath);
+									std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(assetPath);
 									GUI::PlayActionSound(Unreal::Pawn::PlayAnimation(pawn, normalizedPath.c_str(), Features::PawnAnimation::animationLooping));
 								}
 
@@ -6278,7 +6278,7 @@ void Templates::Menus::Debug::Sub_Widgets()
 
 					for (std::wstring& widgetPath : widgetPathCollection) // <-- Reference!
 					{
-						std::wstring normalizedPath = Utilities::String::NormalizeObjectPath(widgetPath);
+						std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(widgetPath);
 						if (SDK::UUserWidget* widgetReference = Unreal::UserWidget::SoftConstruct(normalizedPath))
 						{
 							widgetReference->AddToViewport(Features::WidgetConstruct::zOrder);
@@ -6515,7 +6515,7 @@ void Templates::Menus::Debug::Sub_Objects()
 
 					for (std::wstring& objectPath : objectPathCollection) // <-- Reference!
 					{
-						std::wstring normalizedPath = Utilities::String::NormalizeObjectPath(objectPath);
+						std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(objectPath);
 						if (SDK::UObject* objectReference = Unreal::Object::SoftLoadObject(normalizedPath))
 						{
 							SDK::UClass* objectClass = objectReference->Class;
@@ -6619,7 +6619,7 @@ void Templates::Menus::Debug::Draw()
 			if (ImGui::Button("Start"))
 			{
 				if (Features::Debug::autoUpdate == false)
-					Features::Debug::ThreadSafeUpdate();
+					Features::Debug::Update_ThreadSafe();
 
 				Features::Debug::enabled = true;
 				GUI::PlayActionSound(true);
@@ -6664,7 +6664,7 @@ void Templates::Menus::Debug::Draw()
 				const double elapsed = now - Features::Debug::lastUpdateTime;
 
 				if (elapsed >= Features::Debug::autoUpdateDelay)
-					Features::Debug::ThreadSafeUpdate();
+					Features::Debug::Update_ThreadSafe();
 			}
 			else
 			{
@@ -6696,7 +6696,7 @@ void Templates::Menus::Debug::Draw()
 			ImGui::BeginDisabled(Features::Debug::autoUpdate);
 			if (ImGui::Button("Update##DebugInformation"))
 			{
-				Features::Debug::ThreadSafeUpdate();
+				Features::Debug::Update_ThreadSafe();
 				GUI::PlayActionSound(true);
 			}
 			ImGui::EndDisabled();
@@ -6811,7 +6811,7 @@ void Templates::Menus::World::Draw()
 
 						for (std::wstring levelPath : levelPathCollection)
 						{
-							std::wstring normalizedPath = Utilities::String::NormalizeObjectPath(levelPath);
+							std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(levelPath);
 							if (Unreal::LevelStreaming::LoadLevelInstance(normalizedPath, locationOffset, rotationOffset, true))
 								anyLevelLoaded = true;
 						}
@@ -6862,8 +6862,8 @@ void Templates::Menus::World::Draw()
 
 						for (std::wstring levelSequencePath : levelSequencePathCollection)
 						{
-							std::wstring normalizedPath = Utilities::String::NormalizeObjectPath(levelSequencePath);
-							if (Unreal::Level::CreateLevelSequence(normalizedPath, Features::PlayLevelSequence::startTime, Features::PlayLevelSequence::playRate, Features::PlayLevelSequence::loopCount))
+							std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(levelSequencePath);
+							if (Unreal::Level::CreateLevelSequence_ThreadSafe(normalizedPath, Features::PlayLevelSequence::startTime, Features::PlayLevelSequence::playRate, Features::PlayLevelSequence::loopCount))
 								anySequenceCreated = true;
 						}
 

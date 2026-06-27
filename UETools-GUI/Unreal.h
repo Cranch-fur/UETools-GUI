@@ -341,8 +341,10 @@ namespace Unreal
 
 #ifdef LEVEL_SEQUENCE
 		static bool CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset, const float& startTime, const float& playRate, const int32_t& loopCount);
+		static bool CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSequenceAsset, const float& startTime, const float& playRate, const int32_t& loopCount);
 #ifdef SOFT_PATH
 		static bool CreateLevelSequence(const std::wstring& levelSequencePath, const float& startTime, const float& playRate, const int32_t& loopCount);
+		static bool CreateLevelSequence_ThreadSafe(const std::wstring& levelSequencePath, const float& startTime, const float& playRate, const int32_t& loopCount);
 #endif
 #endif
 	};
@@ -402,6 +404,13 @@ namespace Unreal
 		*		  otherwise returns 'nullptr' to indicate that no instance is currently accessible.
 		*/
 		static SDK::UWorld* Get();
+
+
+		static bool RemoveStreamingLevelAtIndex(SDK::UWorld* worldReference, const int32_t& index);
+		static bool RemoveStreamingLevelAtIndex(const int32_t& index);
+
+		static bool RemoveStreamingLevelByName(SDK::UWorld* worldReference, const std::string& streamingLevelName);
+		static bool RemoveStreamingLevelByName(const std::string& streamingLevelName);
 	};
 
 
@@ -660,7 +669,7 @@ namespace Unreal
 	{
 	public:
 #ifdef ACTOR_KIND
-		enum E_ActorKind
+		enum class E_ActorKind
 		{
 			General,
 			PointLight,
@@ -944,6 +953,13 @@ namespace Unreal
 		static SDK::UClass* SoftLoadClass(const std::wstring& objectPath);
 		static SDK::UObject* SoftLoadObject(const std::wstring& objectPath);
 #endif
+
+
+		static std::wstring GetObjectNameFromPath(std::wstring objectPath);
+
+		static std::wstring NormalizeObjectPath(std::wstring objectPath);
+
+		static std::wstring ShortenObjectPath(std::wstring objectPath);
 	};
 
 

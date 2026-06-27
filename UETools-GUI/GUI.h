@@ -437,7 +437,7 @@ namespace Features
 
 
 		static void Update();
-		static void ThreadSafeUpdate();
+		static void Update_ThreadSafe();
 	};
 
 
@@ -587,7 +587,7 @@ namespace Features
 		static bool Trace();
 
 		static void Draw();
-		static void ThreadSafeDraw();
+		static void Draw_ThreadSafe();
 	};
 #endif
 
@@ -608,7 +608,7 @@ namespace Features
 
 
 		static void Draw();
-		static void ThreadSafeDraw();
+		static void Draw_ThreadSafe();
 	};
 #endif
 
@@ -642,7 +642,7 @@ namespace Features
 
 
 		static void Draw();
-		static void ThreadSafeDraw();
+		static void Draw_ThreadSafe();
 	};
 #endif
 

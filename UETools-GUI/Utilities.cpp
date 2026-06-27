@@ -1028,6 +1028,262 @@ std::wstring Utilities::String::ToWString(const wchar_t* wcString)
 }
 
 
+bool Utilities::String::ToInt8(const std::string& string, int8_t* outValue)
+{
+    if (outValue == nullptr)
+        return false;
+
+    int64_t value;
+    if (ToInt64(string, &value) == false)
+        return false;
+
+    if (value < INT8_MIN || value > INT8_MAX)
+        return false;
+
+    *outValue = static_cast<int8_t>(value);
+    return true;
+}
+
+bool Utilities::String::ToInt8(const std::wstring& wString, int8_t* outValue)
+{
+    return ToInt8(ToString(wString), outValue);
+}
+
+bool Utilities::String::ToInt8(const char* cString, int8_t* outValue)
+{
+    return ToInt8(ToString(cString), outValue);
+}
+
+bool Utilities::String::ToInt8(const wchar_t* wcString, int8_t* outValue)
+{
+    return ToInt8(ToString(wcString), outValue);
+}
+
+
+bool Utilities::String::ToInt16(const std::string& string, int16_t* outValue)
+{
+    if (outValue == nullptr)
+        return false;
+
+    int64_t value;
+    if (ToInt64(string, &value) == false)
+        return false;
+
+    if (value < INT16_MIN || value > INT16_MAX)
+        return false;
+
+    *outValue = static_cast<int16_t>(value);
+    return true;
+}
+
+bool Utilities::String::ToInt16(const std::wstring& wString, int16_t* outValue)
+{
+    return ToInt16(ToString(wString), outValue);
+}
+
+bool Utilities::String::ToInt16(const char* cString, int16_t* outValue)
+{
+    return ToInt16(ToString(cString), outValue);
+}
+
+bool Utilities::String::ToInt16(const wchar_t* wcString, int16_t* outValue)
+{
+    return ToInt16(ToString(wcString), outValue);
+}
+
+
+bool Utilities::String::ToInt32(const std::string& string, int32_t* outValue)
+{
+    if (outValue == nullptr)
+        return false;
+
+    int64_t value;
+    if (ToInt64(string, &value) == false)
+        return false;
+
+    if (value < INT32_MIN || value > INT32_MAX)
+        return false;
+
+    *outValue = static_cast<int32_t>(value);
+    return true;
+}
+
+bool Utilities::String::ToInt32(const std::wstring& wString, int32_t* outValue)
+{
+    return ToInt32(ToString(wString), outValue);
+}
+
+bool Utilities::String::ToInt32(const char* cString, int32_t* outValue)
+{
+    return ToInt32(ToString(cString), outValue);
+}
+
+bool Utilities::String::ToInt32(const wchar_t* wcString, int32_t* outValue)
+{
+    return ToInt32(ToString(wcString), outValue);
+}
+
+
+bool Utilities::String::ToInt64(const std::string& string, int64_t* outValue)
+{
+    if (outValue == nullptr)
+        return false;
+
+    if (string.empty())
+        return false;
+
+    size_t startIndex = 0;
+    bool startsWithSign = false;
+
+    /* Check for an optional leading sign. */
+    if (string[0] == '-' || string[0] == '+')
+    {
+        if (string.length() == 1)
+            return false;
+
+        startIndex = 1;
+        startsWithSign = true;
+    }
+
+    for (size_t index = startIndex; index < string.length(); ++index)
+    {
+        if (std::isdigit(static_cast<unsigned char>(string[index])) == false)
+        {
+            return false;
+        }
+    }
+
+    const char* startPtr = startsWithSign ? string.data() + 1 : string.data();
+    auto [ptr, ec] = std::from_chars(startPtr, string.data() + string.length(), *outValue);
+    return ec == std::errc();
+}
+
+bool Utilities::String::ToInt64(const std::wstring& wString, int64_t* outValue)
+{
+    return false;
+}
+
+bool Utilities::String::ToInt64(const char* cString, int64_t* outValue)
+{
+    return false;
+}
+
+bool Utilities::String::ToInt64(const wchar_t* wcString, int64_t* outValue)
+{
+    return false;
+}
+
+
+bool Utilities::String::ToFloat(const std::string& string, float* outValue)
+{
+    if (outValue == nullptr)
+        return false;
+
+    double value;
+    if (ToDouble(string, &value) == false)
+        return false;
+
+    if (value < static_cast<double>((std::numeric_limits<float>::lowest)()) || value > static_cast<double>((std::numeric_limits<float>::max)()))
+        return false;
+
+    *outValue = static_cast<float>(value);
+    return true;
+}
+
+bool Utilities::String::ToFloat(const std::wstring& wString, float* outValue)
+{
+    return false;
+}
+
+bool Utilities::String::ToFloat(const char* cString, float* outValue)
+{
+    return false;
+}
+
+bool Utilities::String::ToFloat(const wchar_t* wcString, float* outValue)
+{
+    return false;
+}
+
+
+bool Utilities::String::ToDouble(const std::string& string, double* outValue)
+{
+    if (outValue == nullptr)
+        return false;
+
+    if (string.empty())
+        return false;
+
+    size_t startIndex = 0;
+    bool startsWithSign = false;
+
+    /* Check for an optional leading sign. */
+    if (string[0] == '-' || string[0] == '+')
+    {
+        if (string.length() == 1)
+            return false;
+
+        startIndex = 1;
+        startsWithSign = true;
+    }
+
+    bool hasDecimal = false;
+    bool hasDigits = false;
+    size_t parseLength = string.length();
+    for (size_t index = startIndex; index < string.length(); ++index)
+    {
+        const char c = string[index];
+
+        if (std::isdigit(static_cast<unsigned char>(c)))
+        {
+            hasDigits = true;
+        }
+        else if (c == '.')
+        {
+            if (hasDecimal)
+                return false;
+
+            hasDecimal = true;
+        }
+        else if ((c == 'f' || c == 'F') && index == string.length() - 1)
+        {
+            if (hasDigits == false)
+                return false;
+
+            /* Do not pass the 'f' suffix to std::from_chars(). */
+            parseLength = string.length() - 1;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    /* Prevent strings like '.' or '+.' from passing. */
+    if (hasDigits == false)
+        return false;
+
+    const char* startPtr = startsWithSign ? string.data() + 1 : string.data();
+    auto [ptr, ec] = std::from_chars(startPtr, string.data() + parseLength, *outValue);
+    return ec == std::errc();
+}
+
+bool Utilities::String::ToDouble(const std::wstring& wString, double* outValue)
+{
+    return ToDouble(ToString(wString), outValue);
+}
+
+bool Utilities::String::ToDouble(const char* cString, double* outValue)
+{
+    return ToDouble(ToString(cString), outValue);
+}
+
+bool Utilities::String::ToDouble(const wchar_t* wcString, double* outValue)
+{
+    return ToDouble(ToString(wcString), outValue);
+}
+
+
 
 
 std::string Utilities::String::ToLowerCase(std::string string)
@@ -1633,126 +1889,30 @@ std::wstring Utilities::String::Reverse(const wchar_t* wcString)
 
 
 
-std::wstring Utilities::String::NormalizeObjectPath(std::wstring objectPath)
+bool Utilities::String::IsNumeric(const std::string& string)
 {
-	const std::wstring contentKey = L"/Content/";
-	const std::wstring pluginsKey = L"/Plugins/";
-	const std::wstring engineContentKey = L"Engine/Content/";
-	const std::wstring engineContentMidKey = L"/Engine/Content/";
+    if (string.empty())
+        return false;
 
-	if (objectPath.empty())
-	{
-		return objectPath;
-	}
+    int64_t intValue;
+    double doubleValue;
 
-	static const std::vector<std::wstring> unrealFileExtensions = { L".uasset", L".umap", L".uexp", L".ubulk" };
-	for (const std::wstring& fileExtension : unrealFileExtensions)
-	{
-		objectPath = String::Replace(objectPath, fileExtension, std::wstring());
-	}
-	objectPath = String::Replace(objectPath, "\\", "/");
-
-	enum E_ObjectPathSuffixType
-	{
-		None,
-		Object,
-		Actor
-
-	};
-	E_ObjectPathSuffixType objectPathSuffixType = E_ObjectPathSuffixType::None;
-
-	size_t objectPathLength = objectPath.length();
-	if (objectPathLength >= 2)
-	{
-		size_t objectPathNoSuffixLength = objectPathLength - 2;
-
-		std::wstring objectPathEndChars = objectPath.substr(objectPathNoSuffixLength);
-		if (objectPathEndChars == L"--")
-		{
-			objectPathSuffixType = E_ObjectPathSuffixType::Object;
-		}
-		if (objectPathEndChars == L"..")
-		{
-			objectPathSuffixType = E_ObjectPathSuffixType::Actor;
-		}
-
-		if (objectPathSuffixType != E_ObjectPathSuffixType::None)
-			objectPath = objectPath.substr(0, objectPathNoSuffixLength);
-	}
-
-	std::wstring normalizedObjectPath = objectPath;
-	bool wasObjectPathNormalized = false;
-
-	if (objectPath.find(engineContentKey) == 0)
-	{
-		normalizedObjectPath = L"/Engine/" + objectPath.substr(engineContentKey.length());
-		wasObjectPathNormalized = true;
-	}
-	else
-	{
-		size_t contentPos = objectPath.find(contentKey);
-		if (contentPos != std::wstring::npos)
-		{
-			std::wstring relativePath = objectPath.substr(contentPos + contentKey.length());
-			std::wstring rootPath = objectPath.substr(0, contentPos);
-
-			size_t pluginsPos = rootPath.find(pluginsKey);
-			if (pluginsPos != std::wstring::npos)
-			{
-				size_t lastSlash = rootPath.find_last_of('/');
-				if (lastSlash != std::wstring::npos)
-				{
-					std::wstring pluginName = rootPath.substr(lastSlash + 1);
-
-					normalizedObjectPath = L"/" + pluginName + L"/" + relativePath;
-					wasObjectPathNormalized = true;
-				}
-			}
-
-			if (wasObjectPathNormalized == false)
-			{
-				normalizedObjectPath = L"/Game/" + relativePath;
-				wasObjectPathNormalized = true;
-			}
-		}
-	}
-
-	if (objectPathSuffixType != E_ObjectPathSuffixType::None)
-	{
-		std::wstring assetName = GetObjectNameFromPath(normalizedObjectPath);
-		if (objectPathSuffixType == E_ObjectPathSuffixType::Object)
-		{
-			normalizedObjectPath = normalizedObjectPath + L"." + assetName;
-		}
-		else
-		{
-			normalizedObjectPath = normalizedObjectPath + L"." + assetName + L"_C";
-		}
-	}
-
-	return wasObjectPathNormalized ? normalizedObjectPath : objectPath;
+    return (ToInt64(string, &intValue) || ToDouble(string, &doubleValue));
 }
 
-std::wstring Utilities::String::GetObjectNameFromPath(std::wstring objectPath)
+bool Utilities::String::IsNumeric(const std::wstring& wString)
 {
-	if (objectPath.empty())
-	{
-		return std::wstring();
-	}
+    return IsNumeric(ToString(wString));
+}
 
-	size_t lastDotPos = objectPath.find_last_of(L'.');
-	if (lastDotPos != std::wstring::npos)
-	{
-		return objectPath.substr(lastDotPos + 1);
-	}
+bool Utilities::String::IsNumeric(const char* cString)
+{
+    return IsNumeric(ToString(cString));
+}
 
-	size_t lastSlashPos = objectPath.find_last_of(L"/\\");
-	if (lastSlashPos != std::wstring::npos)
-	{
-		return objectPath.substr(lastSlashPos + 1);
-	}
-
-	return objectPath;
+bool Utilities::String::IsNumeric(const wchar_t* wcString)
+{
+    return IsNumeric(ToWString(wcString));
 }
 
 
@@ -2374,7 +2534,7 @@ bool Utilities::File::Destroy(const std::wstring& filePath)
 
 LONG Utilities::Exception::Handle(LPEXCEPTION_POINTERS exceptionInfo, const char* title)
 {
-#ifdef _DEBUG
+#ifdef ENABLE_LOGGING
     void* crashAddress = exceptionInfo->ExceptionRecord->ExceptionAddress;
 
     HMODULE hModule = GetModuleHandle(nullptr);
@@ -2388,7 +2548,11 @@ LONG Utilities::Exception::Handle(LPEXCEPTION_POINTERS exceptionInfo, const char
     stringStream << "Absolute Address: 0x" << crashAddress << "\n";
     stringStream << "Module Base:      0x" << (void*)baseAddress << "\n";
     stringStream << "Relative Offset:  +0x" << relativeOffset << "\n";
+    stringStream << Utilities::Time::GetUtcDate() << "\n";
     stringStream << "\n--------------------------------------------------\n";
+
+    std::string outString = stringStream.str();
+    printf(outString.c_str());
 
     FileInstance exceptionsFile(PATH_LOG_EXCEPTIONS);
     exceptionsFile.AppendLine(stringStream.str());
@@ -7086,4 +7250,25 @@ bool Utilities::Memory::External::IndirectPatchBytes(const HANDLE& hProcess, con
     VirtualProtectEx(hProcess, target, static_cast<size_t>(toBytes.size()), oldProtect, &tmp);
 
     return ok && bytesWritten == toBytes.size();
+}
+
+
+
+
+uint64_t Utilities::Time::GetUnixTimestamp()
+{
+    std::chrono::time_point now = std::chrono::system_clock::now();
+    return std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+}
+
+
+std::string Utilities::Time::GetUtcDate(const uint64_t& timestamp)
+{
+    std::chrono::sys_seconds timePoint{ std::chrono::seconds(timestamp) };
+    return std::format("{:%Y-%m-%dT%H:%M:%S.000Z}", timePoint);
+}
+
+std::string Utilities::Time::GetUtcDate()
+{
+    return GetUtcDate(GetUnixTimestamp());
 }

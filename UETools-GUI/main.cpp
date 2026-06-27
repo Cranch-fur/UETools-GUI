@@ -8,6 +8,10 @@
 
 DWORD WINAPI InitThread(LPVOID lpParam)
 {
+#ifdef ALLOC_CONSOLE
+    Utilities::Console::Create(true);
+#endif
+
     HMODULE hModule = (HMODULE)lpParam;
 #ifdef WAIT_FOR_TITLE_INIT
     GUI::InitOnTitleInitialized(hModule);

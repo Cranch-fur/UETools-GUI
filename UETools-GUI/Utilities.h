@@ -6,8 +6,34 @@
 #include <cwctype>
 #include <regex>
 #include <iostream>
+#include <chrono>
 
 #pragma comment(lib, "shell32.lib")
+
+#ifdef ENABLE_LOGGING
+#define LOG(Format, ...) \
+		do \
+		{ \
+			std::string timeString = Utilities::Time::GetUtcDate(); \
+			char buffer[SIZE_BUFFER_SEARCHFILTER]; \
+			\
+			std::snprintf(buffer, sizeof(buffer), "[%s] [%s:%d %s] " Format, \
+				timeString.c_str(), \
+				__FILE__, \
+				__LINE__, \
+				__FUNCTION__, \
+				##__VA_ARGS__); \
+			\
+			printf("%s\n", buffer); \
+			\
+			FileInstance logFile(PATH_LOG_GENERAL); \
+			logFile.AppendLine(buffer); \
+		} while (0)
+#else
+#define LOG(Format, ...) do {} while (0)
+#endif
+
+#define EXCEPTION() Utilities::Exception::Handle(GetExceptionInformation(), __FUNCSIG__)
 
 
 
@@ -155,7 +181,7 @@ namespace Utilities
 	class Message
 	{
 	public:
-		enum E_MessageResult
+		enum class E_MessageResult
 		{
 			OK,
 			Cancel,
@@ -229,6 +255,36 @@ namespace Utilities
 		static std::wstring ToWString(const std::string& string);
 		static std::wstring ToWString(const char* cString);
 		static std::wstring ToWString(const wchar_t* wcString);
+
+		static bool ToInt8(const std::string& string, int8_t* outValue);
+		static bool ToInt8(const std::wstring& wString, int8_t* outValue);
+		static bool ToInt8(const char* cString, int8_t* outValue);
+		static bool ToInt8(const wchar_t* wcString, int8_t* outValue);
+
+		static bool ToInt16(const std::string& string, int16_t* outValue);
+		static bool ToInt16(const std::wstring& wString, int16_t* outValue);
+		static bool ToInt16(const char* cString, int16_t* outValue);
+		static bool ToInt16(const wchar_t* wcString, int16_t* outValue);
+
+		static bool ToInt32(const std::string& string, int32_t* outValue);
+		static bool ToInt32(const std::wstring& wString, int32_t* outValue);
+		static bool ToInt32(const char* cString, int32_t* outValue);
+		static bool ToInt32(const wchar_t* wcString, int32_t* outValue);
+
+		static bool ToInt64(const std::string& string, int64_t* outValue);
+		static bool ToInt64(const std::wstring& wString, int64_t* outValue);
+		static bool ToInt64(const char* cString, int64_t* outValue);
+		static bool ToInt64(const wchar_t* wcString, int64_t* outValue);
+
+		static bool ToFloat(const std::string& string, float* outValue);
+		static bool ToFloat(const std::wstring& wString, float* outValue);
+		static bool ToFloat(const char* cString, float* outValue);
+		static bool ToFloat(const wchar_t* wcString, float* outValue);
+
+		static bool ToDouble(const std::string& string, double* outValue);
+		static bool ToDouble(const std::wstring& wString, double* outValue);
+		static bool ToDouble(const char* cString, double* outValue);
+		static bool ToDouble(const wchar_t* wcString, double* outValue);
 
 
 		static std::string ToLowerCase(std::string string);
@@ -325,8 +381,10 @@ namespace Utilities
 		static std::wstring Reverse(const wchar_t* wcString);
 
 
-		static std::wstring NormalizeObjectPath(std::wstring objectPath);
-		static std::wstring GetObjectNameFromPath(std::wstring objectPath);
+		static bool IsNumeric(const std::string& string);
+		static bool IsNumeric(const std::wstring& wString);
+		static bool IsNumeric(const char* cString);
+		static bool IsNumeric(const wchar_t* wcString);
 	};
 
 
@@ -399,6 +457,18 @@ namespace Utilities
 
 		static bool Destroy(const std::string& filePath);
 		static bool Destroy(const std::wstring& filePath);
+	};
+
+
+
+
+	class Time
+	{
+	public:
+		static uint64_t GetUnixTimestamp();
+
+		static std::string GetUtcDate(const uint64_t& timestamp);
+		static std::string GetUtcDate();
 	};
 
 

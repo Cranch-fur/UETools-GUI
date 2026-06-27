@@ -5,6 +5,34 @@
 
 
 
+#define APP_VERSION_MAJOR 5
+#define APP_VERSION_MINOR 3
+#define APP_VERSION_PATCH 0
+#define APP_VERSION_BUILD 0
+
+#define APP_VERSION_INTERNAL_HELPER(x) #x
+#define APP_VERSION_INTERNAL_TOSTR(x) APP_VERSION_INTERNAL_HELPER(x)
+
+#define APP_VERSION_STRING_FULL APP_VERSION_INTERNAL_TOSTR(APP_VERSION_MAJOR) "." APP_VERSION_INTERNAL_TOSTR(APP_VERSION_MINOR) "." APP_VERSION_INTERNAL_TOSTR(APP_VERSION_PATCH) "." APP_VERSION_INTERNAL_TOSTR(APP_VERSION_BUILD)
+#define APP_VERSION_STRING_SHORT APP_VERSION_INTERNAL_TOSTR(APP_VERSION_MAJOR) "." APP_VERSION_INTERNAL_TOSTR(APP_VERSION_MINOR)
+
+
+
+
+/*
+	#define ALLOC_CONSOLE
+
+	Determines if application should create a console window and redirect output streams into it.
+	NOTE: UETools UI & keybindings will only work within console window while it's present.
+*/
+
+#ifdef _DEBUG
+	#define ENABLE_LOGGING
+#endif
+
+
+
+
 // =======================
 // | SYSTEM PATH SECTION |
 // =======================
@@ -13,7 +41,8 @@
 #define PATH_CONFIG_POSITIONS "UETools\\Positions.cfg"
 #define PATH_CONFIG_KEYBINDINGS "UETools\\Keybindings.cfg"
 
-#ifdef _DEBUG
+#ifdef ENABLE_LOGGING
+	#define PATH_LOG_GENERAL "UETools\\General.log"
 	#define PATH_LOG_EXCEPTIONS "UETools\\Exceptions.log"
 #endif
 
@@ -38,9 +67,8 @@
 // |  GENERAL SECTION   |
 // ======================
 
+#define WAIT_FOR_TITLE_INIT
 /*
-	#define WAIT_FOR_TITLE_INIT
-
 	Delays the GUI initialization loop until the core title classes are valid.
 
 	Use cases:
@@ -50,9 +78,8 @@
 	Note: This will block the initialization thread (but not the main title thread) until the title is ready.
 */
 
+#define LARGE_BUFFER_OBJECTPATH
 /*
-	#define LARGE_BUFFER_OBJECTPATH
-
 	Expands the character limit for asset paths inputs. Can be found useful when dealing with large scale open worlds levels loading and etc.
 */
 #ifdef LARGE_BUFFER_OBJECTPATH
@@ -63,9 +90,8 @@
 	#define SIZE_BUFFER_MULTIOBJECTPATH 2048
 #endif
 
+#define LARGE_BUFFER_SEARCHFILTER
 /*
-	#define LARGE_BUFFER_SEARCHFILTER
-
 	Expands the character limit for search filter inputs.
 */
 #ifdef LARGE_BUFFER_SEARCHFILTER
@@ -105,9 +131,8 @@
 	Enables everything related to soft path (e.g. Actor Summon & Widget Construct).
 */
 
+#define SOFT_LOAD_FREEMEMORY
 /*
-	#define SOFT_LOAD_FREEMEMORY
-
 	WARNING: Use with caution.
 	In titles with active/aggressive Garbage Collection, Object would be unloaded too early in the process resulting in a game crash.
 */

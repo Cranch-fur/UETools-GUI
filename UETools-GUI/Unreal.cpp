@@ -227,24 +227,31 @@ SDK::AGameStateBase* Unreal::GameState::Get()
 #ifdef LEVEL_SEQUENCE
 bool Unreal::Level::CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset, const float& startTime, const float& playRate, const int32_t& loopCount)
 {
+	SDK::UWorld* world = World::Get();
+	if (world == nullptr || levelSequenceAsset == nullptr)
+		return false;
+
+	SDK::FMovieSceneSequencePlaybackSettings sequencePlaybackSettings;
+	sequencePlaybackSettings.bAutoPlay = true;
+	sequencePlaybackSettings.StartTime = startTime;
+	sequencePlaybackSettings.PlayRate = playRate;
+
+	SDK::FMovieSceneSequenceLoopCount sequenceLoopCount{ loopCount };
+	sequencePlaybackSettings.LoopCount = sequenceLoopCount;
+
+	SDK::ALevelSequenceActor* levelSequenceActor;
+	SDK::ULevelSequencePlayer::CreateLevelSequencePlayer(world, levelSequenceAsset, sequencePlaybackSettings, &levelSequenceActor);
+
+	return levelSequenceActor;
+}
+
+bool Unreal::Level::CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSequenceAsset, const float& startTime, const float& playRate, const int32_t& loopCount)
+{
 	__try
 	{
-		SDK::UWorld* world = World::Get();
-		if (world == nullptr || levelSequenceAsset == nullptr)
-			return false;
-
-		SDK::FMovieSceneSequencePlaybackSettings sequencePlaybackSettings;
-		sequencePlaybackSettings.bAutoPlay = true;
-		sequencePlaybackSettings.StartTime = startTime;
-		sequencePlaybackSettings.PlayRate = playRate;
-		SDK::FMovieSceneSequenceLoopCount sequenceLoopCount{ loopCount };
-		sequencePlaybackSettings.LoopCount = sequenceLoopCount;
-		SDK::ALevelSequenceActor* levelSequenceActor;
-		SDK::ULevelSequencePlayer::CreateLevelSequencePlayer(world, levelSequenceAsset, sequencePlaybackSettings, &levelSequenceActor);
-
-		return levelSequenceActor;
+		return CreateLevelSequence(levelSequenceAsset, startTime, playRate, loopCount);
 	}
-	__except (Utilities::Exception::Handle(GetExceptionInformation(), __FUNCSIG__))
+	__except (EXCEPTION())
 	{
 		return false;
 	}
@@ -253,14 +260,27 @@ bool Unreal::Level::CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset,
 #ifdef SOFT_PATH
 bool Unreal::Level::CreateLevelSequence(const std::wstring& levelSequencePath, const float& startTime, const float& playRate, const int32_t& loopCount)
 {
+	SDK::UObject* objectReference = Object::SoftLoadObject(levelSequencePath);
+	bool success = false;
+
+	if (objectReference && objectReference->IsA(SDK::ULevelSequence::StaticClass()))
+	{
+		SDK::ULevelSequence* levelSequenceAsset = static_cast<SDK::ULevelSequence*>(objectReference);
+		success = CreateLevelSequence(levelSequenceAsset, startTime, playRate, loopCount);
+	}
+
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(levelSequencePath)));
+#endif
+
+	return success;
+}
+
+bool Unreal::Level::CreateLevelSequence_ThreadSafe(const std::wstring& levelSequencePath, const float& startTime, const float& playRate, const int32_t& loopCount)
+{
 	__try
 	{
-		SDK::UObject* objectReference = Object::SoftLoadObject(levelSequencePath);
-		if (objectReference == nullptr || objectReference->IsA(SDK::ULevelSequence::StaticClass()) == false)
-			return false;
-
-		SDK::ULevelSequence* levelSequenceAsset = static_cast<SDK::ULevelSequence*>(objectReference);
-		return CreateLevelSequence(levelSequenceAsset, startTime, playRate, loopCount);
+		return CreateLevelSequence(levelSequencePath, startTime, playRate, loopCount);
 	}
 	__except (Utilities::Exception::Handle(GetExceptionInformation(), __FUNCSIG__))
 	{
@@ -326,7 +346,7 @@ bool Unreal::LevelStreaming::LoadLevelInstance(const std::wstring& objectPath, c
 	{
 		static int instanceCounter = 0;
 		/* locationOffset & rotationOffset would both be ignored when an Level Instance of same name is already present. */
-		instancedNameOverride = Utilities::String::GetObjectNameFromPath(objectPath) + L"_" + std::to_wstring(instanceCounter++);
+		instancedNameOverride = Unreal::Object::GetObjectNameFromPath(objectPath) + L"_" + std::to_wstring(instanceCounter++);
 	}
 
 #ifdef UE5
@@ -349,6 +369,62 @@ SDK::UWorld* Unreal::World::Get()
 {
 	SDK::UWorld* world = SDK::UWorld::GetWorld();
 	return world ? world : nullptr;
+}
+
+
+bool Unreal::World::RemoveStreamingLevelAtIndex(SDK::UWorld* worldReference, const int32_t& index)
+{
+	if (worldReference == nullptr)
+		return false;
+
+	int32_t streamingLevelsCount = worldReference->StreamingLevels.Num();
+	if (streamingLevelsCount == 0 || streamingLevelsCount < index)
+		return false;
+
+	return worldReference->StreamingLevels.Remove(index);
+}
+
+bool Unreal::World::RemoveStreamingLevelAtIndex(const int32_t& index)
+{
+	SDK::UWorld* world = World::Get();
+	if (world == nullptr)
+		return false;
+
+	return RemoveStreamingLevelAtIndex(world, index);
+}
+
+
+bool Unreal::World::RemoveStreamingLevelByName(SDK::UWorld* worldReference, const std::string& streamingLevelName)
+{
+	if (worldReference == nullptr)
+		return false;
+
+	int32_t streamingLevelsCount = worldReference->StreamingLevels.Num();
+	if (streamingLevelsCount == 0)
+		return false;
+
+	for (int32_t index = 0; index < streamingLevelsCount; index++)
+	{
+		SDK::ULevelStreaming* levelStreaming = worldReference->StreamingLevels[index];
+
+		if (levelStreaming != nullptr && levelStreaming->GetWorldAssetPackageFName().GetRawString() == streamingLevelName)
+		{
+			Unreal::Console::Print("PIZDEC TEBE");
+			worldReference->StreamingLevels.Remove(index);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool Unreal::World::RemoveStreamingLevelByName(const std::string& streamingLevelName)
+{
+	SDK::UWorld* world = World::Get();
+	if (world == nullptr)
+		return false;
+
+	return RemoveStreamingLevelByName(world, streamingLevelName);
 }
 
 
@@ -391,11 +467,19 @@ bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, SDK::UAnimMon
 bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, const std::wstring& animationMontagePath, const float& startAt, const float& playRate, const bool& stopAllMontages)
 {
 	SDK::UObject* objectReference = Object::SoftLoadObject(animationMontagePath);
-	if (objectReference == nullptr || objectReference->IsA(SDK::UAnimMontage::StaticClass()) == false)
-		return false;
+	bool success = false;
 
-	SDK::UAnimMontage* animationMontageAsset = static_cast<SDK::UAnimMontage*>(objectReference);
-	return PlayAnimationMontage(pawnReference, animationMontageAsset, startAt, playRate, stopAllMontages);
+	if (objectReference && objectReference->IsA(SDK::UAnimMontage::StaticClass()))
+	{
+		SDK::UAnimMontage* animationMontageAsset = static_cast<SDK::UAnimMontage*>(objectReference);
+		success = PlayAnimationMontage(pawnReference, animationMontageAsset, startAt, playRate, stopAllMontages);
+	}
+
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(animationMontagePath)));
+#endif
+
+	return success;
 }
 #endif
 
@@ -418,11 +502,19 @@ bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, SDK::UAnimationAsset
 bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, const std::wstring& animationPath, const bool& looping)
 {
 	SDK::UObject* objectReference = Object::SoftLoadObject(animationPath);
-	if (objectReference == nullptr || objectReference->IsA(SDK::UAnimationAsset::StaticClass()) == false)
-		return false;
+	bool success = false;
 
-	SDK::UAnimationAsset* animationAsset = static_cast<SDK::UAnimationAsset*>(objectReference);
-	return PlayAnimation(pawnReference, animationAsset, looping);
+	if (objectReference && objectReference->IsA(SDK::UAnimationAsset::StaticClass()))
+	{
+		SDK::UAnimationAsset* animationAsset = static_cast<SDK::UAnimationAsset*>(objectReference);
+		success = PlayAnimation(pawnReference, animationAsset, looping);
+	}
+
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(animationPath)));
+#endif
+
+	return success;
 }
 #endif
 
@@ -490,17 +582,23 @@ bool Unreal::CheatManager::SoftSummon(SDK::UCheatManager* cheatManagerReference,
 
 	/* Ensure Soft Path is valid and Actor is loaded in to game memory, so we could spawn it later on. */
 	SDK::UClass* actorClass = Unreal::Object::SoftLoadClass(actorPath);
-	if (actorClass == nullptr)
-		return false;
+	bool success = false;
 
-	size_t dotPos = actorPath.find_last_of(L'.');
-	if (dotPos == std::wstring::npos)
-		return false;
+	if (actorClass)
+	{
+		std::wstring actorName = Unreal::Object::GetObjectNameFromPath(actorPath);
+		if (actorName.empty() == false)
+		{
+			cheatManagerReference->Summon(SDK::FString(actorName.c_str()));
+			success = true;
+		}
+	}
 
-	std::wstring actorName = actorPath.substr(dotPos + 1);
-	cheatManagerReference->Summon(SDK::FString(actorName.c_str()));
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(actorPath)));
+#endif
 
-	return true;
+	return success;
 }
 
 bool Unreal::CheatManager::SoftSummon(const std::wstring& actorPath)
@@ -1345,12 +1443,23 @@ bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, SDK::UMaterialInter
 #ifdef SOFT_PATH
 bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, const std::wstring& materialInterfacePath)
 {
-	SDK::UObject* objectReference = Object::SoftLoadObject(materialInterfacePath);
-	if (objectReference == nullptr || objectReference->IsA(SDK::UMaterialInstance::StaticClass()) == false)
+	if (actorReference == nullptr)
 		return false;
 
-	SDK::UMaterialInterface* materialInterfaceAsset = static_cast<SDK::UMaterialInterface*>(objectReference);
-	return SetMaterial(actorReference, materialInterfaceAsset);
+	SDK::UObject* objectReference = Object::SoftLoadObject(materialInterfacePath);
+	bool success = false;
+
+	if (objectReference && objectReference->IsA(SDK::UMaterialInstance::StaticClass()))
+	{
+		SDK::UMaterialInterface* materialInterface = static_cast<SDK::UMaterialInterface*>(objectReference);
+		success = SetMaterial(actorReference, materialInterface);
+	}
+
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(materialInterfacePath)));
+#endif
+
+	return success;
 }
 #endif
 
@@ -1396,10 +1505,16 @@ SDK::AActor* Unreal::Actor::Summon(const SDK::TSubclassOf<SDK::AActor>& actorCla
 SDK::AActor* Unreal::Actor::SoftSummon(const std::wstring& actorPath, const Unreal::Transform& transform)
 {
 	SDK::UClass* actorClass = Object::SoftLoadClass(actorPath);
-	if (actorClass == nullptr)
-		return nullptr;
+	SDK::AActor* actor = nullptr;
 
-	return Unreal::Actor::Summon(actorClass, transform);
+	if (actorClass)
+		actor = Unreal::Actor::Summon(actorClass, transform);
+
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(actorPath)));
+#endif
+
+	return actor;
 }
 #endif
 
@@ -1548,14 +1663,19 @@ SDK::AStaticMeshActor* Unreal::StaticMeshActor::Summon(SDK::UStaticMesh* staticM
 SDK::AStaticMeshActor* Unreal::StaticMeshActor::SoftSummon(const std::wstring& staticMeshPath, const Unreal::Transform& transform)
 {
 	SDK::UObject* objectReference = Object::SoftLoadObject(staticMeshPath);
-	if (objectReference == nullptr)
-		return nullptr;
+	SDK::AStaticMeshActor* staticMeshActor = nullptr;
 
-	if (objectReference->IsA(SDK::UStaticMesh::StaticClass()) == false)
-		return nullptr;
+	if (objectReference && objectReference->IsA(SDK::UStaticMesh::StaticClass()))
+	{
+		SDK::UStaticMesh* staticMesh = static_cast<SDK::UStaticMesh*>(objectReference);
+		staticMeshActor = Unreal::StaticMeshActor::Summon(staticMesh, transform);
+	}
 
-	SDK::UStaticMesh* staticMesh = static_cast<SDK::UStaticMesh*>(objectReference);
-	return Unreal::StaticMeshActor::Summon(staticMesh, transform);
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(staticMeshPath)));
+#endif
+
+	return staticMeshActor;
 }
 #endif
 
@@ -1609,14 +1729,19 @@ SDK::ASkeletalMeshActor* Unreal::SkeletalMeshActor::Summon(SDK::USkeletalMesh* s
 SDK::ASkeletalMeshActor* Unreal::SkeletalMeshActor::SoftSummon(const std::wstring& skeletalMeshPath, const Unreal::Transform& transform)
 {
 	SDK::UObject* objectReference = Object::SoftLoadObject(skeletalMeshPath);
-	if (objectReference == nullptr)
-		return nullptr;
+	SDK::ASkeletalMeshActor* skeletalMeshActor = nullptr;
 
-	if (objectReference->IsA(SDK::USkeletalMesh::StaticClass()) == false)
-		return nullptr;
+	if (objectReference && objectReference->IsA(SDK::USkeletalMesh::StaticClass()))
+	{
+		SDK::USkeletalMesh* skeletalMesh = static_cast<SDK::USkeletalMesh*>(objectReference);
+		skeletalMeshActor = Unreal::SkeletalMeshActor::Summon(skeletalMesh, transform);
+	}
 
-	SDK::USkeletalMesh* skeletalMesh = static_cast<SDK::USkeletalMesh*>(objectReference);
-	return Unreal::SkeletalMeshActor::Summon(skeletalMesh, transform);
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(skeletalMeshPath)));
+#endif
+
+	return skeletalMeshActor;
 }
 #endif
 
@@ -1770,10 +1895,18 @@ SDK::UUserWidget* Unreal::UserWidget::Construct(const SDK::TSubclassOf<SDK::UUse
 SDK::UUserWidget* Unreal::UserWidget::SoftConstruct(const std::wstring& widgetPath)
 {
 	SDK::UClass* widgetClass = Object::SoftLoadClass(widgetPath);
-	if (widgetClass == nullptr)
-		return nullptr;
+	SDK::UUserWidget* widget = nullptr;
 
-	return Unreal::UserWidget::Construct(widgetClass);
+	if (widgetClass)
+	{
+		widget = Unreal::UserWidget::Construct(widgetClass);
+	}
+
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(widgetPath)));
+#endif
+
+	return widget;
 }
 #endif
 
@@ -2074,9 +2207,6 @@ SDK::UClass* Unreal::Object::SoftLoadClass(const std::wstring& objectPath)
 		return objectClass;
 	else
 	{
-#ifdef SOFT_LOAD_FREEMEMORY
-		int32_t initialStreamingLevelsNum = world->StreamingLevels.Num();
-#endif
 		Unreal::LevelStreaming::LoadLevelInstance(objectPath);
 
 		/*
@@ -2089,12 +2219,6 @@ SDK::UClass* Unreal::Object::SoftLoadClass(const std::wstring& objectPath)
 			Sleep(10);
 			objectClass = SDK::UKismetSystemLibrary::Conv_SoftClassReferenceToClass(softClassPtr);
 		}
-
-#ifdef SOFT_LOAD_FREEMEMORY
-		int32_t streamingLevelsNum = world->StreamingLevels.Num();
-		if (streamingLevelsNum > initialStreamingLevelsNum)
-			world->StreamingLevels.Remove(streamingLevelsNum - 1); // Remove remnants of our dirty trick from streaming levels array.
-#endif
 
 		if (objectClass)
 			return objectClass;
@@ -2117,9 +2241,6 @@ SDK::UObject* Unreal::Object::SoftLoadObject(const std::wstring& objectPath)
 		return objectReference;
 	else
 	{
-#ifdef SOFT_LOAD_FREEMEMORY
-		int32_t initialStreamingLevelsNum = world->StreamingLevels.Num();
-#endif
 		Unreal::LevelStreaming::LoadLevelInstance(objectPath);
 
 		/*
@@ -2133,12 +2254,6 @@ SDK::UObject* Unreal::Object::SoftLoadObject(const std::wstring& objectPath)
 			objectReference = SDK::UKismetSystemLibrary::Conv_SoftObjectReferenceToObject(softObjectPtr);
 		}
 
-#ifdef SOFT_LOAD_FREEMEMORY
-		int32_t streamingLevelsNum = world->StreamingLevels.Num();
-		if (streamingLevelsNum > initialStreamingLevelsNum)
-			world->StreamingLevels.Remove(streamingLevelsNum - 1); // Remove remnants of our dirty trick from streaming levels array.
-#endif
-
 		if (objectReference)
 			return objectReference;
 	}
@@ -2148,6 +2263,147 @@ SDK::UObject* Unreal::Object::SoftLoadObject(const std::wstring& objectPath)
 #endif
 
 
+std::wstring Unreal::Object::GetObjectNameFromPath(std::wstring objectPath)
+{
+	if (objectPath.empty())
+	{
+		return std::wstring();
+	}
+
+	size_t lastDotPos = objectPath.find_last_of(L'.');
+	if (lastDotPos != std::wstring::npos)
+	{
+		return objectPath.substr(lastDotPos + 1);
+	}
+
+	size_t lastSlashPos = objectPath.find_last_of(L"/\\");
+	if (lastSlashPos != std::wstring::npos)
+	{
+		return objectPath.substr(lastSlashPos + 1);
+	}
+
+	return objectPath;
+}
+
+
+std::wstring Unreal::Object::NormalizeObjectPath(std::wstring objectPath)
+{
+	const std::wstring contentKey = L"/Content/";
+	const std::wstring pluginsKey = L"/Plugins/";
+	const std::wstring engineContentKey = L"Engine/Content/";
+	const std::wstring engineContentMidKey = L"/Engine/Content/";
+
+	if (objectPath.empty())
+	{
+		return objectPath;
+	}
+
+	static const std::vector<std::wstring> unrealFileExtensions = { L".uasset", L".umap", L".uexp", L".ubulk" };
+	for (const std::wstring& fileExtension : unrealFileExtensions)
+	{
+		objectPath = Utilities::String::Replace(objectPath, fileExtension, std::wstring());
+	}
+	objectPath = Utilities::String::Replace(objectPath, "\\", "/");
+
+	enum E_ObjectPathSuffixType
+	{
+		None,
+		Object,
+		Actor
+
+	};
+	E_ObjectPathSuffixType objectPathSuffixType = E_ObjectPathSuffixType::None;
+
+	size_t objectPathLength = objectPath.length();
+	if (objectPathLength >= 2)
+	{
+		size_t objectPathNoSuffixLength = objectPathLength - 2;
+
+		std::wstring objectPathEndChars = objectPath.substr(objectPathNoSuffixLength);
+		if (objectPathEndChars == L"--")
+		{
+			objectPathSuffixType = E_ObjectPathSuffixType::Object;
+		}
+		if (objectPathEndChars == L"..")
+		{
+			objectPathSuffixType = E_ObjectPathSuffixType::Actor;
+		}
+
+		if (objectPathSuffixType != E_ObjectPathSuffixType::None)
+			objectPath = objectPath.substr(0, objectPathNoSuffixLength);
+	}
+
+	std::wstring normalizedObjectPath = objectPath;
+	bool wasObjectPathNormalized = false;
+
+	if (objectPath.find(engineContentKey) == 0)
+	{
+		normalizedObjectPath = L"/Engine/" + objectPath.substr(engineContentKey.length());
+		wasObjectPathNormalized = true;
+	}
+	else
+	{
+		size_t contentPos = objectPath.find(contentKey);
+		if (contentPos != std::wstring::npos)
+		{
+			std::wstring relativePath = objectPath.substr(contentPos + contentKey.length());
+			std::wstring rootPath = objectPath.substr(0, contentPos);
+
+			size_t pluginsPos = rootPath.find(pluginsKey);
+			if (pluginsPos != std::wstring::npos)
+			{
+				size_t lastSlash = rootPath.find_last_of('/');
+				if (lastSlash != std::wstring::npos)
+				{
+					std::wstring pluginName = rootPath.substr(lastSlash + 1);
+
+					normalizedObjectPath = L"/" + pluginName + L"/" + relativePath;
+					wasObjectPathNormalized = true;
+				}
+			}
+
+			if (wasObjectPathNormalized == false)
+			{
+				normalizedObjectPath = L"/Game/" + relativePath;
+				wasObjectPathNormalized = true;
+			}
+		}
+	}
+
+	if (objectPathSuffixType != E_ObjectPathSuffixType::None)
+	{
+		std::wstring assetName = GetObjectNameFromPath(normalizedObjectPath);
+		if (objectPathSuffixType == E_ObjectPathSuffixType::Object)
+		{
+			normalizedObjectPath = normalizedObjectPath + L"." + assetName;
+		}
+		else
+		{
+			normalizedObjectPath = normalizedObjectPath + L"." + assetName + L"_C";
+		}
+	}
+
+	return wasObjectPathNormalized ? normalizedObjectPath : objectPath;
+}
+
+
+std::wstring Unreal::Object::ShortenObjectPath(std::wstring objectPath)
+{
+	if (objectPath.empty())
+	{
+		return std::wstring();
+	}
+
+	size_t lastDotPos = objectPath.find_last_of(L'.');
+	size_t lastSlashPos = objectPath.find_last_of(L"/\\");
+
+	if (lastDotPos != std::wstring::npos && lastDotPos > lastSlashPos)
+	{
+		return objectPath.substr(0, lastDotPos);
+	}
+
+	return objectPath;
+}
 
 
 
