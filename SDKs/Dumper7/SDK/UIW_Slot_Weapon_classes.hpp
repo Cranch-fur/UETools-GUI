@@ -31,9 +31,9 @@ public:
 	void Destruct();
 	void Set_Item(class UObject* ListObject);
 	void OnFocusLost(const struct FFocusEvent& InFocusEvent);
+	struct FEventReply OnMouseButtonDown(const struct FGeometry& MyGeometry, const struct FPointerEvent& MouseEvent);
 	struct FEventReply OnMouseButtonDoubleClick(const struct FGeometry& InMyGeometry, const struct FPointerEvent& InMouseEvent);
 	struct FEventReply OnFocusReceived(const struct FGeometry& MyGeometry, const struct FFocusEvent& InFocusEvent);
-	struct FEventReply OnMouseButtonDown(const struct FGeometry& MyGeometry, const struct FPointerEvent& MouseEvent);
 	void SetMoveFocusEffect();
 	void SetEquipPossible();
 

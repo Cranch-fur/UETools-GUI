@@ -12,9 +12,9 @@
 
 #include "UMG_structs.hpp"
 #include "SlateCore_structs.hpp"
-#include "ProjectP_structs.hpp"
 #include "UIEN_PreviewType_structs.hpp"
 #include "UIST_Time_structs.hpp"
+#include "ProjectP_structs.hpp"
 #include "ProjectPContentInfo_structs.hpp"
 
 

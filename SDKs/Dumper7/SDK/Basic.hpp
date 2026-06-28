@@ -22,10 +22,12 @@
 * Omit the '-D IMPORT_CPP_SDK_INTO_IDA=1' if you want to keep the SDK namespace in IDA
 */
 #ifndef IMPORT_CPP_SDK_INTO_IDA
-	#define SDK_NAMESPACE_START namespace SDK {
+	#define SDK_NAMESPACE_NAME SDK
+	#define SDK_NAMESPACE_START namespace SDK_NAMESPACE_NAME {
 	#define SDK_NAMESPACE_END }
 	#define SDK_ALIGN(x) alignas(x)
 #else
+	#define SDK_NAMESPACE_NAME
 	#define SDK_NAMESPACE_START
 	#define SDK_NAMESPACE_END
 	#define SDK_ALIGN(x)
@@ -38,6 +40,7 @@
 #include <string>
 #include <functional>
 #include <type_traits>
+#include <format>
 
 #include "../PropertyFixup.hpp"
 #include "../UnrealContainers.hpp"
@@ -89,7 +92,7 @@ namespace InSDKUtils
 class UClass;
 class UObject;
 class UFunction;
-
+class UScriptStruct;
 class FName;
 
 namespace BasicFilesImplUtils
@@ -804,6 +807,75 @@ public:
 	TArray<FScriptDelegate>                       InvocationList;                                    // 0x0000(0x0010)(NOT AUTO-GENERATED PROPERTY)
 };
 
+template<typename EnumType, typename UnderlyingType>
+class TFixedSizeEnum
+{
+private:
+	static_assert(std::is_enum_v<EnumType>, "EnumType must be an enum!");
+	static_assert(std::is_integral_v<UnderlyingType>, "UnderlyingType must be an integral type!");
+
+public:
+	UnderlyingType EnumValue = 0;
+
+public:
+	constexpr TFixedSizeEnum() = default;
+	constexpr TFixedSizeEnum(const EnumType InEnumValue)
+		: EnumValue(static_cast<UnderlyingType>(InEnumValue))
+	{
+	}
+
+public:
+	constexpr TFixedSizeEnum(TFixedSizeEnum&&) = default;
+	constexpr TFixedSizeEnum(const TFixedSizeEnum&) = default;
+
+	constexpr TFixedSizeEnum& operator=(TFixedSizeEnum&&) = default;
+	constexpr TFixedSizeEnum& operator=(const TFixedSizeEnum&) = default;
+
+public:
+	constexpr inline bool operator==(const TFixedSizeEnum Other) const
+	{
+		return EnumValue == Other.EnumValue;
+	}
+	constexpr inline bool operator==(const EnumType Other) const
+	{
+		return EnumValue == static_cast<UnderlyingType>(Other);
+	}
+
+	constexpr std::strong_ordering operator<=>(TFixedSizeEnum Other) const
+	{
+		return EnumValue <=> Other.EnumValue;
+	}
+	constexpr std::strong_ordering operator<=>(EnumType Other) const
+	{
+		return EnumValue <=> static_cast<UnderlyingType>(Other);
+	}
+};
+
+template<typename EnumType>
+using T1ByteSignedEnum = TFixedSizeEnum<EnumType, int8>;
+
+template<typename EnumType>
+using T2ByteSignedEnum = TFixedSizeEnum<EnumType, int16>;
+
+template<typename EnumType>
+using T4ByteSignedEnum = TFixedSizeEnum<EnumType, int32>;
+
+template<typename EnumType>
+using T8ByteSignedEnum = TFixedSizeEnum<EnumType, int64>;
+
+template<typename EnumType>
+using T1ByteEnum = TFixedSizeEnum<EnumType, uint8>;
+
+template<typename EnumType>
+using T2ByteEnum = TFixedSizeEnum<EnumType, uint16>;
+
+template<typename EnumType>
+using T4ByteEnum = TFixedSizeEnum<EnumType, uint32>;
+
+template<typename EnumType>
+using T8ByteEnum = TFixedSizeEnum<EnumType, uint64>;
+
+
 #define UE_ENUM_OPERATORS(EEnumClassType)																													\
 																																							\
 inline constexpr EEnumClassType operator|(EEnumClassType Left, EEnumClassType Right)															 			\
@@ -1291,3 +1363,59 @@ template<typename UnderlayingClassType, int32 Size, int32 Align = 0x8>
 using TActorBasedCycleFixup = CyclicDependencyFixupImpl::TCyclicClassFixup<UnderlayingClassType, Size, Align, class AActor>;
 
 SDK_NAMESPACE_END
+
+
+template <typename T>
+	requires std::derived_from<T, SDK_NAMESPACE_NAME ::UObject>
+struct std::formatter<T*> : std::formatter<std::string>
+{
+	auto format(T* Object, std::format_context& Context) const
+	{
+		const std::string ClassName = Object && Object->Class ? Object->Class->GetName() : T::StaticClass()->GetName();
+		if (Object)
+		{
+			return std::formatter<std::string>::format(std::format("{}(0x{:X}, {})", ClassName, reinterpret_cast<uintptr_t>(Object), Object->GetName()), Context);
+		}
+		else
+		{
+			return std::formatter<std::string>::format(std::format("{}(nullptr)", ClassName), Context);
+		}
+	}
+};
+
+template <typename T>
+	requires std::derived_from<T, SDK_NAMESPACE_NAME ::UObject>
+struct std::formatter<SDK_NAMESPACE_NAME ::TSubclassOf<T>> : std::formatter<std::string>
+{
+	auto format(SDK_NAMESPACE_NAME ::TSubclassOf<T> Class, std::format_context& Context) const
+	{
+		return std::formatter<std::string>::format(Class.Get() ? Class.Get()->GetName() : std::format("{}(nullptr)", T::StaticClass()->GetName()), Context);
+	}
+};
+
+template <>
+struct std::formatter<SDK_NAMESPACE_NAME ::FName> : std::formatter<std::string>
+{
+	auto format(SDK_NAMESPACE_NAME ::FName Name, std::format_context& Context) const
+	{
+		return std::formatter<std::string>::format(Name.ToString(), Context);
+	}
+};
+
+template <>
+struct std::formatter<SDK_NAMESPACE_NAME ::FString> : std::formatter<std::string>
+{
+	auto format(SDK_NAMESPACE_NAME ::FString String, std::format_context& Context) const
+	{
+		return std::formatter<std::string>::format(String.ToString(), Context);
+	}
+};
+
+template <>
+struct std::formatter<SDK_NAMESPACE_NAME ::FText> : std::formatter<std::string>
+{
+	auto format(SDK_NAMESPACE_NAME ::FText Text, std::format_context& Context) const
+	{
+		return std::formatter<std::string>::format(Text.ToString(), Context);
+	}
+};

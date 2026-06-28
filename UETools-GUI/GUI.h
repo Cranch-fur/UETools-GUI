@@ -1,8 +1,13 @@
 #pragma once
-#include "DirectWindow.h"
 #include "imgui.h"
 
 #include "definitions.h"
+#if defined(API_D3D11)
+	#include "DirectWindow11.h"
+#elif defined(API_OPENGL3)
+	#include "OpenWindow3.h"
+#endif
+
 #include "ConfigInstance.h"
 #include "Unreal.h"
 #include "Math.h"
@@ -36,6 +41,18 @@ namespace ImGui
 	static ImDrawList* drawList;
 	ImDrawList* GetDrawList();
 
+
+	class Texture2D
+	{
+	private:
+		static inline std::unordered_map<std::string, ImTextureID> texturesMap;
+	public:
+		static bool Exists(const std::string& textureName);
+		static ImTextureID Get(const std::string& textureName);
+		static void Add(const std::string& textureName, ImTextureID iTextureId);
+		static bool IsValid(const ImTextureID& iTextureId);
+	};
+	
 
 	void TextBool(const char* label, const bool& inBool, const char* text_true, const char* text_false, const bool& useColoring, const ImU32& color_true, const ImU32& color_false);
 	void TextBool(const char* label, const bool& inBool);

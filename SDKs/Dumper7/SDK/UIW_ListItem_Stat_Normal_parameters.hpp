@@ -11,9 +11,9 @@
 #include "Basic.hpp"
 
 #include "ProjectPContentInfo_structs.hpp"
-#include "UIST_Color_structs.hpp"
 #include "SlateCore_structs.hpp"
 #include "CoreUObject_structs.hpp"
+#include "UIST_Color_structs.hpp"
 
 
 SDK_NAMESPACE_START

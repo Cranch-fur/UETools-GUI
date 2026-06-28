@@ -6,7 +6,7 @@
 
 
 #define APP_VERSION_MAJOR 5
-#define APP_VERSION_MINOR 3
+#define APP_VERSION_MINOR 4
 #define APP_VERSION_PATCH 0
 #define APP_VERSION_BUILD 0
 
@@ -52,6 +52,15 @@
 // =======================
 // |  RENDERING SECTION  |
 // =======================
+
+//#define API_D3D11
+#define API_OPENGL3
+
+#if (defined(API_D3D11) + defined(API_OPENGL3)) == 0
+	#error "Build Error: No Graphics API selected! Please define exactly one API (e.g., API_D3D11)."
+#elif (defined(API_D3D11) + defined(API_OPENGL3)) > 1
+	#error "Build Error: Multiple Graphics APIs selected! Please define ONLY ONE API."
+#endif
 
 /*
 	#define INACTIVE_ZERO_SIZE

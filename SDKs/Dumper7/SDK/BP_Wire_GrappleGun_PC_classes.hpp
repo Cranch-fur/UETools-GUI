@@ -11,9 +11,9 @@
 #include "Basic.hpp"
 
 #include "Engine_structs.hpp"
+#include "ProjectP_structs.hpp"
 #include "BP_Wire_GrappleGun_Base_classes.hpp"
 #include "ProjectPContentInfo_structs.hpp"
-#include "ProjectP_structs.hpp"
 
 
 SDK_NAMESPACE_START

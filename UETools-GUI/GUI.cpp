@@ -33,6 +33,37 @@ ImDrawList* ImGui::GetDrawList()
 
 
 
+bool ImGui::Texture2D::Exists(const std::string& textureName)
+{
+	return texturesMap.contains(textureName);
+}
+
+ImTextureID ImGui::Texture2D::Get(const std::string& textureName)
+{
+	auto textureIterator = texturesMap.find(textureName);
+
+	if (textureIterator == texturesMap.end())
+		return (ImTextureID)0;
+
+	return textureIterator->second;
+}
+
+void ImGui::Texture2D::Add(const std::string& textureName, ImTextureID iTextureId)
+{
+	if (texturesMap.contains(textureName))
+		return;
+
+	texturesMap.emplace(textureName, iTextureId);
+}
+
+bool ImGui::Texture2D::IsValid(const ImTextureID& iTextureId)
+{
+	return iTextureId != (ImTextureID)0;
+}
+
+
+
+
 void ImGui::TextBool(const char* label, const bool& inBool, const char* text_true, const char* text_false, const bool& useColoring, const ImU32& color_true, const ImU32& color_false)
 {
 	if (label)
@@ -939,7 +970,12 @@ bool GUI::StartWindowThread()
 	if (windowThread)
 		return false;
 
-	windowThread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)DirectWindow::Create, 0, 0, 0);
+#if defined(API_D3D11)
+	windowThread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)DirectWindow11::Create, 0, 0, 0);
+#elif defined(API_OPENGL3)
+	windowThread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)OpenWindow3::Create, 0, 0, 0);
+#endif
+
 	return windowThread;
 }
 
@@ -949,7 +985,11 @@ bool GUI::StartWindowThread()
 void GUI::Init(const HMODULE& applicationModule)
 {
 	/* Before creating a DirectWindow, we need to make it aware of our DLL HMODULE. */
-	DirectWindow::SetApplicationModule(applicationModule);
+#if defined(API_D3D11)
+	DirectWindow11::SetApplicationModule(applicationModule);
+#elif defined(API_OPENGL3)
+	OpenWindow3::SetApplicationModule(applicationModule);
+#endif
 	StartWindowThread();
 
 	Features::Config::Load();
@@ -2408,11 +2448,31 @@ void Features::ActorsTracker::Draw()
 				if (SDK::UGameplayStatics::ProjectWorldToScreen(playerController, actor.transform.location, &screenPosition, false))
 				{
 					ImU32 actorColor = Math::ColorFloat4_ToU32(Features::ActorsTracker::actorColor);
-					drawList->AddCircleFilled({ (float)screenPosition.X, (float)screenPosition.Y }, 8.0f, Features::ActorsTracker::checkValidness ? 
-																												(Unreal::Actor::IsValid(actor.reference) ? 
-																														Math::ColorFloat4_ToU32(Features::ActorsList::color_Valid) 
-																													  : Math::ColorFloat4_ToU32(Features::ActorsList::color_Invalid)) 
-																										  : actorColor);
+					
+					ImTextureID actorIcon = Features::ActorsTracker::checkValidness ? 
+						(Unreal::Actor::IsValid(actor.reference) ?
+							ImGui::Texture2D::Get("Actor_Green") 
+							: ImGui::Texture2D::Get("Actor_Red"))
+						: ImGui::Texture2D::Get("Actor_Green");
+
+					static float iconSize = 32.0f;
+					static float halfSize = iconSize * 0.5f;
+
+					ImVec2 p_min = ImVec2(floorf(screenPosition.X - halfSize), floorf(screenPosition.Y - halfSize));
+					ImVec2 p_max = ImVec2(floorf(screenPosition.X + halfSize), floorf(screenPosition.Y + halfSize));
+
+					if (ImGui::Texture2D::IsValid(actorIcon))
+					{
+						drawList->AddImage(actorIcon, p_min, p_max, ImVec2(0, 0), ImVec2(1, 1), IM_COL32_WHITE);
+					}
+					else
+					{
+						drawList->AddCircleFilled({ (float)screenPosition.X, (float)screenPosition.Y }, 16.0f, Features::ActorsTracker::checkValidness ?
+							(Unreal::Actor::IsValid(actor.reference) ?
+								Math::ColorFloat4_ToU32(Features::ActorsList::color_Valid)
+								: Math::ColorFloat4_ToU32(Features::ActorsList::color_Invalid))
+							: actorColor);
+					}
 
 					const char* labelText = actor.objectName.c_str();
 					ImVec2 labelSize = ImGui::CalcTextSize(labelText);
@@ -2420,7 +2480,7 @@ void Features::ActorsTracker::Draw()
 					(
 						/* Flooring the values allows to avoid potential subpixel conflicts. */
 						floorf(screenPosition.X - (labelSize.x * 0.5)),
-						floorf(screenPosition.Y - 36.0f)
+						floorf(screenPosition.Y - 40.0f)
 					);
 					drawList->AddText(labelPosition, actorColor, labelText);
 

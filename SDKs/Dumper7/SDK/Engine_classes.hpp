@@ -5958,7 +5958,7 @@ public:
 	bool GetCookedFFTData(const TArray<float>& FrequenciesToGet, TArray<struct FSoundWaveSpectralData>* OutSoundWaveSpectralData);
 	bool GetCookedFFTDataForAllPlayingSounds(TArray<struct FSoundWaveSpectralDataPerSound>* OutSoundWaveSpectralData);
 	void Play(float StartTime);
-	void PlayQuantized(const class UObject* WorldContextObject, class UQuartzClockHandle*& InClockHandle, struct FQuartzQuantizationBoundary& InQuantizationBoundary, const TDelegate<void(EQuartzCommandDelegateSubType EventType, class FName Name)>& InDelegate, float InStartTime, float InFadeInDuration, float InFadeVolumeLevel, EAudioFaderCurve InFadeCurve);
+	void PlayQuantized(const class UObject* WorldContextObject, class UQuartzClockHandle*& InClockHandle, struct FQuartzQuantizationBoundary& InQuantizationBoundary, const TDelegate<void(EQuartzCommandDelegateSubType EventType, class FName Name_0)>& InDelegate, float InStartTime, float InFadeInDuration, float InFadeVolumeLevel, EAudioFaderCurve InFadeCurve);
 	void SetAudioBusSendPostEffect(class UAudioBus* AudioBus, float AudioBusSendLevel);
 	void SetAudioBusSendPreEffect(class UAudioBus* AudioBus, float AudioBusSendLevel);
 	void SetBoolParameter(class FName InName, bool InBool);

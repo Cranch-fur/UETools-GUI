@@ -10,10 +10,10 @@
 
 #include "Basic.hpp"
 
-#include "Engine_structs.hpp"
 #include "UIEN_Controller_structs.hpp"
-#include "UIEN_InputAction_structs.hpp"
+#include "Engine_structs.hpp"
 #include "ProjectP_classes.hpp"
+#include "UIEN_InputAction_structs.hpp"
 #include "SlateCore_structs.hpp"
 #include "ProjectPContentInfo_structs.hpp"
 
@@ -48,7 +48,7 @@ public:
 	TMulticastInlineDelegate<void(class UUIW_Btn_Key_RIght_C* BtnKey)> OnRepeat;                     // 0x0330(0x0010)(Edit, BlueprintVisible, ZeroConstructor, DisableEditOnInstance, BlueprintAssignable, BlueprintCallable)
 	TMulticastInlineDelegate<void()>              OnStartHold;                                       // 0x0340(0x0010)(Edit, BlueprintVisible, ZeroConstructor, DisableEditOnInstance, BlueprintAssignable, BlueprintCallable)
 	TMulticastInlineDelegate<void()>              OnCancelHold;                                      // 0x0350(0x0010)(Edit, BlueprintVisible, ZeroConstructor, DisableEditOnInstance, BlueprintAssignable, BlueprintCallable)
-	TMulticastInlineDelegate<void(class UUIW_Btn_Key_RIght_C* BtnKey, float AxisX, float AxisY, float AxisXY, float Angle)> OnAxis; // 0x0360(0x0010)(Edit, BlueprintVisible, ZeroConstructor, DisableEditOnInstance, BlueprintAssignable, BlueprintCallable)
+	TMulticastInlineDelegate<void(class UUIW_Btn_Key_RIght_C* BtnKey, float AxisX_0, float AxisY_0, float AxisXY, float Angle)> OnAxis; // 0x0360(0x0010)(Edit, BlueprintVisible, ZeroConstructor, DisableEditOnInstance, BlueprintAssignable, BlueprintCallable)
 	float                                         AxisX;                                             // 0x0370(0x0004)(Edit, BlueprintVisible, ZeroConstructor, DisableEditOnInstance, IsPlainOldData, NoDestructor, HasGetValueTypeHash)
 	float                                         AxisY;                                             // 0x0374(0x0004)(Edit, BlueprintVisible, ZeroConstructor, DisableEditOnInstance, IsPlainOldData, NoDestructor, HasGetValueTypeHash)
 	class FName                                   InputType;                                         // 0x0378(0x0008)(Edit, BlueprintVisible, ZeroConstructor, DisableEditOnInstance, IsPlainOldData, NoDestructor, HasGetValueTypeHash)

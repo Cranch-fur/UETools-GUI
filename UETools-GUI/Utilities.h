@@ -3,12 +3,14 @@
 #include "FileInstance.h"
 
 #include <Windows.h>
+#include <wincodec.h>
 #include <cwctype>
 #include <regex>
 #include <iostream>
 #include <chrono>
 
 #pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "windowscodecs.lib")
 
 #ifdef ENABLE_LOGGING
 #define LOG(Format, ...) \
@@ -474,6 +476,23 @@ namespace Utilities
 
 
 
+	class Resources
+	{
+	public:
+		static bool LoadImageResource(const int32_t& resourceId, const std::wstring& resourceType, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight);
+		static bool LoadImageResource(const int32_t& resourceId, const std::string& resourceType, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight);
+
+		static bool LoadPNG(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight);
+		static bool LoadJPG(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight);
+		static bool LoadBMP(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight);
+		static bool LoadGIF(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight);
+		static bool LoadTIFF(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight);
+		static bool LoadICO(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight);
+	};
+
+
+
+
 	class Exception
 	{
 	public:
@@ -485,6 +504,12 @@ namespace Utilities
 
 	namespace Memory
 	{
+		static HMODULE GetLocalModule();
+		static HMODULE GetProcessModule();
+
+
+
+
 		class Internal // Functions within the class allows to manipulate memory of process program is running in.
 		{
 		public:

@@ -12,8 +12,8 @@
 
 #include "Engine_classes.hpp"
 #include "ProjectPContentInfo_structs.hpp"
-#include "UIEN_EquipSlotSize_structs.hpp"
 #include "ProjectP_structs.hpp"
+#include "UIEN_EquipSlotSize_structs.hpp"
 #include "UIEN_WeaponPart_structs.hpp"
 
 

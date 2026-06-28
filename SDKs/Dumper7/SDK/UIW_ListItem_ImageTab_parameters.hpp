@@ -11,9 +11,9 @@
 #include "Basic.hpp"
 
 #include "SlateCore_structs.hpp"
-#include "UIST_FirstCategoryInfo_structs.hpp"
 #include "ProjectPContentInfo_structs.hpp"
 #include "CoreUObject_structs.hpp"
+#include "UIST_FirstCategoryInfo_structs.hpp"
 
 
 SDK_NAMESPACE_START

@@ -96,7 +96,7 @@ public:
 	TArray<class UUIW_SlaveArm_ReinforceSlot_C*>  K2Node_MakeArray_Array;                            // 0x0030(0x0010)(ReferenceParm, ContainsInstancedReference)
 	class FText                                   CallFunc_GetGameStrWithName_ReturnValue;           // 0x0040(0x0018)()
 	TDelegate<void()>                             K2Node_CreateDelegate_OutputDelegate;              // 0x0058(0x0010)(ZeroConstructor, NoDestructor)
-	TDelegate<void(class UUIW_ListItem_SlaveArm_ReinforceInfo_C* Slot)> K2Node_CreateDelegate_OutputDelegate_1; // 0x0068(0x0010)(ZeroConstructor, NoDestructor)
+	TDelegate<void(class UUIW_ListItem_SlaveArm_ReinforceInfo_C* Slot_0)> K2Node_CreateDelegate_OutputDelegate_1; // 0x0068(0x0010)(ZeroConstructor, NoDestructor)
 	TArray<class UWidget*>                        CallFunc_GetAllChildren_ReturnValue;               // 0x0078(0x0010)(ReferenceParm, ContainsInstancedReference)
 	TDelegate<void(class UObject* Item, bool bIsSelected)> K2Node_CreateDelegate_OutputDelegate_2;   // 0x0088(0x0010)(ZeroConstructor, NoDestructor)
 	class UWidget*                                CallFunc_Array_Get_Item;                           // 0x0098(0x0008)(ZeroConstructor, InstancedReference, IsPlainOldData, NoDestructor, HasGetValueTypeHash)

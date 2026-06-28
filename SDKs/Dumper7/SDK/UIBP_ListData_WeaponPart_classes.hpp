@@ -10,8 +10,8 @@
 
 #include "Basic.hpp"
 
-#include "UIEN_WeaponPart_structs.hpp"
 #include "CoreUObject_classes.hpp"
+#include "UIEN_WeaponPart_structs.hpp"
 
 
 SDK_NAMESPACE_START

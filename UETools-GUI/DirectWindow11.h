@@ -2,11 +2,16 @@
 #include "GUI.h"
 #include "definitions.h"
 
+#ifdef API_D3D11
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
 
+#include "resource.h"
+
 #include <dwmapi.h>
 #include <d3d11.h>
+#include <string>
+#include <vector>
 
 #pragma comment(lib, "d3d11.lib")
 
@@ -20,7 +25,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 
 
-class DirectWindow
+class DirectWindow11
 {
 private:
     /* Win32 window procedure for the overlay window. */
@@ -160,7 +165,14 @@ private:
     static bool IsWindowAlive();
 
 
+private:
+    static void InitializeTextures();
+public:
+    static bool CreateTexture(const std::string& textureName, const std::vector<uint8_t>& pixels, const int32_t& width, const int32_t& height);
+
+
 public:
     /* Creates the overlay window and starts the render loop. */
     static void Create();
 };
+#endif

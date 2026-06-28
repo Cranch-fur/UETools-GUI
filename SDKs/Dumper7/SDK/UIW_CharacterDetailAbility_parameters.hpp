@@ -10,12 +10,12 @@
 
 #include "Basic.hpp"
 
-#include "UIST_FirstStatInfo_structs.hpp"
 #include "UMG_structs.hpp"
 #include "SlateCore_structs.hpp"
 #include "ProjectPContentInfo_structs.hpp"
 #include "ProjectP_structs.hpp"
 #include "UIST_Float_structs.hpp"
+#include "UIST_FirstStatInfo_structs.hpp"
 
 
 SDK_NAMESPACE_START

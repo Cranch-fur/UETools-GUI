@@ -146,12 +146,14 @@
     <ClCompile Include="..\SDKs\ImGui\imgui_demo.cpp" />
     <ClCompile Include="..\SDKs\ImGui\imgui_draw.cpp" />
     <ClCompile Include="..\SDKs\ImGui\imgui_impl_dx11.cpp" />
+    <ClCompile Include="..\SDKs\ImGui\imgui_impl_opengl3.cpp" />
     <ClCompile Include="..\SDKs\ImGui\imgui_impl_win32.cpp" />
     <ClCompile Include="..\SDKs\ImGui\imgui_tables.cpp" />
     <ClCompile Include="..\SDKs\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="ConfigInstance.cpp" />
-    <ClCompile Include="DirectWindow.cpp" />
+    <ClCompile Include="DirectWindow11.cpp" />
     <ClCompile Include="FileInstance.cpp" />
+    <ClCompile Include="OpenWindow3.cpp" />
     <ClCompile Include="Utilities.cpp" />
     <ClCompile Include="GUI.cpp" />
     <ClCompile Include="main.cpp" />
@@ -161,8 +163,9 @@
   <ItemGroup>
     <ClInclude Include="ConfigInstance.h" />
     <ClInclude Include="definitions.h" />
-    <ClInclude Include="DirectWindow.h" />
+    <ClInclude Include="DirectWindow11.h" />
     <ClInclude Include="FileInstance.h" />
+    <ClInclude Include="OpenWindow3.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="GUI.h" />
@@ -171,6 +174,10 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="UETools-GUI.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\UETools-Legacy\Icons\Actor_Green.png" />
+    <Image Include="..\UETools-Legacy\Icons\Actor_Red.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

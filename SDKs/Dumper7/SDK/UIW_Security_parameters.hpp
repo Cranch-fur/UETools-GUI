@@ -35,7 +35,7 @@ public:
 	ECheckBoxState                                K2Node_Select_Default;                             // 0x0021(0x0001)(ZeroConstructor, IsPlainOldData, NoDestructor, HasGetValueTypeHash)
 	uint8                                         Pad_22[0x2];                                       // 0x0022(0x0002)(Fixing Size After Last Property [ Dumper-7 ])
 	TDelegate<void(bool Result)>                  K2Node_CreateDelegate_OutputDelegate;              // 0x0024(0x0010)(ZeroConstructor, NoDestructor)
-	TDelegate<void(const class FText& Text, ETextCommit CommitMethod)> K2Node_CreateDelegate_OutputDelegate_1; // 0x0034(0x0010)(ZeroConstructor, NoDestructor)
+	TDelegate<void(const class FText& Text_0, ETextCommit CommitMethod)> K2Node_CreateDelegate_OutputDelegate_1; // 0x0034(0x0010)(ZeroConstructor, NoDestructor)
 };
 DUMPER7_ASSERTS_UIW_Security_C_ExecuteUbergraph_UIW_Security;
 

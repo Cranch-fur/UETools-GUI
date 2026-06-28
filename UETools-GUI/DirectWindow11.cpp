@@ -1,11 +1,12 @@
-#include "DirectWindow.h"
+#include "DirectWindow11.h"
+#ifdef API_D3D11
 
 
 
 
 
 
-LRESULT WINAPI DirectWindow::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT WINAPI DirectWindow11::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam) != 0)
     {
@@ -52,7 +53,7 @@ LRESULT WINAPI DirectWindow::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
 
 
-bool DirectWindow::CreateRenderTargetView()
+bool DirectWindow11::CreateRenderTargetView()
 {
     ID3D11Texture2D* backBuffer = nullptr;
     HRESULT backBufferResult = GetSwapChain()->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
@@ -73,7 +74,7 @@ bool DirectWindow::CreateRenderTargetView()
     return true;
 }
 
-bool DirectWindow::CreateDevice(const HWND& hWnd, const bool& HDR)
+bool DirectWindow11::CreateDevice(const HWND& hWnd, const bool& HDR)
 {
     DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
     swapChainDesc.BufferDesc.Width = 0;
@@ -117,7 +118,7 @@ bool DirectWindow::CreateDevice(const HWND& hWnd, const bool& HDR)
     return true;
 }
 
-void DirectWindow::CleanupDevice()
+void DirectWindow11::CleanupDevice()
 {
     InvalidateRenderTargetView();
     InvalidateDeviceContext();
@@ -125,7 +126,7 @@ void DirectWindow::CleanupDevice()
     InvalidateDevice();
 }
 
-void DirectWindow::SetTargetWindow(const HWND& hWindow)
+void DirectWindow11::SetTargetWindow(const HWND& hWindow)
 {
     hTargetWindow = hWindow;
     SetForegroundWindow(hTargetWindow);
@@ -133,7 +134,7 @@ void DirectWindow::SetTargetWindow(const HWND& hWindow)
     bTargetSet = true;
 }
 
-BOOL CALLBACK DirectWindow::EnumWind(HWND hWindow, LPARAM lParam)
+BOOL CALLBACK DirectWindow11::EnumWind(HWND hWindow, LPARAM lParam)
 {
     DWORD procID;
     GetWindowThreadProcessId(hWindow, &procID);
@@ -152,12 +153,12 @@ BOOL CALLBACK DirectWindow::EnumWind(HWND hWindow, LPARAM lParam)
     return FALSE; // Stop enumeration after finding the first match.
 }
 
-void DirectWindow::GetWindow()
+void DirectWindow11::GetWindow()
 {
     EnumWindows(EnumWind, 0);
 }
 
-void DirectWindow::MoveWindow(const HWND& hWindow, const bool& forceInvalidSize)
+void DirectWindow11::MoveWindow(const HWND& hWindow, const bool& forceInvalidSize)
 {
     if (hTargetWindow == nullptr)
     {
@@ -167,13 +168,23 @@ void DirectWindow::MoveWindow(const HWND& hWindow, const bool& forceInvalidSize)
     RECT rect;
     GetWindowRect(hTargetWindow, &rect);
 
-    int lWindowWidth = forceInvalidSize ? 0 : rect.right - rect.left;
-    int lWindowHeight = forceInvalidSize ? 0 : rect.bottom - rect.top;
+    /*
+        When the graphics driver (NVIDIA/AMD) or Windows detects that our overlay window exactly matches
+        the screen or target window dimensions, it may promote it to "Direct Flip" or "Independent Flip" mode.
+
+        This bypasses the Desktop Window Manager (DWM) composition to optimize performance, which
+        breaks our transparent alpha channel and causes the background to render as solid black.
+
+        To prevent this, we add +1 pixel to the window dimensions. This intentionally breaks the
+        exact-size heuristic, forcing DWM to handle the composition and keeping our background transparent.
+    */
+    int lWindowWidth = forceInvalidSize ? 0 : rect.right - rect.left + 1;
+    int lWindowHeight = forceInvalidSize ? 0 : rect.bottom - rect.top + 1;
 
     SetWindowPos(hWindow, nullptr, rect.left, rect.top, lWindowWidth, lWindowHeight, SWP_SHOWWINDOW);
 }
 
-bool DirectWindow::IsWindowFocus(const HWND& hWindow)
+bool DirectWindow11::IsWindowFocus(const HWND& hWindow)
 {
     char lpCurrentWindowUsedClass[125];
     char lpCurrentWindowClass[125];
@@ -205,7 +216,7 @@ bool DirectWindow::IsWindowFocus(const HWND& hWindow)
     return true;
 }
 
-bool DirectWindow::IsWindowValid(const HWND& hWindow)
+bool DirectWindow11::IsWindowValid(const HWND& hWindow)
 {
     if ((IsWindowVisible(hWindow) == 0) || (IsIconic(hWindow) != 0) || (IsWindowCloaked(hWindow) == true))
     {
@@ -236,7 +247,7 @@ bool DirectWindow::IsWindowValid(const HWND& hWindow)
     return true;
 }
 
-bool DirectWindow::IsWindowCloaked(const HWND& hWindow)
+bool DirectWindow11::IsWindowCloaked(const HWND& hWindow)
 {
     DWORD cloaked = 0;
     HRESULT hr = DwmGetWindowAttribute(hWindow, DWMWA_CLOAKED, &cloaked, sizeof(cloaked));
@@ -249,7 +260,7 @@ bool DirectWindow::IsWindowCloaked(const HWND& hWindow)
     return false;
 }
 
-bool DirectWindow::IsWindowAlive()
+bool DirectWindow11::IsWindowAlive()
 {
     if (hTargetWindow == nullptr)
     {
@@ -275,7 +286,79 @@ bool DirectWindow::IsWindowAlive()
 
 
 
-void DirectWindow::Create()
+void DirectWindow11::InitializeTextures()
+{
+    CoInitialize(NULL);
+
+    std::vector<uint8_t> pixels;
+    int32_t width = 0;
+    int32_t height = 0;
+
+    if (Utilities::Resources::LoadPNG(Actor_Green, &pixels, &width, &height))
+    {
+        CreateTexture("Actor_Green", pixels, width, height);
+        pixels.clear();
+    }
+
+    if (Utilities::Resources::LoadPNG(Actor_Red, &pixels, &width, &height))
+    {
+        CreateTexture("Actor_Red", pixels, width, height);
+        pixels.clear();
+    }
+}
+
+bool DirectWindow11::CreateTexture(const std::string& textureName, const std::vector<uint8_t>& pixels, const int32_t& width, const int32_t& height)
+{
+    if (ImGui::Texture2D::Exists(textureName))
+        return true;
+
+    if (pixels.empty())
+        return false;
+
+    if (width == 0 || height == 0)
+        return false;
+
+    /* Texture data. */
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = width;
+    desc.Height = height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags = 0;
+
+    /* Pixel data. */
+    D3D11_SUBRESOURCE_DATA subResource = {};
+    subResource.pSysMem = pixels.data();
+    subResource.SysMemPitch = width * 4;
+    subResource.SysMemSlicePitch = 0;
+
+    ID3D11Texture2D* pTexture = nullptr;
+    if (FAILED(GetDevice()->CreateTexture2D(&desc, &subResource, &pTexture)))
+        return false;
+
+    /* Shader data. */
+    ID3D11ShaderResourceView* out_srv = nullptr;
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = desc.MipLevels;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+
+    GetDevice()->CreateShaderResourceView(pTexture, &srvDesc, &out_srv);
+    pTexture->Release();
+
+    ImGui::Texture2D::Add(textureName, (ImTextureID)out_srv);
+    return true;
+}
+
+
+
+
+void DirectWindow11::Create()
 {
     ImGui_ImplWin32_EnableDpiAwareness();
 
@@ -347,11 +430,12 @@ void DirectWindow::Create()
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(GetDevice(), GetDeviceContext());
 
+    InitializeTextures();
+
     bInit = true;
 
     /* RENDER LOOP */
     bool bDone = false;
-
     while (bDone == false)
     {
         static const float colorTransparent[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -489,3 +573,4 @@ void DirectWindow::Create()
 
     CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(FreeLibrary), GetApplicationModule(), 0, nullptr);
 }
+#endif

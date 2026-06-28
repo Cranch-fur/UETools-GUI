@@ -2532,6 +2532,148 @@ bool Utilities::File::Destroy(const std::wstring& filePath)
 
 
 
+uint64_t Utilities::Time::GetUnixTimestamp()
+{
+    std::chrono::time_point now = std::chrono::system_clock::now();
+    return std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
+}
+
+
+std::string Utilities::Time::GetUtcDate(const uint64_t& timestamp)
+{
+    std::chrono::sys_seconds timePoint{ std::chrono::seconds(timestamp) };
+    return std::format("{:%Y-%m-%dT%H:%M:%S.000Z}", timePoint);
+}
+
+std::string Utilities::Time::GetUtcDate()
+{
+    return GetUtcDate(GetUnixTimestamp());
+}
+
+
+
+
+bool Utilities::Resources::LoadImageResource(const int32_t& resourceId, const std::wstring& resourceType, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+{
+    if (outPixels == nullptr || outWidth == nullptr || outHeight == nullptr)
+        return false;
+
+    if (resourceType.empty())
+        return false;
+
+    HMODULE hModule = Memory::GetLocalModule();
+    if (hModule == nullptr)
+        return false;
+
+    HRSRC hRes = FindResourceW(hModule, MAKEINTRESOURCEW(resourceId), resourceType.c_str());
+    if (hRes == nullptr)
+        return false;
+
+    HGLOBAL hMem = LoadResource(hModule, hRes);
+    if (hMem == nullptr)
+        return false;
+
+    DWORD size = SizeofResource(hModule, hRes);
+    if (size == 0)
+        return false;
+
+    void* pData = LockResource(hMem);
+    if (pData == nullptr)
+        return false;
+
+    IWICImagingFactory* pFactory = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory, (LPVOID*)&pFactory)))
+        return false;
+
+    bool success = false;
+    IWICStream* pStream = nullptr;
+
+    if (SUCCEEDED(pFactory->CreateStream(&pStream)))
+    {
+        if (SUCCEEDED(pStream->InitializeFromMemory(static_cast<BYTE*>(pData), size)))
+        {
+            IWICBitmapDecoder* pDecoder = nullptr;
+
+            if (SUCCEEDED(pFactory->CreateDecoderFromStream(pStream, NULL, WICDecodeMetadataCacheOnLoad, &pDecoder)))
+            {
+                IWICBitmapFrameDecode* pFrame = nullptr;
+                if (SUCCEEDED(pDecoder->GetFrame(0, &pFrame)))
+                {
+                    IWICFormatConverter* pConverter = nullptr;
+                    if (SUCCEEDED(pFactory->CreateFormatConverter(&pConverter)))
+                    {
+                        if (SUCCEEDED(pConverter->Initialize(pFrame, GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, NULL, 0.0f, WICBitmapPaletteTypeCustom)))
+                        {
+                            UINT width = 0;
+                            UINT height = 0;
+                            pConverter->GetSize(&width, &height);
+
+                            *outWidth = static_cast<int32_t>(width);
+                            *outHeight = static_cast<int32_t>(height);
+
+                            outPixels->resize(width * height * 4);
+
+                            if (SUCCEEDED(pConverter->CopyPixels(NULL, width * 4, static_cast<UINT>(outPixels->size()), outPixels->data())))
+                                success = true;
+                        }
+                        pConverter->Release();
+                    }
+                    pFrame->Release();
+                }
+                pDecoder->Release();
+            }
+        }
+        pStream->Release();
+    }
+    pFactory->Release();
+
+    return success;
+}
+
+bool Utilities::Resources::LoadImageResource(const int32_t& resourceId, const std::string& resourceType, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+{
+    return LoadImageResource(resourceId, Utilities::String::ToWString(resourceType), outPixels, outWidth, outHeight);
+}
+
+
+bool Utilities::Resources::LoadPNG(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+{
+    return LoadImageResource(resourceId, L"PNG", outPixels, outWidth, outHeight);
+}
+
+bool Utilities::Resources::LoadJPG(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+{
+    bool success = LoadImageResource(resourceId, L"JPG", outPixels, outWidth, outHeight);
+
+    if (success = false)
+        success = LoadImageResource(resourceId, L"JPEG", outPixels, outWidth, outHeight);
+
+    return success;
+}
+
+bool Utilities::Resources::LoadBMP(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+{
+    return LoadImageResource(resourceId, L"BMP", outPixels, outWidth, outHeight);;
+}
+
+bool Utilities::Resources::LoadGIF(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+{
+    return LoadImageResource(resourceId, L"GIF", outPixels, outWidth, outHeight);;
+}
+
+bool Utilities::Resources::LoadTIFF(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+{
+    return LoadImageResource(resourceId, L"TIFF", outPixels, outWidth, outHeight);;
+}
+
+bool Utilities::Resources::LoadICO(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+{
+    return LoadImageResource(resourceId, L"ICO", outPixels, outWidth, outHeight);;
+}
+
+
+
+
 LONG Utilities::Exception::Handle(LPEXCEPTION_POINTERS exceptionInfo, const char* title)
 {
 #ifdef ENABLE_LOGGING
@@ -2562,6 +2704,23 @@ LONG Utilities::Exception::Handle(LPEXCEPTION_POINTERS exceptionInfo, const char
 }
 
 
+
+
+
+
+HMODULE Utilities::Memory::GetLocalModule()
+{
+    HMODULE hModule = nullptr;
+    DWORD flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
+
+    GetModuleHandleExW(flags, reinterpret_cast<LPCWSTR>(&GetLocalModule), &hModule);
+    return hModule;
+}
+
+HMODULE Utilities::Memory::GetProcessModule()
+{
+    return GetModuleHandleW(nullptr);
+}
 
 
 
@@ -7250,25 +7409,4 @@ bool Utilities::Memory::External::IndirectPatchBytes(const HANDLE& hProcess, con
     VirtualProtectEx(hProcess, target, static_cast<size_t>(toBytes.size()), oldProtect, &tmp);
 
     return ok && bytesWritten == toBytes.size();
-}
-
-
-
-
-uint64_t Utilities::Time::GetUnixTimestamp()
-{
-    std::chrono::time_point now = std::chrono::system_clock::now();
-    return std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-}
-
-
-std::string Utilities::Time::GetUtcDate(const uint64_t& timestamp)
-{
-    std::chrono::sys_seconds timePoint{ std::chrono::seconds(timestamp) };
-    return std::format("{:%Y-%m-%dT%H:%M:%S.000Z}", timePoint);
-}
-
-std::string Utilities::Time::GetUtcDate()
-{
-    return GetUtcDate(GetUnixTimestamp());
 }

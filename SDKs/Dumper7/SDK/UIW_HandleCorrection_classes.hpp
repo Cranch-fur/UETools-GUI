@@ -11,11 +11,11 @@
 #include "Basic.hpp"
 
 #include "Engine_structs.hpp"
+#include "CoreUObject_structs.hpp"
 #include "UIEN_WeaponPart_structs.hpp"
 #include "ProjectPContentInfo_structs.hpp"
-#include "CoreUObject_structs.hpp"
-#include "UIW_Window_classes.hpp"
 #include "SlateCore_structs.hpp"
+#include "UIW_Window_classes.hpp"
 #include "ProjectP_structs.hpp"
 
 

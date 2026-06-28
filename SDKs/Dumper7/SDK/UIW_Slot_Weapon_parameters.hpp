@@ -52,6 +52,21 @@ public:
 };
 DUMPER7_ASSERTS_UIW_Slot_Weapon_C_OnFocusLost;
 
+// Function UIW_Slot_Weapon.UIW_Slot_Weapon_C.OnMouseButtonDown
+// 0x0238 (0x0238 - 0x0000)
+struct UIW_Slot_Weapon_C_OnMouseButtonDown final
+{
+public:
+	struct FGeometry                              MyGeometry;                                        // 0x0000(0x0038)(BlueprintVisible, BlueprintReadOnly, Parm, IsPlainOldData, NoDestructor)
+	struct FPointerEvent                          MouseEvent;                                        // 0x0038(0x0070)(ConstParm, BlueprintVisible, BlueprintReadOnly, Parm, OutParm, ReferenceParm)
+	struct FEventReply                            ReturnValue;                                       // 0x00A8(0x00B8)(Parm, OutParm, ReturnParm)
+	struct FKey                                   CallFunc_PointerEvent_GetEffectingButton_ReturnValue; // 0x0160(0x0018)(HasGetValueTypeHash)
+	bool                                          CallFunc_EqualEqual_KeyKey_ReturnValue;            // 0x0178(0x0001)(ZeroConstructor, IsPlainOldData, NoDestructor)
+	uint8                                         Pad_179[0x7];                                      // 0x0179(0x0007)(Fixing Size After Last Property [ Dumper-7 ])
+	struct FEventReply                            K2Node_MakeStruct_EventReply;                      // 0x0180(0x00B8)()
+};
+DUMPER7_ASSERTS_UIW_Slot_Weapon_C_OnMouseButtonDown;
+
 // Function UIW_Slot_Weapon.UIW_Slot_Weapon_C.OnMouseButtonDoubleClick
 // 0x0218 (0x0218 - 0x0000)
 struct UIW_Slot_Weapon_C_OnMouseButtonDoubleClick final
@@ -75,21 +90,6 @@ public:
 	struct FEventReply                            K2Node_MakeStruct_EventReply;                      // 0x00F8(0x00B8)()
 };
 DUMPER7_ASSERTS_UIW_Slot_Weapon_C_OnFocusReceived;
-
-// Function UIW_Slot_Weapon.UIW_Slot_Weapon_C.OnMouseButtonDown
-// 0x0238 (0x0238 - 0x0000)
-struct UIW_Slot_Weapon_C_OnMouseButtonDown final
-{
-public:
-	struct FGeometry                              MyGeometry;                                        // 0x0000(0x0038)(BlueprintVisible, BlueprintReadOnly, Parm, IsPlainOldData, NoDestructor)
-	struct FPointerEvent                          MouseEvent;                                        // 0x0038(0x0070)(ConstParm, BlueprintVisible, BlueprintReadOnly, Parm, OutParm, ReferenceParm)
-	struct FEventReply                            ReturnValue;                                       // 0x00A8(0x00B8)(Parm, OutParm, ReturnParm)
-	struct FKey                                   CallFunc_PointerEvent_GetEffectingButton_ReturnValue; // 0x0160(0x0018)(HasGetValueTypeHash)
-	bool                                          CallFunc_EqualEqual_KeyKey_ReturnValue;            // 0x0178(0x0001)(ZeroConstructor, IsPlainOldData, NoDestructor)
-	uint8                                         Pad_179[0x7];                                      // 0x0179(0x0007)(Fixing Size After Last Property [ Dumper-7 ])
-	struct FEventReply                            K2Node_MakeStruct_EventReply;                      // 0x0180(0x00B8)()
-};
-DUMPER7_ASSERTS_UIW_Slot_Weapon_C_OnMouseButtonDown;
 
 // Function UIW_Slot_Weapon.UIW_Slot_Weapon_C.SetMoveFocusEffect
 // 0x0010 (0x0010 - 0x0000)

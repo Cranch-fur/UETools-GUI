@@ -13,9 +13,9 @@
 #include "Engine_structs.hpp"
 #include "UIEN_WeaponPart_structs.hpp"
 #include "ProjectP_structs.hpp"
-#include "UIW_Window_classes.hpp"
 #include "UMG_structs.hpp"
 #include "SlateCore_structs.hpp"
+#include "UIW_Window_classes.hpp"
 #include "ProjectPContentInfo_structs.hpp"
 
 

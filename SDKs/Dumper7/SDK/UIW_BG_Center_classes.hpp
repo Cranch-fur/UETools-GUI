@@ -10,8 +10,8 @@
 
 #include "Basic.hpp"
 
-#include "Engine_structs.hpp"
 #include "UIW_Popup_BG_classes.hpp"
+#include "Engine_structs.hpp"
 
 
 SDK_NAMESPACE_START

@@ -66,6 +66,19 @@ public:
 	{
 		InSDKUtils::CallGameFunction(InSDKUtils::GetVirtualFunction<void(*)(const UObject*, class UFunction*, void*)>(this, Offsets::ProcessEventIdx), this, Function, Parms);
 	}
+
+	static class UClass* StaticClass()
+	{
+		STATIC_CLASS_IMPL("Object")
+	}
+	static const class FName& StaticName()
+	{
+		STATIC_NAME_IMPL(L"Object")
+	}
+	static class UObject* GetDefaultObj()
+	{
+		return GetDefaultObjImpl<UObject>();
+	}
 };
 DUMPER7_ASSERTS_UObject;
 
