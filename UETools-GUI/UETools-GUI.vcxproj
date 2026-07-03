@@ -175,10 +175,6 @@
   <ItemGroup>
     <ResourceCompile Include="UETools-GUI.rc" />
   </ItemGroup>
-  <ItemGroup>
-    <Image Include="..\UETools-Legacy\Icons\Actor_Green.png" />
-    <Image Include="..\UETools-Legacy\Icons\Actor_Red.png" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

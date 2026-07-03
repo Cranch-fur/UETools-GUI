@@ -7,7 +7,7 @@
 
 #define APP_VERSION_MAJOR 5
 #define APP_VERSION_MINOR 4
-#define APP_VERSION_PATCH 0
+#define APP_VERSION_PATCH 1
 #define APP_VERSION_BUILD 0
 
 #define APP_VERSION_INTERNAL_HELPER(x) #x
@@ -145,7 +145,7 @@
 	WARNING: Use with caution.
 	In titles with active/aggressive Garbage Collection, Object would be unloaded too early in the process resulting in a game crash.
 */
-
+#define ACTORS_TRACKING
 /*
 	#define ACTORS_TRACKING
 

@@ -125,12 +125,4 @@
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
-  <ItemGroup>
-    <Image Include="..\UETools-Legacy\Icons\Actor_Green.png">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="..\UETools-Legacy\Icons\Actor_Red.png">
-      <Filter>Resource Files</Filter>
-    </Image>
-  </ItemGroup>
 </Project>
