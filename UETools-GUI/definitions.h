@@ -59,6 +59,24 @@
 
 
 
+// =================================
+// |   BACKGROUND TASKS SECTION    |
+// =================================
+#define TASK_CONSTRUCT_CONSOLE
+/*
+	Background task that ensures the Console exists (creating it if missing) and sets up keybinds to open it.
+*/
+
+/*
+	#define TASK_CONSTRUCT_CHEATMANAGER
+
+	Background task that ensures the Cheat Manager exists (creating it if missing).
+	Note: This may cause random crashes when transitioning between levels.
+*/
+
+
+
+
 // ======================
 // |  GENERAL SECTION   |
 // ======================
@@ -145,9 +163,8 @@
 	Enables everything related to collision visualization (e.g. Draw Collision).
 */
 
+#define ACTOR_KIND
 /*
-	#define ACTOR_KIND
-
 	Enables everything related to Actor Kind subsystem (e.g. Point Light Settings, Spot Light Settings, Pawn Actions...).
 */
 

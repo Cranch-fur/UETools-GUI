@@ -996,7 +996,7 @@ void GUI::Init(const HMODULE& applicationModule)
 	Features::Positions::Load();
 	Inputs::Config::Load();
 
-	Inputs::Keybindings::EnableProcessing();
+	BackgroundTasks::Init();
 }
 
 #ifdef WAIT_FOR_TITLE_INIT
@@ -1182,18 +1182,13 @@ void Features::Config::Load()
 	}
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_enableSound", &Features::Menu::enableSound);
-	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_autoConstructConsole", &Features::Menu::autoConstructConsole);
-	if (Features::Menu::autoConstructConsole)
-		Unreal::Console::Construct();
-	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_enableConsoleOutput", &Features::Menu::enableConsoleOutput);
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_Debug_autoUpdate", &Features::Debug::autoUpdate);
 	ReadFeatureFromConfig(&featuresConfig, "Features_Debug_autoUpdateDelay", &Features::Debug::autoUpdateDelay);
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_DirectionalMovement_enabled", &Features::DirectionalMovement::enabled);
-	if (Features::DirectionalMovement::enabled)
-		Features::DirectionalMovement::Enable();
 	ReadFeatureFromConfig(&featuresConfig, "Features_DirectionalMovement_omniMovement", &Features::DirectionalMovement::omniMovement);
+	ReadFeatureFromConfig(&featuresConfig, "Features_DirectionalMovement_independentOmniMovement", &Features::DirectionalMovement::independentOmniMovement);
 	ReadFeatureFromConfig(&featuresConfig, "Features_DirectionalMovement_step", &Features::DirectionalMovement::step);
 	ReadFeatureFromConfig(&featuresConfig, "Features_DirectionalMovement_delay", &Features::DirectionalMovement::delay);
 
@@ -1316,14 +1311,13 @@ void Features::Config::Save()
 	ConfigInstance featuresConfig(PATH_CONFIG_FEATURES);
 
 	featuresConfig.SetKey("Features_Menu_enableSound", Features::Menu::enableSound);
-	featuresConfig.SetKey("Features_Menu_autoConstructConsole", Features::Menu::autoConstructConsole);
-	featuresConfig.SetKey("Features_Menu_enableConsoleOutput", Features::Menu::enableConsoleOutput);
 
 	featuresConfig.SetKey("Features_Debug_autoUpdate", Features::Debug::autoUpdate);
 	featuresConfig.SetKey("Features_Debug_autoUpdateDelay", Features::Debug::autoUpdateDelay);
 
 	featuresConfig.SetKey("Features_DirectionalMovement_enabled", Features::DirectionalMovement::enabled);
 	featuresConfig.SetKey("Features_DirectionalMovement_omniMovement", Features::DirectionalMovement::omniMovement);
+	featuresConfig.SetKey("Features_DirectionalMovement_independentOmniMovement", Features::DirectionalMovement::independentOmniMovement);
 	featuresConfig.SetKey("Features_DirectionalMovement_step", Features::DirectionalMovement::step);
 	featuresConfig.SetKey("Features_DirectionalMovement_delay", Features::DirectionalMovement::delay);
 
@@ -1592,58 +1586,6 @@ void Features::Debug::Update()
 				Features::Debug::world.persistentLevel.worldSettings.localHighPriorityLoading = worldSettings->bHighPriorityLoadingLocal;
 
 				Features::Debug::world.persistentLevel.worldSettings.unitsToMeters = worldSettings->WorldToMeters;
-			}
-		}
-
-		SDK::TArray<SDK::ULevelStreaming*> streamingLevels = world->StreamingLevels;
-		if (streamingLevels.Num() > 0)
-		{
-			Features::Debug::world.streamingLevels.clear();
-
-			for (SDK::ULevelStreaming* streamingLevel : streamingLevels)
-			{
-				if (streamingLevel == nullptr)
-					continue;
-
-#ifdef UE5
-				std::string streamingLevelPath = streamingLevel->WorldAsset.ObjectID.AssetPath.AssetName.GetRawString();
-#else
-				std::string streamingLevelPath = streamingLevel->WorldAsset.ObjectID.AssetPathName.GetRawString();
-#endif
-				if (streamingLevelPath.empty())
-					continue;
-
-				Unreal::LevelStreaming::DataStructure levelStreamingData = {};
-
-				levelStreamingData.reference = streamingLevel;
-				levelStreamingData.className = streamingLevel->Class->GetFullName();
-				levelStreamingData.objectName = streamingLevel->GetFullName();
-
-				levelStreamingData.levelPath = streamingLevelPath;
-				levelStreamingData.levelColor = streamingLevel->LevelColor;
-
-				SDK::ULevel* loadedLevel = streamingLevel->LoadedLevel;
-				if (levelStreamingData.level.reference = loadedLevel)
-				{
-					levelStreamingData.level.className = loadedLevel->Class->GetFullName();
-					levelStreamingData.level.objectName = loadedLevel->GetFullName();
-
-					levelStreamingData.level.isVisible = loadedLevel->bIsVisible;
-
-					SDK::AWorldSettings* worldSettings = loadedLevel->WorldSettings;
-					if (levelStreamingData.level.worldSettings.reference = worldSettings)
-					{
-						levelStreamingData.level.worldSettings.className = worldSettings->Class->GetFullName();
-						levelStreamingData.level.worldSettings.objectName = worldSettings->GetFullName();
-
-						levelStreamingData.level.worldSettings.highPriorityLoading = worldSettings->bHighPriorityLoading;
-						levelStreamingData.level.worldSettings.localHighPriorityLoading = worldSettings->bHighPriorityLoadingLocal;
-
-						levelStreamingData.level.worldSettings.unitsToMeters = worldSettings->WorldToMeters;
-					}
-				}
-
-				Features::Debug::world.streamingLevels.push_back(levelStreamingData);
 			}
 		}
 
@@ -2062,136 +2004,6 @@ void Features::Camera::StopFade()
 }
 
 
-
-
-void Features::DirectionalMovement::Worker()
-{
-	while (Features::DirectionalMovement::enabled)
-	{
-		__try
-		{
-#ifdef FREE_CAMERA
-			if (Features::FreeCamera::IsEnabled())
-				continue;
-#endif
-
-			/* See if we have a Player Controller alongside the Camera Manager. */
-			SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-			if (playerController == nullptr || playerController->PlayerCameraManager == nullptr)
-				continue;
-
-			/* See if we have a Character under control and verify that Character is cheat flying. */
-			SDK::ACharacter* character = playerController->Character;
-			if (character == nullptr || character->CharacterMovement == nullptr || character->CharacterMovement->bCheatFlying != true)
-				continue;
-
-			/* Get Character velocity and see if we have any horizontal movement. */
-			SDK::FVector characterVelocity = character->CharacterMovement->Velocity;
-			if (Features::DirectionalMovement::omniMovement == false)  // For Omni-Movement Up & Down Keybindings we need to get past that check.
-			{
-				if (characterVelocity.X == 0.0 && characterVelocity.Y == 0.0)
-					continue;
-			}
-			
-			/* Normalize Character velocity (-1.0 to 1.0) and get Camera forward vector. */
-			SDK::FVector characterVelocityNormalized = Math::Vector_Normal(characterVelocity);
-			SDK::FVector cameraForwardVector = playerController->PlayerCameraManager->GetActorForwardVector();
-
-			bool movementExpected = false;
-			SDK::FVector movementDirection = { 0.0f, 0.0f, 0.0f };
-
-			/*
-				Compute the dot product of the normalized character velocity and the camera's forward vector.
-				Result interpretation:
-				  +1.0 -> character moves exactly forward,
-				  -1.0 -> character moves exactly backward,
-				   0.0 -> movement is perpendicular to the camera.
-			*/
-			double dotForward = Math::Vector_Dot(characterVelocityNormalized, cameraForwardVector);
-			if (dotForward > 0.5f) // Check if Ñharacter is attempting to move forward relative to the camera.
-			{
-				movementExpected = true;
-				movementDirection = cameraForwardVector;
-			}
-
-			/* Handle multi-directional movement (Backward, Left, Right) if Omni-Movement is enabled. */
-			if (Features::DirectionalMovement::omniMovement)
-			{
-				if (movementExpected == false && dotForward < -0.5f) // Check for backward movement (dot product is negative) if not already moving forward.
-				{
-					movementExpected = true;
-					movementDirection = cameraForwardVector * -1.0f;
-				}
-
-				/* Retrieve the Camera right vector to calculate strafing. */
-				SDK::FVector cameraRightVector = playerController->PlayerCameraManager->GetActorRightVector();
-				double dotRight = Math::Vector_Dot(characterVelocityNormalized, cameraRightVector);
-
-				if (dotRight > 0.5f) // Check if Character is strafing right.
-				{
-					movementExpected = true;
-					movementDirection = Math::Vector_Add(movementDirection, cameraRightVector);
-				}
-				else if (dotRight < -0.5f) // Check if Character is strafing left
-				{
-					movementExpected = true;
-					movementDirection = Math::Vector_Add(movementDirection, cameraRightVector * -1.0f);
-				}
-
-				if (Features::DirectionalMovement::isUpMovementExpected || Features::DirectionalMovement::isDownMovementExpected)
-				{
-					SDK::FVector characterUpVector = character->GetActorUpVector();
-					if (Features::DirectionalMovement::isUpMovementExpected)
-					{
-						movementExpected = true;
-						movementDirection = Math::Vector_Add(movementDirection, characterUpVector);
-					}
-					else if (Features::DirectionalMovement::isDownMovementExpected)
-					{
-						movementExpected = true;
-						movementDirection = Math::Vector_Add(movementDirection, characterUpVector * -1.0f);
-					}
-				}
-			}
-
-			if (movementExpected)
-			{
-				/* Normalize the final accumulated direction vector to ensure consistent speed (account for forward/backward and strafing movement double speed). */
-				SDK::FVector finalDirection = Math::Vector_Normal(movementDirection);
-
-				/* Calculate the target location based on the current location, direction, and step size. */
-				SDK::FVector currentLocation = Unreal::Actor::GetLocation(character);
-				SDK::FVector finalLocation = Math::Vector_Add(currentLocation, finalDirection * Features::DirectionalMovement::step);
-
-				Unreal::Actor::SweepTo(character, finalLocation);
-			}
-		}
-		__except (EXCEPTION()) {}
-
-		/* Sleep for a defined delay to control the update rate (tick) of the movement logic. */
-		Sleep(Math::Seconds_ToMilliseconds(Features::DirectionalMovement::delay));
-	}
-}
-
-
-void Features::DirectionalMovement::Enable()
-{
-	if (thread == nullptr)
-	{
-		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)Features::DirectionalMovement::Worker, 0, 0, 0);
-	}
-}
-
-void Features::DirectionalMovement::Disable()
-{
-	if (thread)
-	{
-		WaitForSingleObject(thread, INFINITE);
-		CloseHandle(thread);
-
-		thread = nullptr;
-	}
-}
 
 
 
@@ -2635,6 +2447,85 @@ void Features::CollisionVisualizer::Draw_ThreadSafe()
 
 
 
+Unreal::LevelStreaming::DataStructure Features::LevelStreaming::GetLevelStreamingData(SDK::ULevelStreaming* levelStreamingReference)
+{
+	Unreal::LevelStreaming::DataStructure levelStreamingData = {};
+
+	if (levelStreamingReference == nullptr)
+		return levelStreamingData;
+
+#ifdef UE5
+	std::string levelPath = levelStreamingReference->WorldAsset.ObjectID.AssetPath.AssetName.GetRawString();
+#else
+	std::string levelPath = levelStreamingReference->WorldAsset.ObjectID.AssetPathName.GetRawString();
+#endif
+
+	if (levelPath.empty())
+		return levelStreamingData;
+
+	levelStreamingData.reference = levelStreamingReference;
+	levelStreamingData.className = levelStreamingReference->Class->GetFullName();
+	levelStreamingData.objectName = levelStreamingReference->GetFullName();
+
+	levelStreamingData.levelPath = levelPath;
+	levelStreamingData.levelColor = levelStreamingReference->LevelColor;
+
+	levelStreamingData.shouldBeLoaded = levelStreamingReference->ShouldBeLoaded();
+	levelStreamingData.shouldBeVisible = levelStreamingReference->IsLevelVisible();
+
+	SDK::ULevel* loadedLevel = levelStreamingReference->LoadedLevel;
+	if (levelStreamingData.level.reference = loadedLevel)
+	{
+		levelStreamingData.level.className = loadedLevel->Class->GetFullName();
+		levelStreamingData.level.objectName = loadedLevel->GetFullName();
+
+		levelStreamingData.level.isVisible = loadedLevel->bIsVisible;
+
+		SDK::AWorldSettings* worldSettings = loadedLevel->WorldSettings;
+		if (levelStreamingData.level.worldSettings.reference = worldSettings)
+		{
+			levelStreamingData.level.worldSettings.className = worldSettings->Class->GetFullName();
+			levelStreamingData.level.worldSettings.objectName = worldSettings->GetFullName();
+
+			levelStreamingData.level.worldSettings.highPriorityLoading = worldSettings->bHighPriorityLoading;
+			levelStreamingData.level.worldSettings.localHighPriorityLoading = worldSettings->bHighPriorityLoadingLocal;
+
+			levelStreamingData.level.worldSettings.unitsToMeters = worldSettings->WorldToMeters;
+		}
+	}
+
+	return levelStreamingData;
+}
+
+void Features::LevelStreaming::Update()
+{
+	levels.clear();
+
+	std::vector<SDK::ULevelStreaming*> levelStreamings = Unreal::LevelStreaming::GetAll();
+	for (SDK::ULevelStreaming* lvlStreaming : levelStreamings)
+	{
+		Features::LevelStreaming::levels.push_back(GetLevelStreamingData(lvlStreaming));
+	}
+}
+
+void Features::LevelStreaming::Update(const Unreal::LevelStreaming::DataStructure& levelStreaming)
+{
+	if (levelStreaming.reference == nullptr)
+		return;
+
+	for (Unreal::LevelStreaming::DataStructure& currentLevelStreaming : Features::LevelStreaming::levels) // <-- Reference!
+	{
+		if (currentLevelStreaming.reference == levelStreaming.reference)
+		{
+			currentLevelStreaming = GetLevelStreamingData(levelStreaming.reference);
+			return;
+		}
+	}
+}
+
+
+
+
 #ifdef FREE_CAMERA
 bool Features::FreeCamera::IsEnabled()
 {
@@ -2836,150 +2727,41 @@ bool Features::FreeCamera::TeleportPlayerToCamera()
 
 
 
-
-
-// ==============================
-// |          #Inputs			|
-// ==============================
-void Inputs::Config::ReadKeyBindingFromConfig(ConfigInstance* keybindingsConfig, const std::string& entryName, ImGui::KeyBinding* keyBinding)
+void Features::ConsoleCommands::Update()
 {
-	if (keybindingsConfig == nullptr || keyBinding == nullptr)
-		return;
+	commands.clear();
 
-	if (keybindingsConfig->HasKey(entryName) == false)
-		return;
-
-	keyBinding->key = static_cast<ImGuiKey>(keybindingsConfig->GetKey<int>(entryName).value_or((int)keyBinding->key));
-}
-
-void Inputs::Config::Load()
-{
-	ConfigInstance keybindingsConfig(PATH_CONFIG_KEYBINDINGS);
-	if (keybindingsConfig.Load() == false)
+	std::vector<SDK::UObject*> objects = Unreal::Object::GetAll();
+	for (SDK::UObject* objectReference : objects)
 	{
-		Inputs::Config::Save();
-		keybindingsConfig.Load();
+		if (objectReference == nullptr)
+			continue;
+
+		std::vector<Unreal::Function::DataStructure> functions = Unreal::Function::GetFunctions(objectReference, SDK::EFunctionFlags::Exec);
+		commands.insert(commands.end(), functions.begin(), functions.end());
 	}
 
-	ReadKeyBindingFromConfig(&keybindingsConfig, "general_MenuOpenClose", &Inputs::Keybindings::general_MenuOpenClose);
-
-#ifdef ACTOR_TRACE
-	ReadKeyBindingFromConfig(&keybindingsConfig, "debug_ActorTrace", &Inputs::Keybindings::debug_ActorTrace);
-#endif
-	ReadKeyBindingFromConfig(&keybindingsConfig, "debug_ActorsListUpdate", &Inputs::Keybindings::debug_ActorsListUpdate);
-#ifdef ACTORS_TRACKING
-	ReadKeyBindingFromConfig(&keybindingsConfig, "debug_ActorsListTracking", &Inputs::Keybindings::debug_ActorsListTracking);
-#endif
-#ifdef COLLISION_VISUALIZER
-	ReadKeyBindingFromConfig(&keybindingsConfig, "debug_ActorsListCollisionDraw", &Inputs::Keybindings::debug_ActorsListCollisionDraw);
-#endif
-
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Ghost", &Inputs::Keybindings::characterMovement_Ghost);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Fly", &Inputs::Keybindings::characterMovement_Fly);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Walk", &Inputs::Keybindings::characterMovement_Walk);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Jump", &Inputs::Keybindings::characterMovement_Jump);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Launch", &Inputs::Keybindings::characterMovement_Launch);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Dash", &Inputs::Keybindings::characterMovement_Dash);
-
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterOmniMovement_Up", &Inputs::Keybindings::characterOmniMovement_Up);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterOmniMovement_Down", &Inputs::Keybindings::characterOmniMovement_Down);
-	
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterCamera_StartFade", &Inputs::Keybindings::characterCamera_StartFade);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "characterCamera_StopFade", &Inputs::Keybindings::characterCamera_StopFade);
-
-#ifdef FREE_CAMERA
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_TeleportCameraToPlayer", &Inputs::Keybindings::freeCamera_TeleportCameraToPlayer);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_Toggle", &Inputs::Keybindings::freeCamera_Toggle);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_TeleportPlayerToCamera", &Inputs::Keybindings::freeCamera_TeleportPlayerToCamera);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveForward", &Inputs::Keybindings::freeCamera_MoveForward);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveBackward", &Inputs::Keybindings::freeCamera_MoveBackward);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveLeft", &Inputs::Keybindings::freeCamera_MoveLeft);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveRight", &Inputs::Keybindings::freeCamera_MoveRight);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveUp", &Inputs::Keybindings::freeCamera_MoveUp);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveDown", &Inputs::Keybindings::freeCamera_MoveDown);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_RotateUp", &Inputs::Keybindings::freeCamera_RotateUp);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_RotateDown", &Inputs::Keybindings::freeCamera_RotateDown);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_RotateLeft", &Inputs::Keybindings::freeCamera_RotateLeft);
-	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_RotateRight", &Inputs::Keybindings::freeCamera_RotateRight);
-#endif
-}
-
-void Inputs::Config::Save()
-{
-	ConfigInstance keybindingsConfig(PATH_CONFIG_KEYBINDINGS);
-	
-	keybindingsConfig.SetKey("general_MenuOpenClose", static_cast<int>(Inputs::Keybindings::general_MenuOpenClose.key));
-
-#ifdef ACTOR_TRACE
-	keybindingsConfig.SetKey("debug_ActorTrace", static_cast<int>(Keybindings::debug_ActorTrace.key));
-#endif
-	keybindingsConfig.SetKey("debug_ActorsListUpdate", static_cast<int>(Inputs::Keybindings::debug_ActorsListUpdate.key));
-#ifdef ACTORS_TRACKING
-	keybindingsConfig.SetKey("debug_ActorsListTracking", static_cast<int>(Keybindings::debug_ActorsListTracking.key));
-#endif
-#ifdef COLLISION_VISUALIZER
-	keybindingsConfig.SetKey("debug_ActorsListCollisionDraw", static_cast<int>(Keybindings::debug_ActorsListCollisionDraw.key));
-#endif
-
-	keybindingsConfig.SetKey("characterMovement_Ghost", static_cast<int>(Inputs::Keybindings::characterMovement_Ghost.key));
-	keybindingsConfig.SetKey("characterMovement_Fly", static_cast<int>(Inputs::Keybindings::characterMovement_Fly.key));
-	keybindingsConfig.SetKey("characterMovement_Walk", static_cast<int>(Inputs::Keybindings::characterMovement_Walk.key));
-	keybindingsConfig.SetKey("characterMovement_Jump", static_cast<int>(Inputs::Keybindings::characterMovement_Jump.key));
-	keybindingsConfig.SetKey("characterMovement_Launch", static_cast<int>(Inputs::Keybindings::characterMovement_Launch.key));
-	keybindingsConfig.SetKey("characterMovement_Dash", static_cast<int>(Inputs::Keybindings::characterMovement_Dash.key));
-
-	keybindingsConfig.SetKey("characterOmniMovement_Up", static_cast<int>(Inputs::Keybindings::characterOmniMovement_Up.key));
-	keybindingsConfig.SetKey("characterOmniMovement_Down", static_cast<int>(Inputs::Keybindings::characterOmniMovement_Down.key));
-
-	keybindingsConfig.SetKey("characterCamera_StartFade", static_cast<int>(Inputs::Keybindings::characterCamera_StartFade.key));
-	keybindingsConfig.SetKey("characterCamera_StopFade", static_cast<int>(Inputs::Keybindings::characterCamera_StopFade.key));
-
-#ifdef FREE_CAMERA
-	keybindingsConfig.SetKey("freeCamera_TeleportCameraToPlayer", static_cast<int>(Keybindings::freeCamera_TeleportCameraToPlayer.key));
-	keybindingsConfig.SetKey("freeCamera_Toggle", static_cast<int>(Keybindings::freeCamera_Toggle.key));
-	keybindingsConfig.SetKey("freeCamera_TeleportPlayerToCamera", static_cast<int>(Keybindings::freeCamera_TeleportPlayerToCamera.key));
-	keybindingsConfig.SetKey("freeCamera_MoveForward", static_cast<int>(Keybindings::freeCamera_MoveForward.key));
-	keybindingsConfig.SetKey("freeCamera_MoveBackward", static_cast<int>(Keybindings::freeCamera_MoveBackward.key));
-	keybindingsConfig.SetKey("freeCamera_MoveLeft", static_cast<int>(Keybindings::freeCamera_MoveLeft.key));
-	keybindingsConfig.SetKey("freeCamera_MoveRight", static_cast<int>(Keybindings::freeCamera_MoveRight.key));
-	keybindingsConfig.SetKey("freeCamera_MoveUp", static_cast<int>(Keybindings::freeCamera_MoveUp.key));
-	keybindingsConfig.SetKey("freeCamera_MoveDown", static_cast<int>(Keybindings::freeCamera_MoveDown.key));
-	keybindingsConfig.SetKey("freeCamera_RotateUp", static_cast<int>(Keybindings::freeCamera_RotateUp.key));
-	keybindingsConfig.SetKey("freeCamera_RotateDown", static_cast<int>(Keybindings::freeCamera_RotateDown.key));
-	keybindingsConfig.SetKey("freeCamera_RotateLeft", static_cast<int>(Keybindings::freeCamera_RotateLeft.key));
-	keybindingsConfig.SetKey("freeCamera_RotateRight", static_cast<int>(Keybindings::freeCamera_RotateRight.key));
-#endif
-
-	keybindingsConfig.Save();
-}
-
-
-
-
-void Inputs::Keybindings::EnableProcessing()
-{
-	if (thread == nullptr)
+	std::sort(commands.begin(), commands.end(), [](const Unreal::Function::DataStructure& a, const Unreal::Function::DataStructure& b)
 	{
-		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)Inputs::Keybindings::Worker, 0, 0, 0);
-		isProcessing = thread;
-	}
-}
+		return a.name < b.name;
+	});
 
-void Inputs::Keybindings::DisableProcessing()
-{
-	if (thread)
+	auto last = std::unique(commands.begin(), commands.end(), [](const Unreal::Function::DataStructure& a, const Unreal::Function::DataStructure& b)
 	{
-		WaitForSingleObject(thread, INFINITE);
-		CloseHandle(thread);
+		return a.name == b.name;
+	});
 
-		thread = nullptr;
-		isProcessing = false;
-	}
+	commands.erase(last, commands.end());
 }
 
-void Inputs::Keybindings::Worker()
+
+
+
+
+
+void BackgroundTasks::KeybindingsHandler::Worker()
 {
-	while (isProcessing)
+	while (isEnabled)
 	{
 		/* Following inputs are only processed while title window is in focus. */
 		if (GUI::GetIsTitleInFocus())
@@ -3086,6 +2868,14 @@ void Inputs::Keybindings::Worker()
 				{
 					Features::DirectionalMovement::isUpMovementExpected = ImGui::IsKeyBindingDown(&Inputs::Keybindings::characterOmniMovement_Up);
 					Features::DirectionalMovement::isDownMovementExpected = ImGui::IsKeyBindingDown(&Inputs::Keybindings::characterOmniMovement_Down);
+
+					if (Features::DirectionalMovement::independentOmniMovement)
+					{
+						Features::DirectionalMovement::isForwardMovementExpected = ImGui::IsKeyBindingDown(&Inputs::Keybindings::characterOmniMovement_Forward);
+						Features::DirectionalMovement::isBackwardMovementExpected = ImGui::IsKeyBindingDown(&Inputs::Keybindings::characterOmniMovement_Backward);
+						Features::DirectionalMovement::isLeftMovementExpected = ImGui::IsKeyBindingDown(&Inputs::Keybindings::characterOmniMovement_Left);
+						Features::DirectionalMovement::isRightMovementExpected = ImGui::IsKeyBindingDown(&Inputs::Keybindings::characterOmniMovement_Right);
+					}
 				}
 
 
@@ -3152,7 +2942,7 @@ void Inputs::Keybindings::Worker()
 									float mouseDeltaX = static_cast<float>(currentMousePos.x - screenCenter.x);
 									float mouseDeltaY = static_cast<float>(currentMousePos.y - screenCenter.y);
 
-									/* 
+									/*
 										Some users have reported erratic mouse behavior
 										after interacting with the menu until they press LMB.
 
@@ -3189,6 +2979,16 @@ void Inputs::Keybindings::Worker()
 						wasMouseControlActive = false;
 					}
 
+					if (ImGui::IsKeyBindingDown(&Inputs::Keybindings::freeCamera_MoveUp))
+					{
+						Features::FreeCamera::Move(0.0f, 0.0f, Features::FreeCamera::cameraMovementStep);
+					}
+
+					if (ImGui::IsKeyBindingDown(&Inputs::Keybindings::freeCamera_MoveDown))
+					{
+						Features::FreeCamera::Move(0.0f, 0.0f, Features::FreeCamera::cameraMovementStep * -1.0f);
+					}
+
 					if (ImGui::IsKeyBindingDown(&Inputs::Keybindings::freeCamera_MoveForward))
 					{
 						Features::FreeCamera::Move(Features::FreeCamera::cameraMovementStep, 0.0f, 0.0f);
@@ -3207,16 +3007,6 @@ void Inputs::Keybindings::Worker()
 					if (ImGui::IsKeyBindingDown(&Inputs::Keybindings::freeCamera_MoveRight))
 					{
 						Features::FreeCamera::Move(0.0f, Features::FreeCamera::cameraMovementStep, 0.0f);
-					}
-
-					if (ImGui::IsKeyBindingDown(&Inputs::Keybindings::freeCamera_MoveUp))
-					{
-						Features::FreeCamera::Move(0.0f, 0.0f, Features::FreeCamera::cameraMovementStep);
-					}
-
-					if (ImGui::IsKeyBindingDown(&Inputs::Keybindings::freeCamera_MoveDown))
-					{
-						Features::FreeCamera::Move(0.0f, 0.0f, Features::FreeCamera::cameraMovementStep * -1.0f);
 					}
 
 					if (ImGui::IsKeyBindingDown(&Inputs::Keybindings::freeCamera_RotateUp))
@@ -3243,8 +3033,441 @@ void Inputs::Keybindings::Worker()
 			}
 		}
 
-		Sleep(1);
+		Sleep(Math::Seconds_ToMilliseconds(delay));
 	}
+}
+
+
+void BackgroundTasks::KeybindingsHandler::Enable()
+{
+	if (thread == nullptr)
+	{
+		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)BackgroundTasks::KeybindingsHandler::Worker, 0, 0, 0);
+		isEnabled = thread;
+	}
+}
+
+void BackgroundTasks::KeybindingsHandler::Disable()
+{
+	if (thread)
+	{
+		isEnabled = false;
+
+		WaitForSingleObject(thread, INFINITE);
+		CloseHandle(thread);
+
+		thread = nullptr;
+	}
+}
+
+
+void BackgroundTasks::DirectionalMovementHandler::Worker()
+{
+	while (isEnabled)
+	{
+		bool allowMovement = Features::DirectionalMovement::enabled;
+
+#ifdef FREE_CAMERA
+		allowMovement = allowMovement && Features::FreeCamera::IsEnabled() == false;
+#endif
+
+		if (allowMovement)
+		{
+			__try
+			{
+				/* See if we have a Player Controller alongside the Camera Manager. */
+				SDK::APlayerController* playerController = Unreal::PlayerController::Get();
+				if (playerController && playerController->PlayerCameraManager)
+				{
+					/* See if we have a Character under control and verify that Character is cheat flying. */
+					SDK::ACharacter* character = playerController->Character;
+					if (character && character->CharacterMovement && character->CharacterMovement->bCheatFlying)
+					{
+						bool movementExpected = false;
+						SDK::FVector movementDirection = { 0.0f, 0.0f, 0.0f };
+
+						if (Features::DirectionalMovement::omniMovement && Features::DirectionalMovement::independentOmniMovement)
+						{
+							SDK::FVector cameraForwardVector = playerController->PlayerCameraManager->GetActorForwardVector();
+							SDK::FVector cameraRightVector = playerController->PlayerCameraManager->GetActorRightVector();
+							SDK::FVector characterUpVector = character->GetActorUpVector();
+
+							if (Features::DirectionalMovement::isUpMovementExpected)
+							{
+								movementExpected = true;
+								movementDirection = Math::Vector_Add(movementDirection, characterUpVector);
+							}
+
+							if (Features::DirectionalMovement::isDownMovementExpected)
+							{
+								movementExpected = true;
+								movementDirection = Math::Vector_Add(movementDirection, characterUpVector * -1.0f);
+							}
+
+							if (Features::DirectionalMovement::isForwardMovementExpected)
+							{
+								movementExpected = true;
+								movementDirection = Math::Vector_Add(movementDirection, cameraForwardVector);
+							}
+
+							if (Features::DirectionalMovement::isBackwardMovementExpected)
+							{
+								movementExpected = true;
+								movementDirection = Math::Vector_Add(movementDirection, cameraForwardVector * -1.0f);
+							}
+
+							if (Features::DirectionalMovement::isLeftMovementExpected)
+							{
+								movementExpected = true;
+								movementDirection = Math::Vector_Add(movementDirection, cameraRightVector * -1.0f);
+							}
+
+							if (Features::DirectionalMovement::isRightMovementExpected)
+							{
+								movementExpected = true;
+								movementDirection = Math::Vector_Add(movementDirection, cameraRightVector);
+							}
+						}
+						else
+						{
+							/* Get Character velocity and see if we have any horizontal movement. */
+							SDK::FVector characterVelocity = character->CharacterMovement->Velocity;
+							bool hasHorizontalVelocity = (characterVelocity.X != 0.0 || characterVelocity.Y != 0.0);
+
+							if (hasHorizontalVelocity || Features::DirectionalMovement::omniMovement)
+							{
+								/* Normalize Character velocity (-1.0 to 1.0) and get Camera forward vector. */
+								SDK::FVector characterVelocityNormalized = Math::Vector_Normal(characterVelocity);
+								SDK::FVector cameraForwardVector = playerController->PlayerCameraManager->GetActorForwardVector();
+
+								/*
+									Compute the dot product of the normalized character velocity and the camera's forward vector.
+									Result interpretation:
+									  +1.0 -> character moves exactly forward,
+									  -1.0 -> character moves exactly backward,
+									   0.0 -> movement is perpendicular to the camera.
+								*/
+								double dotForward = Math::Vector_Dot(characterVelocityNormalized, cameraForwardVector);
+								if (dotForward > 0.5f) // Check if Ñharacter is attempting to move forward relative to the camera.
+								{
+									movementExpected = true;
+									movementDirection = cameraForwardVector;
+								}
+
+								/* Handle multi-directional movement (Backward, Left, Right) if Omni-Movement is enabled. */
+								if (Features::DirectionalMovement::omniMovement)
+								{
+									if (movementExpected == false && dotForward < -0.5f) // Check for backward movement (dot product is negative) if not already moving forward.
+									{
+										movementExpected = true;
+										movementDirection = cameraForwardVector * -1.0f;
+									}
+
+									/* Retrieve the Camera right vector to calculate strafing. */
+									SDK::FVector cameraRightVector = playerController->PlayerCameraManager->GetActorRightVector();
+									double dotRight = Math::Vector_Dot(characterVelocityNormalized, cameraRightVector);
+
+									if (dotRight > 0.5f) // Check if Character is strafing right.
+									{
+										movementExpected = true;
+										movementDirection = Math::Vector_Add(movementDirection, cameraRightVector);
+									}
+									else if (dotRight < -0.5f) // Check if Character is strafing left
+									{
+										movementExpected = true;
+										movementDirection = Math::Vector_Add(movementDirection, cameraRightVector * -1.0f);
+									}
+
+									if (Features::DirectionalMovement::isUpMovementExpected || Features::DirectionalMovement::isDownMovementExpected)
+									{
+										SDK::FVector characterUpVector = character->GetActorUpVector();
+										if (Features::DirectionalMovement::isUpMovementExpected)
+										{
+											movementExpected = true;
+											movementDirection = Math::Vector_Add(movementDirection, characterUpVector);
+										}
+										else if (Features::DirectionalMovement::isDownMovementExpected)
+										{
+											movementExpected = true;
+											movementDirection = Math::Vector_Add(movementDirection, characterUpVector * -1.0f);
+										}
+									}
+								}
+							}
+						}
+
+						if (movementExpected)
+						{
+							/* Normalize the final accumulated direction vector to ensure consistent speed (account for forward/backward and strafing movement double speed). */
+							SDK::FVector finalDirection = Math::Vector_Normal(movementDirection);
+
+							/* Calculate the target location based on the current location, direction, and step size. */
+							SDK::FVector currentLocation = Unreal::Actor::GetLocation(character);
+							SDK::FVector finalLocation = Math::Vector_Add(currentLocation, finalDirection * Features::DirectionalMovement::step);
+
+							Unreal::Actor::SweepTo(character, finalLocation);
+						}
+					}
+				}
+			}
+			__except (EXCEPTION()) {}
+		}
+
+		/* Sleep for a defined delay to control the update rate (tick) of the movement logic. */
+		Sleep(Math::Seconds_ToMilliseconds(delay));
+	}
+}
+
+
+void BackgroundTasks::DirectionalMovementHandler::Enable()
+{
+	if (thread == nullptr)
+	{
+		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)BackgroundTasks::DirectionalMovementHandler::Worker, 0, 0, 0);
+		isEnabled = thread;
+	}
+}
+
+void BackgroundTasks::DirectionalMovementHandler::Disable()
+{
+	if (thread)
+	{
+		isEnabled = false;
+
+		WaitForSingleObject(thread, INFINITE);
+		CloseHandle(thread);
+
+		thread = nullptr;
+	}
+}
+
+
+#ifdef TASK_CONSTRUCT_CONSOLE
+void BackgroundTasks::ConstructConsole::Worker()
+{
+	while (isEnabled)
+	{
+		if (consoleConstructed == false)
+		{
+			if (Unreal::Console::Get())
+				consoleConstructed = true;
+			else
+				consoleConstructed = Unreal::Console::Construct();
+		}
+
+		if (consoleConstructed && consoleBindingsAssigned == false)
+			consoleBindingsAssigned = Unreal::InputSettings::AssignConsoleBindings();
+
+		Sleep(Math::Seconds_ToMilliseconds(delay));
+	}
+}
+
+void BackgroundTasks::ConstructConsole::Enable()
+{
+	if (thread == nullptr)
+	{
+		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)BackgroundTasks::ConstructConsole::Worker, 0, 0, 0);
+		isEnabled = thread;
+	}
+}
+
+void BackgroundTasks::ConstructConsole::Disable()
+{
+	if (thread)
+	{
+		isEnabled = false;
+
+		WaitForSingleObject(thread, INFINITE);
+		CloseHandle(thread);
+
+		thread = nullptr;
+	}
+}
+#endif
+
+
+#ifdef TASK_CONSTRUCT_CHEATMANAGER
+void BackgroundTasks::ConstructCheatManager::Worker()
+{
+	while (thread)
+	{
+		if (cheatManagerConstructed == false)
+		{
+			if (Unreal::CheatManager::Get())
+				cheatManagerConstructed = true;
+			else
+				cheatManagerConstructed = Unreal::CheatManager::Construct();
+		}
+
+		Sleep(Math::Seconds_ToMilliseconds(delay));
+	}
+}
+
+void BackgroundTasks::ConstructCheatManager::Enable()
+{
+	if (thread == nullptr)
+	{
+		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)BackgroundTasks::ConstructCheatManager::Worker, 0, 0, 0);
+		isEnabled = thread;
+	}
+}
+
+void BackgroundTasks::ConstructCheatManager::Disable()
+{
+	if (thread)
+	{
+		isEnabled = false;
+
+		WaitForSingleObject(thread, INFINITE);
+		CloseHandle(thread);
+
+		thread = nullptr;
+	}
+}
+#endif
+
+
+void BackgroundTasks::Init()
+{
+	BackgroundTasks::KeybindingsHandler::Enable();
+
+	BackgroundTasks::DirectionalMovementHandler::Enable();
+
+#ifdef TASK_CONSTRUCT_CONSOLE
+	BackgroundTasks::ConstructConsole::Enable();
+#endif
+
+#ifdef TASK_CONSTRUCT_CHEATMANAGER
+	BackgroundTasks::ConstructCheatManager::Enable();
+#endif
+}
+
+
+
+
+
+
+// ==============================
+// |          #Inputs			|
+// ==============================
+void Inputs::Config::ReadKeyBindingFromConfig(ConfigInstance* keybindingsConfig, const std::string& entryName, ImGui::KeyBinding* keyBinding)
+{
+	if (keybindingsConfig == nullptr || keyBinding == nullptr)
+		return;
+
+	if (keybindingsConfig->HasKey(entryName) == false)
+		return;
+
+	keyBinding->key = static_cast<ImGuiKey>(keybindingsConfig->GetKey<int>(entryName).value_or((int)keyBinding->key));
+}
+
+void Inputs::Config::Load()
+{
+	ConfigInstance keybindingsConfig(PATH_CONFIG_KEYBINDINGS);
+	if (keybindingsConfig.Load() == false)
+	{
+		Inputs::Config::Save();
+		keybindingsConfig.Load();
+	}
+
+	ReadKeyBindingFromConfig(&keybindingsConfig, "general_MenuOpenClose", &Inputs::Keybindings::general_MenuOpenClose);
+
+#ifdef ACTOR_TRACE
+	ReadKeyBindingFromConfig(&keybindingsConfig, "debug_ActorTrace", &Inputs::Keybindings::debug_ActorTrace);
+#endif
+	ReadKeyBindingFromConfig(&keybindingsConfig, "debug_ActorsListUpdate", &Inputs::Keybindings::debug_ActorsListUpdate);
+#ifdef ACTORS_TRACKING
+	ReadKeyBindingFromConfig(&keybindingsConfig, "debug_ActorsListTracking", &Inputs::Keybindings::debug_ActorsListTracking);
+#endif
+#ifdef COLLISION_VISUALIZER
+	ReadKeyBindingFromConfig(&keybindingsConfig, "debug_ActorsListCollisionDraw", &Inputs::Keybindings::debug_ActorsListCollisionDraw);
+#endif
+
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Ghost", &Inputs::Keybindings::characterMovement_Ghost);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Fly", &Inputs::Keybindings::characterMovement_Fly);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Walk", &Inputs::Keybindings::characterMovement_Walk);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Jump", &Inputs::Keybindings::characterMovement_Jump);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Launch", &Inputs::Keybindings::characterMovement_Launch);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterMovement_Dash", &Inputs::Keybindings::characterMovement_Dash);
+
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterOmniMovement_Up", &Inputs::Keybindings::characterOmniMovement_Up);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterOmniMovement_Down", &Inputs::Keybindings::characterOmniMovement_Down);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterOmniMovement_Forward", &Inputs::Keybindings::characterOmniMovement_Forward);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterOmniMovement_Backward", &Inputs::Keybindings::characterOmniMovement_Backward);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterOmniMovement_Left", &Inputs::Keybindings::characterOmniMovement_Left);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterOmniMovement_Right", &Inputs::Keybindings::characterOmniMovement_Right);
+	
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterCamera_StartFade", &Inputs::Keybindings::characterCamera_StartFade);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "characterCamera_StopFade", &Inputs::Keybindings::characterCamera_StopFade);
+
+#ifdef FREE_CAMERA
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_TeleportCameraToPlayer", &Inputs::Keybindings::freeCamera_TeleportCameraToPlayer);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_Toggle", &Inputs::Keybindings::freeCamera_Toggle);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_TeleportPlayerToCamera", &Inputs::Keybindings::freeCamera_TeleportPlayerToCamera);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveUp", &Inputs::Keybindings::freeCamera_MoveUp);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveDown", &Inputs::Keybindings::freeCamera_MoveDown);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveForward", &Inputs::Keybindings::freeCamera_MoveForward);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveBackward", &Inputs::Keybindings::freeCamera_MoveBackward);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveLeft", &Inputs::Keybindings::freeCamera_MoveLeft);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_MoveRight", &Inputs::Keybindings::freeCamera_MoveRight);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_RotateUp", &Inputs::Keybindings::freeCamera_RotateUp);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_RotateDown", &Inputs::Keybindings::freeCamera_RotateDown);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_RotateLeft", &Inputs::Keybindings::freeCamera_RotateLeft);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "freeCamera_RotateRight", &Inputs::Keybindings::freeCamera_RotateRight);
+#endif
+}
+
+void Inputs::Config::Save()
+{
+	ConfigInstance keybindingsConfig(PATH_CONFIG_KEYBINDINGS);
+	
+	keybindingsConfig.SetKey("general_MenuOpenClose", static_cast<int>(Inputs::Keybindings::general_MenuOpenClose.key));
+
+#ifdef ACTOR_TRACE
+	keybindingsConfig.SetKey("debug_ActorTrace", static_cast<int>(Keybindings::debug_ActorTrace.key));
+#endif
+	keybindingsConfig.SetKey("debug_ActorsListUpdate", static_cast<int>(Inputs::Keybindings::debug_ActorsListUpdate.key));
+#ifdef ACTORS_TRACKING
+	keybindingsConfig.SetKey("debug_ActorsListTracking", static_cast<int>(Keybindings::debug_ActorsListTracking.key));
+#endif
+#ifdef COLLISION_VISUALIZER
+	keybindingsConfig.SetKey("debug_ActorsListCollisionDraw", static_cast<int>(Keybindings::debug_ActorsListCollisionDraw.key));
+#endif
+
+	keybindingsConfig.SetKey("characterMovement_Ghost", static_cast<int>(Inputs::Keybindings::characterMovement_Ghost.key));
+	keybindingsConfig.SetKey("characterMovement_Fly", static_cast<int>(Inputs::Keybindings::characterMovement_Fly.key));
+	keybindingsConfig.SetKey("characterMovement_Walk", static_cast<int>(Inputs::Keybindings::characterMovement_Walk.key));
+	keybindingsConfig.SetKey("characterMovement_Jump", static_cast<int>(Inputs::Keybindings::characterMovement_Jump.key));
+	keybindingsConfig.SetKey("characterMovement_Launch", static_cast<int>(Inputs::Keybindings::characterMovement_Launch.key));
+	keybindingsConfig.SetKey("characterMovement_Dash", static_cast<int>(Inputs::Keybindings::characterMovement_Dash.key));
+
+	keybindingsConfig.SetKey("characterOmniMovement_Up", static_cast<int>(Inputs::Keybindings::characterOmniMovement_Up.key));
+	keybindingsConfig.SetKey("characterOmniMovement_Down", static_cast<int>(Inputs::Keybindings::characterOmniMovement_Down.key));
+	keybindingsConfig.SetKey("characterOmniMovement_Forward", static_cast<int>(Inputs::Keybindings::characterOmniMovement_Forward.key));
+	keybindingsConfig.SetKey("characterOmniMovement_Backward", static_cast<int>(Inputs::Keybindings::characterOmniMovement_Backward.key));
+	keybindingsConfig.SetKey("characterOmniMovement_Left", static_cast<int>(Inputs::Keybindings::characterOmniMovement_Left.key));
+	keybindingsConfig.SetKey("characterOmniMovement_Right", static_cast<int>(Inputs::Keybindings::characterOmniMovement_Right.key));
+
+	keybindingsConfig.SetKey("characterCamera_StartFade", static_cast<int>(Inputs::Keybindings::characterCamera_StartFade.key));
+	keybindingsConfig.SetKey("characterCamera_StopFade", static_cast<int>(Inputs::Keybindings::characterCamera_StopFade.key));
+
+#ifdef FREE_CAMERA
+	keybindingsConfig.SetKey("freeCamera_TeleportCameraToPlayer", static_cast<int>(Keybindings::freeCamera_TeleportCameraToPlayer.key));
+	keybindingsConfig.SetKey("freeCamera_Toggle", static_cast<int>(Keybindings::freeCamera_Toggle.key));
+	keybindingsConfig.SetKey("freeCamera_TeleportPlayerToCamera", static_cast<int>(Keybindings::freeCamera_TeleportPlayerToCamera.key));
+	keybindingsConfig.SetKey("freeCamera_MoveUp", static_cast<int>(Keybindings::freeCamera_MoveUp.key));
+	keybindingsConfig.SetKey("freeCamera_MoveDown", static_cast<int>(Keybindings::freeCamera_MoveDown.key));
+	keybindingsConfig.SetKey("freeCamera_MoveForward", static_cast<int>(Keybindings::freeCamera_MoveForward.key));
+	keybindingsConfig.SetKey("freeCamera_MoveBackward", static_cast<int>(Keybindings::freeCamera_MoveBackward.key));
+	keybindingsConfig.SetKey("freeCamera_MoveLeft", static_cast<int>(Keybindings::freeCamera_MoveLeft.key));
+	keybindingsConfig.SetKey("freeCamera_MoveRight", static_cast<int>(Keybindings::freeCamera_MoveRight.key));
+	keybindingsConfig.SetKey("freeCamera_RotateUp", static_cast<int>(Keybindings::freeCamera_RotateUp.key));
+	keybindingsConfig.SetKey("freeCamera_RotateDown", static_cast<int>(Keybindings::freeCamera_RotateDown.key));
+	keybindingsConfig.SetKey("freeCamera_RotateLeft", static_cast<int>(Keybindings::freeCamera_RotateLeft.key));
+	keybindingsConfig.SetKey("freeCamera_RotateRight", static_cast<int>(Keybindings::freeCamera_RotateRight.key));
+#endif
+
+	keybindingsConfig.Save();
 }
 
 
@@ -3764,31 +3987,34 @@ void Templates::Functions::Draw(SDK::UObject* objectReference)
 		ImGui::SameLine();
 		ImGui::Spacing();
 		ImGui::SameLine();
-		ImGui::InputText("Search Filter##Functions", Features::Functions::functionsFilterBuffer, Features::Functions::functionsFilterBufferSize);
+		ImGui::InputText("Search Filter##Functions", Features::Functions::filterBuffer, Features::Functions::filterBufferSize);
 		ImGui::SameLine();
 		ImGui::Spacing();
 		ImGui::SameLine();
-		ImGui::Checkbox("Case Sensitive##Functions", &Features::Functions::functionsFilterCaseSensitive);
+		ImGui::Checkbox("Case Sensitive##Functions", &Features::Functions::filterCaseSensitive);
 
 		ImGui::NewLine();
 
 		if (objectReference == Features::Functions::functionsOwner)
 		{
-			std::vector<Unreal::Function::DataStructure> filteredFunctions = Unreal::Function::FilterByName(Features::Functions::functions, Features::Functions::functionsFilterBuffer, Features::Functions::functionsFilterCaseSensitive);
+			std::vector<Unreal::Function::DataStructure> filteredFunctions = Unreal::Function::FilterByName(Features::Functions::functions, Features::Functions::filterBuffer, Features::Functions::filterCaseSensitive);
 			for (Unreal::Function::DataStructure function : filteredFunctions)
 			{
-				ImGui::PushID(function.memoryAddress.c_str());
+				std::string memoryAddress = function.MemoryAddressAsString();
+				ImGui::PushID(memoryAddress.c_str());
+
 				if (ImGui::TreeNode(function.name.c_str()))
 				{
-					ImGui::TextCopyable("Name: %s", function.name.c_str());
-					ImGui::TextCopyable("Address: %s", function.memoryAddress.c_str());
+					ImGui::TextCopyable("Flags: %s", function.FlagsAsString().c_str());
+					ImGui::TextCopyable("Address: %s", memoryAddress.c_str());
 					if (ImGui::Button("Call"))
 					{
-						bool wasSuccessful = Unreal::Function::CallFunction(objectReference, function.reference);
+						bool wasSuccessful = Unreal::Function::CallFunction_ThreadSafe(objectReference, function.reference);
 						GUI::PlayActionSound(wasSuccessful);
 					}
 					ImGui::TreePop();
 				}
+
 				ImGui::PopID();
 			}
 		}
@@ -3803,11 +4029,11 @@ void Templates::Console::Draw()
 	ImGui::Text("Console:");
 	ImGui::SameLine();
 	ImGui::PushItemWidth(320);
-	ImGui::InputText("##Console", Features::Console::consoleBuffer, Features::Console::consoleBufferSize);
+	ImGui::InputText("##Console", Features::BootlegConsole::buffer, Features::BootlegConsole::bufferSize);
 	ImGui::SameLine();
 	if (ImGui::Button("Execute"))
 	{
-		std::wstring command = Utilities::String::ToWString(Features::Console::consoleBuffer);
+		std::wstring command = Utilities::String::ToWString(Features::BootlegConsole::buffer);
 		if (command.size() > 0)
 		{
 			GUI::PlayActionSound(Unreal::Console::ExecuteConsoleCommand(command));
@@ -3824,18 +4050,6 @@ void Templates::Menus::Settings::Draw()
 	if (ImGui::BeginMenu("Settings"))
 	{
 		if (ImGui::Checkbox("Enable Sound", &Features::Menu::enableSound))
-		{
-			Features::Config::Save();
-		}
-		ImGui::NewLine();
-		if (ImGui::Checkbox("Construct Console Automatically", &Features::Menu::autoConstructConsole))
-		{
-			if (Features::Menu::autoConstructConsole)
-				Unreal::Console::Construct();
-
-			Features::Config::Save();
-		}
-		if (ImGui::Checkbox("Enable Console Output", &Features::Menu::enableConsoleOutput))
 		{
 			Features::Config::Save();
 		}
@@ -4040,6 +4254,43 @@ void Templates::Menus::Debug::Sub_Engine()
 						{
 							ImGui::TextCopyable("Console Class: %s", Features::Debug::engine.gameViewportClient.console.className.c_str());
 							ImGui::TextCopyable("Console Object: %s", Features::Debug::engine.gameViewportClient.console.objectName.c_str());
+
+							ImGui::NewLine();
+							ImGui::SetFontBig();
+							ImGui::Text("Console Commands");
+							ImGui::SetFontRegular();
+							ImGui::SameLine();
+							ImGui::QuestionMarkHint("Scans all instantiated UObjects for Exec (console) commands.");
+							if (ImGui::Button("Update##ConsoleCommands"))
+							{
+								Features::ConsoleCommands::Update();
+								GUI::PlayActionSound(true);
+							}
+							ImGui::SameLine();
+							ImGui::Spacing();
+							ImGui::SameLine();
+							ImGui::InputText("Search Filter##ConsoleCommands", Features::ConsoleCommands::filterBuffer, Features::ConsoleCommands::filterBufferSize);
+							ImGui::SameLine();
+							ImGui::Spacing();
+							ImGui::SameLine();
+							ImGui::Checkbox("Case Sensitive##ConsoleCommands", &Features::ConsoleCommands::filterCaseSensitive);
+
+							std::vector<Unreal::Function::DataStructure> filteredCommands = Unreal::Function::FilterByName(Features::ConsoleCommands::commands, Features::ConsoleCommands::filterBuffer, Features::ConsoleCommands::filterCaseSensitive);
+							for (Unreal::Function::DataStructure function : filteredCommands)
+							{
+								std::string memoryAddress = function.MemoryAddressAsString();
+								ImGui::PushID(memoryAddress.c_str());
+
+								if (ImGui::TreeNode(function.name.c_str()))
+								{
+									ImGui::TextCopyable("Flags: %s", function.FlagsAsString().c_str());
+									ImGui::TextCopyable("Address: %s", memoryAddress.c_str());
+
+									ImGui::TreePop();
+								}
+
+								ImGui::PopID();
+							}
 
 							ImGui::TreePop();
 						}
@@ -4461,7 +4712,7 @@ void Templates::Menus::Debug::Sub_World()
 					ImGui::TextBoolPresenceColored("World Settings:", worldSettingsPresent);
 					if (worldSettingsPresent)
 					{
-						if (ImGui::TreeNode("World Settings"))
+						if (ImGui::TreeNode("Details##WorldSettings"))
 						{
 							ImGui::TextCopyable("World Settings Class: %s", Features::Debug::world.persistentLevel.worldSettings.className.c_str());
 							ImGui::TextCopyable("World Settings Object: %s", Features::Debug::world.persistentLevel.worldSettings.objectName.c_str());
@@ -4473,130 +4724,7 @@ void Templates::Menus::Debug::Sub_World()
 
 							ImGui::NewLine();
 
-							ImGui::TextFloat("Unreal Units = 1m:", Features::Debug::world.persistentLevel.worldSettings.unitsToMeters);
-
-							ImGui::TreePop();
-						}
-					}
-
-					ImGui::NewLine();
-
-					bool areStreamingLevelsPresent = Features::Debug::world.streamingLevels.size() > 0;
-					ImGui::TextBoolMultiplePresenceColored("Streaming Levels:", areStreamingLevelsPresent);
-					if (areStreamingLevelsPresent)
-					{
-						if (ImGui::TreeNode("Streaming Levels"))
-						{
-							ImGui::InputText("Search Filter", Features::Debug::streamingLevelsFilterBuffer, Features::Debug::streamingLevelsFilterBufferSize);
-							ImGui::SameLine();
-							ImGui::Spacing();
-							ImGui::SameLine();
-							ImGui::Checkbox("Case Sensitive", &Features::Debug::streamingLevelsFilterCaseSensitive);
-							ImGui::SameLine();
-							ImGui::Spacing();
-							ImGui::SameLine();
-							ImGui::Checkbox("Editor Colors", &Features::Debug::streamingLevelsEditorColors);
-
-							std::vector<Unreal::LevelStreaming::DataStructure> filteredStreamingLevels = Unreal::LevelStreaming::FilterByLevelPath(Features::Debug::world.streamingLevels, Features::Debug::streamingLevelsFilterBuffer, Features::Debug::streamingLevelsFilterCaseSensitive);
-							for (Unreal::LevelStreaming::DataStructure& streamingLevel : filteredStreamingLevels) // <-- Reference!
-							{
-								ImGui::PushID(streamingLevel.objectName.c_str());
-
-								ImVec4 levelColor;
-								if (Features::Debug::streamingLevelsEditorColors)
-								{
-									levelColor = { streamingLevel.levelColor.R, streamingLevel.levelColor.G, streamingLevel.levelColor.B, streamingLevel.levelColor.A };
-								}
-								else
-								{
-									static const ImVec4 color_visible = ImGui::ColorConvertU32ToFloat4(IM_COL32(51, 204, 77, 255));
-									static const ImVec4 color_loaded = ImGui::ColorConvertU32ToFloat4(IM_COL32(51, 102, 204, 255));
-									static const ImVec4 color_null = ImGui::ColorConvertU32ToFloat4(IM_COL32(204, 77, 51, 255));
-
-									if (streamingLevel.level.reference)
-										levelColor = streamingLevel.level.isVisible ? color_visible : color_loaded;
-									else
-										levelColor = color_null;
-								}
-
-								ImGui::PushStyleColor(ImGuiCol_Text, levelColor);
-								bool isTreeNodeOpen = ImGui::TreeNode(streamingLevel.levelPath.c_str());
-								ImGui::PopStyleColor();
-
-								if (isTreeNodeOpen)
-								{
-									if (Features::Debug::autoUpdate == false)
-									{
-										ImGui::Text("Debug section isn't set to auto-update!");
-										ImGui::SetFontSmall();
-										ImGui::Text("In order to see level related changes in UI, use \"Update\" button.");
-										ImGui::SetFontRegular();
-										ImGui::NewLine();
-									}
-
-									bool isLevelLoaded = streamingLevel.level.reference;
-
-									ImGui::TextBoolColored("Is Loaded:", isLevelLoaded);
-									ImGui::SameLine();
-									ImGui::Spacing();
-									ImGui::SameLine();
-									if (ImGui::Button(isLevelLoaded ? "Unload" : "Load"))
-									{
-										if (streamingLevel.reference != nullptr)
-										{
-											streamingLevel.reference->SetShouldBeLoaded(!isLevelLoaded);
-											GUI::PlayActionSound(true);
-										}
-										else
-											GUI::PlayActionSound(false);
-									}
-
-									ImGui::TextBoolColored("Is Visible:", streamingLevel.level.isVisible);
-									ImGui::SameLine();
-									ImGui::Spacing();
-									ImGui::SameLine();
-									ImGui::BeginDisabled(isLevelLoaded == false);
-									if (ImGui::Button(streamingLevel.level.isVisible ? "Hide" : "Show"))
-									{
-										if (isLevelLoaded && streamingLevel.reference != nullptr)
-										{
-											streamingLevel.reference->SetShouldBeVisible(!streamingLevel.level.isVisible);
-											GUI::PlayActionSound(true);
-										}
-										else
-											GUI::PlayActionSound(false);
-									}
-									ImGui::EndDisabled();
-
-									ImGui::NewLine();
-
-									bool worldSettingsPresent = streamingLevel.level.worldSettings.reference;
-									ImGui::TextBoolPresence("World Settings:", worldSettingsPresent);
-									if (worldSettingsPresent)
-									{
-										if (ImGui::TreeNode("World Settings"))
-										{
-											ImGui::TextCopyable("World Settings Class: %s", streamingLevel.level.worldSettings.className.c_str());
-											ImGui::TextCopyable("World Settings Object: %s", streamingLevel.level.worldSettings.objectName.c_str());
-
-											ImGui::NewLine();
-
-											ImGui::TextBoolColored("High Priority Loading:", streamingLevel.level.worldSettings.highPriorityLoading);
-											ImGui::TextBoolColored("Local High Priority Loading:", streamingLevel.level.worldSettings.localHighPriorityLoading);
-
-											ImGui::NewLine();
-
-											ImGui::TextFloat("Unreal Units = 1m:", streamingLevel.level.worldSettings.unitsToMeters);
-
-											ImGui::TreePop();
-										}
-									}
-
-									ImGui::TreePop();
-								}
-
-								ImGui::PopID();
-							}
+							ImGui::Text("Units: 1m = %.2f", Features::Debug::world.persistentLevel.worldSettings.unitsToMeters);
 
 							ImGui::TreePop();
 						}
@@ -4747,7 +4875,7 @@ void Templates::Menus::Debug::Sub_Actors()
 
 			ImGui::Text("Actor Path:    ");
 			ImGui::SameLine();
-			ImGui::InputText("##ActorSpawn", Features::ActorSpawn::actorPathBuffer, Features::ActorSpawn::actorPathBufferSize);
+			ImGui::InputText("##ActorSpawn", Features::ActorSpawn::buffer, Features::ActorSpawn::bufferSize);
 
 			ImGui::Checkbox("Use Character Location##ActorSpawn", &Features::ActorSpawn::useCharacterLocation);
 			ImGui::BeginDisabled(Features::ActorSpawn::useCharacterLocation);
@@ -4797,7 +4925,7 @@ void Templates::Menus::Debug::Sub_Actors()
 						}
 					}
 
-					std::vector<std::wstring> actorPathCollection = Utilities::String::Split(Features::ActorSpawn::actorPathBuffer, L'|');
+					std::vector<std::wstring> actorPathCollection = Utilities::String::Split(Features::ActorSpawn::buffer, L'|');
 					if (actorPathCollection.size() > 0)
 					{
 						bool anyActorSpawned = false;
@@ -6691,24 +6819,24 @@ void Templates::Menus::Debug::Draw()
 			{
 				float updatesPerSecond = 1.0f / Features::Debug::autoUpdateDelay;
 				if (updatesPerSecond > 1.0f)
-					ImGui::Text("Updates %d times per second", (int32_t)(updatesPerSecond));
+					ImGui::Text("Updates %d Times per Second", (int32_t)(updatesPerSecond));
 				else
 				{
 					float updatesPerMinute = 60.0f / Features::Debug::autoUpdateDelay;
 					if (updatesPerMinute > 1.0f)
-						ImGui::Text("Updates %d times per minute", (int32_t)(updatesPerMinute));
+						ImGui::Text("Updates %d Times per Minute", (int32_t)(updatesPerMinute));
 					else
 					{
 						float updatesPerHour = 3600.0f / Features::Debug::autoUpdateDelay;
 						if (updatesPerHour > 1.0f)
-							ImGui::Text("Updates %d times per hour", (int32_t)(updatesPerHour));
+							ImGui::Text("Updates %d Times per Hour", (int32_t)(updatesPerHour));
 						else
 						{
 							float updatesPerDay = 86400.0f / Features::Debug::autoUpdateDelay;
 							if (updatesPerDay > 1.0f)
-								ImGui::Text("Updates %d times per day", (int32_t)(updatesPerDay));
+								ImGui::Text("Updates %d Times per Day", (int32_t)(updatesPerDay));
 							else
-								ImGui::Text("Updates periodically", (int32_t)(updatesPerDay));
+								ImGui::Text("Updates Periodically", (int32_t)(updatesPerDay));
 						}
 					}
 				}
@@ -6841,6 +6969,128 @@ void Templates::Menus::World::Draw()
 	{
 		if (worldObtained)
 		{
+			ImGui::SetFontTitle();
+			ImGui::Text("Level Streaming");
+			ImGui::SetFontRegular();
+			if (ImGui::TreeNode("Details##LevelStreaming"))
+			{
+				if (ImGui::Button("Update##LevelStreaming"))
+				{
+					Features::LevelStreaming::Update();
+					GUI::PlayActionSound(true);
+				}
+				ImGui::SameLine();
+				ImGui::Spacing();
+				ImGui::SameLine();
+				ImGui::InputText("Search Filter", Features::LevelStreaming::filterBuffer, Features::LevelStreaming::filterBufferSize);
+				ImGui::SameLine();
+				ImGui::Spacing();
+				ImGui::SameLine();
+				ImGui::Checkbox("Case Sensitive", &Features::LevelStreaming::filterCaseSensitive);
+				ImGui::SameLine();
+				ImGui::Spacing();
+				ImGui::SameLine();
+				ImGui::Checkbox("Editor Colors", &Features::LevelStreaming::useEditorColors);
+
+				std::vector<Unreal::LevelStreaming::DataStructure> filteredLevelStreaming = Unreal::LevelStreaming::FilterByLevelPath(Features::LevelStreaming::levels, Features::LevelStreaming::filterBuffer, Features::LevelStreaming::filterCaseSensitive);
+				for (Unreal::LevelStreaming::DataStructure& streamingLevel : filteredLevelStreaming) // <-- Reference!
+				{
+					ImGui::PushID(streamingLevel.objectName.c_str());
+
+					ImVec4 levelColor;
+					if (Features::LevelStreaming::useEditorColors)
+					{
+						levelColor = { streamingLevel.levelColor.R, streamingLevel.levelColor.G, streamingLevel.levelColor.B, streamingLevel.levelColor.A };
+					}
+					else
+					{
+						if (streamingLevel.shouldBeLoaded)
+							levelColor = streamingLevel.shouldBeVisible ? Features::LevelStreaming::color_visible : Features::LevelStreaming::color_loaded;
+						else
+							levelColor = Features::LevelStreaming::color_null;
+					}
+
+					ImGui::PushStyleColor(ImGuiCol_Text, levelColor);
+					bool isTreeNodeOpen = ImGui::TreeNode(streamingLevel.levelPath.c_str());
+					ImGui::PopStyleColor();
+
+					if (isTreeNodeOpen)
+					{
+						ImGui::TextBoolColored("Should be Loaded:", streamingLevel.shouldBeLoaded);
+						ImGui::SameLine();
+						ImGui::Spacing();
+						ImGui::SameLine();
+						if (ImGui::Button(streamingLevel.shouldBeLoaded ? "Unload" : "Load"))
+						{
+							if (streamingLevel.reference != nullptr)
+							{
+								streamingLevel.reference->SetShouldBeLoaded(!streamingLevel.shouldBeLoaded);
+
+								Sleep(100);
+
+								Features::LevelStreaming::Update(streamingLevel);
+								GUI::PlayActionSound(true);
+							}
+							else
+								GUI::PlayActionSound(false);
+						}
+
+						ImGui::TextBoolColored("Should be Visible:", streamingLevel.shouldBeVisible);
+						ImGui::SameLine();
+						ImGui::Spacing();
+						ImGui::SameLine();
+						ImGui::BeginDisabled(streamingLevel.shouldBeLoaded == false);
+						if (ImGui::Button(streamingLevel.shouldBeVisible ? "Hide" : "Show"))
+						{
+							if (streamingLevel.reference != nullptr)
+							{
+								streamingLevel.reference->SetShouldBeVisible(!streamingLevel.shouldBeVisible);
+
+								Sleep(100);
+
+								Features::LevelStreaming::Update(streamingLevel);
+								GUI::PlayActionSound(true);
+							}
+							else
+								GUI::PlayActionSound(false);
+						}
+						ImGui::EndDisabled();
+
+						ImGui::NewLine();
+
+						bool worldSettingsPresent = streamingLevel.level.worldSettings.reference;
+						ImGui::TextBoolPresence("World Settings:", worldSettingsPresent);
+						if (worldSettingsPresent)
+						{
+							if (ImGui::TreeNode("World Settings"))
+							{
+								ImGui::TextCopyable("World Settings Class: %s", streamingLevel.level.worldSettings.className.c_str());
+								ImGui::TextCopyable("World Settings Object: %s", streamingLevel.level.worldSettings.objectName.c_str());
+						
+								ImGui::NewLine();
+						
+								ImGui::TextBoolColored("High Priority Loading:", streamingLevel.level.worldSettings.highPriorityLoading);
+								ImGui::TextBoolColored("Local High Priority Loading:", streamingLevel.level.worldSettings.localHighPriorityLoading);
+						
+								ImGui::NewLine();
+						
+								ImGui::Text("Units: 1m = %.2f", streamingLevel.level.worldSettings.unitsToMeters);
+						
+								ImGui::TreePop();
+							}
+						}
+
+						ImGui::TreePop();
+					}
+
+					ImGui::PopID();
+				}
+
+				ImGui::TreePop();
+			}
+
+			ImGui::NewLine();
+
 #ifdef SOFT_PATH
 			ImGui::SetFontTitle();
 			ImGui::Text("Level Instance");
@@ -7379,12 +7629,9 @@ void Templates::Menus::Character::Draw()
 				{
 					if (ImGui::Checkbox("Enabled##DirectionalMovement", &Features::DirectionalMovement::enabled))
 					{
-						if (Features::DirectionalMovement::enabled)
-							Features::DirectionalMovement::Enable();
-						else Features::DirectionalMovement::Disable();
-
 						Features::Config::Save();
 					}
+					ImGui::NewLine();
 					if (ImGui::Checkbox("Omni-Movement##DirectionalMovement", &Features::DirectionalMovement::omniMovement))
 					{
 						Features::Config::Save();
@@ -7394,6 +7641,18 @@ void Templates::Menus::Character::Draw()
 					ImGui::BeginDisabled(Features::DirectionalMovement::omniMovement == false);
 					ImGui::KeyBindingInput("Move Up  ", &Inputs::Keybindings::characterOmniMovement_Up);
 					ImGui::KeyBindingInput("Move Down", &Inputs::Keybindings::characterOmniMovement_Down);
+					if (ImGui::Checkbox("Independent Omni-Movement##DirectionalMovement", &Features::DirectionalMovement::independentOmniMovement))
+					{
+						Features::Config::Save();
+					}
+					ImGui::SameLine();
+					ImGui::QuestionMarkHint("Move character ignoring current velocity.");
+					ImGui::EndDisabled();
+					ImGui::BeginDisabled(Features::DirectionalMovement::independentOmniMovement == false);
+					ImGui::KeyBindingInput("Move Forward ", &Inputs::Keybindings::characterOmniMovement_Forward);
+					ImGui::KeyBindingInput("Move Backward", &Inputs::Keybindings::characterOmniMovement_Backward);
+					ImGui::KeyBindingInput("Move Left    ", &Inputs::Keybindings::characterOmniMovement_Left);
+					ImGui::KeyBindingInput("Move Right   ", &Inputs::Keybindings::characterOmniMovement_Right);
 					ImGui::EndDisabled();
 
 					ImGui::NewLine();
@@ -7587,12 +7846,12 @@ void Templates::Menus::FreeCamera::Draw()
 			{
 				Features::Config::Save();
 			}
+			ImGui::KeyBindingInput("Move Up:      ", &Inputs::Keybindings::freeCamera_MoveUp);
+			ImGui::KeyBindingInput("Move Down:    ", &Inputs::Keybindings::freeCamera_MoveDown);
 			ImGui::KeyBindingInput("Move Forward: ", &Inputs::Keybindings::freeCamera_MoveForward);
 			ImGui::KeyBindingInput("Move Backward:", &Inputs::Keybindings::freeCamera_MoveBackward);
 			ImGui::KeyBindingInput("Move Left:    ", &Inputs::Keybindings::freeCamera_MoveLeft);
 			ImGui::KeyBindingInput("Move Right:   ", &Inputs::Keybindings::freeCamera_MoveRight);
-			ImGui::KeyBindingInput("Move Up:      ", &Inputs::Keybindings::freeCamera_MoveUp);
-			ImGui::KeyBindingInput("Move Down:    ", &Inputs::Keybindings::freeCamera_MoveDown);
 
 			ImGui::NewLine();
 

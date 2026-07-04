@@ -270,7 +270,7 @@ bool Unreal::Level::CreateLevelSequence(const std::wstring& levelSequencePath, c
 	}
 
 #ifdef SOFT_LOAD_FREEMEMORY
-	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(levelSequencePath)));
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(levelSequencePath)));
 #endif
 
 	return success;
@@ -293,6 +293,33 @@ bool Unreal::Level::CreateLevelSequence_ThreadSafe(const std::wstring& levelSequ
 
 
 
+
+
+std::vector<SDK::ULevelStreaming*> Unreal::LevelStreaming::GetAll(SDK::UWorld* worldReference)
+{
+	std::vector<SDK::ULevelStreaming*> outCollection;
+
+	if (worldReference == nullptr)
+		return outCollection;
+
+	if (worldReference->StreamingLevels.Num() == 0)
+		return outCollection;
+
+	for (SDK::ULevelStreaming* levelStreaming : worldReference->StreamingLevels)
+	{
+		if (levelStreaming == nullptr)
+			continue;
+
+		outCollection.push_back(levelStreaming);
+	}
+
+	return outCollection;
+}
+
+std::vector<SDK::ULevelStreaming*> Unreal::LevelStreaming::GetAll()
+{
+	return Unreal::LevelStreaming::GetAll(Unreal::World::Get());
+}
 
 
 std::vector<Unreal::LevelStreaming::DataStructure> Unreal::LevelStreaming::FilterByLevelPath(const std::vector<LevelStreaming::DataStructure>& levelStreamingsCollection, const std::string& filter, const bool& caseSensitive)
@@ -372,44 +399,43 @@ SDK::UWorld* Unreal::World::Get()
 }
 
 
-bool Unreal::World::RemoveStreamingLevelAtIndex(SDK::UWorld* worldReference, const int32_t& index)
+bool Unreal::World::RemoveLevelStreamingAtIndex(SDK::UWorld* worldReference, const int32_t& index)
 {
 	if (worldReference == nullptr)
 		return false;
 
-	int32_t streamingLevelsCount = worldReference->StreamingLevels.Num();
-	if (streamingLevelsCount == 0 || streamingLevelsCount < index)
+	int32_t levelStreamingsCount = worldReference->StreamingLevels.Num();
+	if (levelStreamingsCount == 0 || levelStreamingsCount < index)
 		return false;
 
 	return worldReference->StreamingLevels.Remove(index);
 }
 
-bool Unreal::World::RemoveStreamingLevelAtIndex(const int32_t& index)
+bool Unreal::World::RemoveLevelStreamingAtIndex(const int32_t& index)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
 		return false;
 
-	return RemoveStreamingLevelAtIndex(world, index);
+	return RemoveLevelStreamingAtIndex(world, index);
 }
 
 
-bool Unreal::World::RemoveStreamingLevelByName(SDK::UWorld* worldReference, const std::string& streamingLevelName)
+bool Unreal::World::RemoveLevelStreamingByName(SDK::UWorld* worldReference, const std::string& levelStreamingName)
 {
 	if (worldReference == nullptr)
 		return false;
 
-	int32_t streamingLevelsCount = worldReference->StreamingLevels.Num();
-	if (streamingLevelsCount == 0)
+	int32_t levelStreamingsCount = worldReference->StreamingLevels.Num();
+	if (levelStreamingsCount == 0)
 		return false;
 
-	for (int32_t index = 0; index < streamingLevelsCount; index++)
+	for (int32_t index = 0; index < levelStreamingsCount; index++)
 	{
 		SDK::ULevelStreaming* levelStreaming = worldReference->StreamingLevels[index];
 
-		if (levelStreaming != nullptr && levelStreaming->GetWorldAssetPackageFName().GetRawString() == streamingLevelName)
+		if (levelStreaming != nullptr && levelStreaming->GetWorldAssetPackageFName().GetRawString() == levelStreamingName)
 		{
-			Unreal::Console::Print("PIZDEC TEBE");
 			worldReference->StreamingLevels.Remove(index);
 			return true;
 		}
@@ -418,13 +444,13 @@ bool Unreal::World::RemoveStreamingLevelByName(SDK::UWorld* worldReference, cons
 	return false;
 }
 
-bool Unreal::World::RemoveStreamingLevelByName(const std::string& streamingLevelName)
+bool Unreal::World::RemoveLevelStreamingByName(const std::string& levelStreamingName)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
 		return false;
 
-	return RemoveStreamingLevelByName(world, streamingLevelName);
+	return RemoveLevelStreamingByName(world, levelStreamingName);
 }
 
 
@@ -476,7 +502,7 @@ bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, const std::ws
 	}
 
 #ifdef SOFT_LOAD_FREEMEMORY
-	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(animationMontagePath)));
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(animationMontagePath)));
 #endif
 
 	return success;
@@ -511,7 +537,7 @@ bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, const std::wstring& 
 	}
 
 #ifdef SOFT_LOAD_FREEMEMORY
-	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(animationPath)));
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(animationPath)));
 #endif
 
 	return success;
@@ -521,6 +547,16 @@ bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, const std::wstring& 
 
 
 
+
+
+SDK::UCheatManager* Unreal::CheatManager::Get()
+{
+	SDK::APlayerController* playerController = PlayerController::Get();
+	if (playerController == nullptr || playerController->CheatManager == nullptr)
+		return nullptr;
+
+	return playerController->CheatManager;
+}
 
 
 bool Unreal::CheatManager::Construct(const bool& ignorePresence)
@@ -595,7 +631,7 @@ bool Unreal::CheatManager::SoftSummon(SDK::UCheatManager* cheatManagerReference,
 	}
 
 #ifdef SOFT_LOAD_FREEMEMORY
-	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(actorPath)));
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(actorPath)));
 #endif
 
 	return success;
@@ -773,7 +809,7 @@ bool Unreal::Character::Jump(const int32_t& playerIndex)
 }
 
 
-bool Unreal::Character::Launch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity, const bool& overrideVerticalVelocity)
+bool Unreal::Character::LocalLaunch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity, const bool& overrideVerticalVelocity)
 {
 	if (characterReference == nullptr || characterReference->CharacterMovement == nullptr
 									  || characterReference->CharacterMovement->bCheatFlying
@@ -806,6 +842,21 @@ bool Unreal::Character::Launch(SDK::ACharacter* characterReference, const SDK::F
 	}
 
 	return true;
+}
+bool Unreal::Character::LocalLaunch(const int32_t& playerIndex, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity, const bool& overrideVerticalVelocity)
+{
+	return LocalLaunch(Character::Get(playerIndex), launchVelocity, overrideHorizontalVelocity, overrideVerticalVelocity);
+}
+
+bool Unreal::Character::Launch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity, const bool& overrideVerticalVelocity)
+{
+	if (characterReference == nullptr || characterReference->CharacterMovement == nullptr
+									  || characterReference->CharacterMovement->bCheatFlying
+									  || characterReference->CharacterMovement->MovementMode == SDK::EMovementMode::MOVE_None
+									  || characterReference->CharacterMovement->IsActive() == false)
+		return false;
+
+	characterReference->LaunchCharacter(launchVelocity, overrideHorizontalVelocity, overrideVerticalVelocity);
 }
 bool Unreal::Character::Launch(const int32_t& playerIndex, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity, const bool& overrideVerticalVelocity)
 {
@@ -1456,7 +1507,7 @@ bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, const std::wstring&
 	}
 
 #ifdef SOFT_LOAD_FREEMEMORY
-	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(materialInterfacePath)));
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(materialInterfacePath)));
 #endif
 
 	return success;
@@ -1511,7 +1562,7 @@ SDK::AActor* Unreal::Actor::SoftSummon(const std::wstring& actorPath, const Unre
 		actor = Unreal::Actor::Summon(actorClass, transform);
 
 #ifdef SOFT_LOAD_FREEMEMORY
-	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(actorPath)));
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(actorPath)));
 #endif
 
 	return actor;
@@ -1581,11 +1632,11 @@ bool Unreal::Actor::IsValid(SDK::AActor* actorReference)
 		/* Walk through all of the streaming levels. */
 		if (world->StreamingLevels.Num() > 0)
 		{
-			for (SDK::ULevelStreaming* streamingLevel : world->StreamingLevels)
+			for (SDK::ULevelStreaming* levelStreaming : world->StreamingLevels)
 			{
-				if (streamingLevel->LoadedLevel)
+				if (levelStreaming->LoadedLevel)
 				{
-					SDK::TArray<SDK::AActor*>& streamingLevelActors = streamingLevel->LoadedLevel->Actors;
+					SDK::TArray<SDK::AActor*>& streamingLevelActors = levelStreaming->LoadedLevel->Actors;
 					for (SDK::AActor* actor : streamingLevelActors)
 					{
 						if (actor == actorReference)
@@ -1672,7 +1723,7 @@ SDK::AStaticMeshActor* Unreal::StaticMeshActor::SoftSummon(const std::wstring& s
 	}
 
 #ifdef SOFT_LOAD_FREEMEMORY
-	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(staticMeshPath)));
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(staticMeshPath)));
 #endif
 
 	return staticMeshActor;
@@ -1738,7 +1789,7 @@ SDK::ASkeletalMeshActor* Unreal::SkeletalMeshActor::SoftSummon(const std::wstrin
 	}
 
 #ifdef SOFT_LOAD_FREEMEMORY
-	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(skeletalMeshPath)));
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(skeletalMeshPath)));
 #endif
 
 	return skeletalMeshActor;
@@ -1903,7 +1954,7 @@ SDK::UUserWidget* Unreal::UserWidget::SoftConstruct(const std::wstring& widgetPa
 	}
 
 #ifdef SOFT_LOAD_FREEMEMORY
-	World::RemoveStreamingLevelByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(widgetPath)));
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(widgetPath)));
 #endif
 
 	return widget;
@@ -2439,7 +2490,7 @@ Unreal::Class::Hierarchy Unreal::Class::GetClassHierarchy(SDK::UObject* objectRe
 
 
 
-std::vector<Unreal::Function::DataStructure> Unreal::Function::GetFunctions(SDK::UObject* objectReference)
+std::vector<Unreal::Function::DataStructure> Unreal::Function::GetFunctions(SDK::UObject* objectReference, const SDK::EFunctionFlags& hasFlags)
 {
 	std::vector<Function::DataStructure> outCollection;
 
@@ -2454,13 +2505,15 @@ std::vector<Unreal::Function::DataStructure> Unreal::Function::GetFunctions(SDK:
 			if (uField->IsA(SDK::UFunction::StaticClass()))
 			{
 				SDK::UFunction* uFunction = static_cast<SDK::UFunction*>(uField);
+				if ((hasFlags == SDK::EFunctionFlags::None) || (uFunction->FunctionFlags & static_cast<uint32_t>(hasFlags)) != 0)
+				{
+					Function::DataStructure function;
+					function.reference = uFunction;
+					function.flags = uFunction->FunctionFlags;
+					function.name = uFunction->GetName();
 
-				Function::DataStructure function;
-				function.name = uFunction->GetName();
-				function.reference = uFunction;
-				function.memoryAddress = std::format("{:p}", static_cast<void*>(uFunction));
-
-				outCollection.push_back(function);
+					outCollection.push_back(function);
+				}
 			}
 		}
 
@@ -2470,21 +2523,27 @@ std::vector<Unreal::Function::DataStructure> Unreal::Function::GetFunctions(SDK:
 	return outCollection;
 }
 
+
 bool Unreal::Function::CallFunction(SDK::UObject* objectReference, SDK::UFunction* functionReference)
+{
+	if (objectReference == nullptr || functionReference == nullptr)
+		return false;
+
+	objectReference->ProcessEvent(functionReference, nullptr);
+}
+
+bool Unreal::Function::CallFunction_ThreadSafe(SDK::UObject* objectReference, SDK::UFunction* functionReference)
 {
 	__try
 	{
-		if (objectReference == nullptr || functionReference == nullptr)
-			return false;
-
-		objectReference->ProcessEvent(functionReference, nullptr);
-		return true;
+		return CallFunction(objectReference, functionReference);
 	}
-	__except (Utilities::Exception::Handle(GetExceptionInformation(), __FUNCSIG__))
+	__except (EXCEPTION())
 	{
 		return false;
 	}
 }
+
 
 std::vector<Unreal::Function::DataStructure> Unreal::Function::FilterByName(const std::vector<Function::DataStructure>& functionsCollection, const std::string& filter, const bool& caseSensitive)
 {

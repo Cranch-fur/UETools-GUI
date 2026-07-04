@@ -405,9 +405,6 @@ namespace Features
 	{
 	public:
 		static inline bool enableSound = true;
-
-		static inline bool autoConstructConsole = false;
-		static inline bool enableConsoleOutput = true;
 	};
 
 
@@ -432,10 +429,6 @@ namespace Features
 		static inline Unreal::PlayerController::DataStructure playerController;
 
 		static inline Unreal::World::DataStructure world;
-		static inline const size_t streamingLevelsFilterBufferSize = SIZE_BUFFER_SEARCHFILTER;
-		static inline char streamingLevelsFilterBuffer[streamingLevelsFilterBufferSize] = {};
-		static inline bool streamingLevelsFilterCaseSensitive = true;
-		static inline bool streamingLevelsEditorColors = false;
 
 		static inline bool wasProjectNameObtained;
 		static inline std::string projectName;
@@ -464,8 +457,8 @@ namespace Features
 	class ActorSpawn
 	{
 	public:
-		static inline const size_t actorPathBufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
-		static inline char actorPathBuffer[actorPathBufferSize] = {};
+		static inline const size_t bufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
+		static inline char buffer[bufferSize] = {};
 
 		static inline float location[3];
 		static inline bool useCharacterLocation = true;
@@ -485,9 +478,10 @@ namespace Features
 	public:
 		static inline std::vector<Unreal::Function::DataStructure> functions;
 		static inline SDK::UObject* functionsOwner;
-		static inline const size_t functionsFilterBufferSize = SIZE_BUFFER_SEARCHFILTER;
-		static inline char functionsFilterBuffer[functionsFilterBufferSize] = {};
-		static inline bool functionsFilterCaseSensitive = true;
+
+		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
+		static inline char filterBuffer[filterBufferSize] = {};
+		static inline bool filterCaseSensitive = true;
 	};
 
 
@@ -712,6 +706,29 @@ namespace Features
 
 
 
+	class LevelStreaming
+	{
+	public:
+		static inline std::vector<Unreal::LevelStreaming::DataStructure> levels;
+
+		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
+		static inline char filterBuffer[filterBufferSize] = {};
+		static inline bool filterCaseSensitive = true;
+
+		static inline const ImVec4 color_visible = ImGui::ColorConvertU32ToFloat4(IM_COL32(51, 204, 77, 255));
+		static inline const ImVec4 color_loaded = ImGui::ColorConvertU32ToFloat4(IM_COL32(51, 102, 204, 255));
+		static inline const ImVec4 color_null = ImGui::ColorConvertU32ToFloat4(IM_COL32(204, 77, 51, 255));
+		static inline bool useEditorColors = false;
+
+
+		static Unreal::LevelStreaming::DataStructure GetLevelStreamingData(SDK::ULevelStreaming* levelStreamingReference);
+		static void Update();
+		static void Update(const Unreal::LevelStreaming::DataStructure& levelStreaming);
+	};
+
+
+
+
 #ifdef SOFT_PATH
 	class LoadLevelInstance
 	{
@@ -794,16 +811,15 @@ namespace Features
 		static inline bool isUpMovementExpected = false;
 		static inline bool isDownMovementExpected = false;
 
-		static inline float step = 15.0;
-		static inline float delay = 0.05;
+		static inline bool independentOmniMovement = false;
+		static inline bool isForwardMovementExpected = false;
+		static inline bool isBackwardMovementExpected = false;
+		static inline bool isLeftMovementExpected = false;
+		static inline bool isRightMovementExpected = false;
 
 
-	private:
-		static inline HANDLE thread = nullptr;
-		static void Worker();
-	public:
-		static void Enable();
-		static void Disable();
+		static inline float step = 15.0f;
+		static inline float delay = 0.05f;
 	};
 
 
@@ -885,14 +901,108 @@ namespace Features
 
 
 
-	class Console
+	class ConsoleCommands
+	{
+	public:
+		static inline std::vector<Unreal::Function::DataStructure> commands;
+
+		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
+		static inline char filterBuffer[filterBufferSize] = {};
+		static inline bool filterCaseSensitive = true;
+
+		static void Update();
+	};
+
+
+
+
+	class BootlegConsole
 	{
 	public:
 		/* Allocate large buffer to account for combined console commands (e.g: "stat fps | stat unit") */
-		static inline const size_t consoleBufferSize = SIZE_BUFFER_CONSOLE;
-		static inline char consoleBuffer[consoleBufferSize] = {};
+		static inline const size_t bufferSize = SIZE_BUFFER_CONSOLE;
+		static inline char buffer[bufferSize] = {};
 	};
 };
+
+
+
+
+
+
+namespace BackgroundTasks
+{
+	class KeybindingsHandler
+	{
+	private:
+		static inline bool isEnabled = false;
+
+		static inline float delay = 0.001f;
+
+		static inline HANDLE thread = nullptr;
+		static void Worker();
+
+	public:
+		static void Enable();
+		static void Disable();
+	};
+
+	class DirectionalMovementHandler
+	{
+	private:
+		static inline bool isEnabled = false;
+
+		static inline float& delay = Features::DirectionalMovement::delay;
+
+		static inline HANDLE thread = nullptr;
+		static void Worker();
+
+	public:
+		static void Enable();
+		static void Disable();
+	};
+
+#ifdef TASK_CONSTRUCT_CONSOLE
+	class ConstructConsole
+	{
+	private:
+		static inline bool isEnabled = false;
+
+		static inline bool consoleConstructed = false;
+		static inline bool consoleBindingsAssigned = false;
+
+		static inline float delay = 1.0f;
+
+		static inline HANDLE thread = nullptr;
+		static void Worker();
+
+	public:
+		static void Enable();
+		static void Disable();
+	};
+#endif
+
+#ifdef TASK_CONSTRUCT_CHEATMANAGER
+	class ConstructCheatManager
+	{
+	private:
+		static inline bool isEnabled = false;
+
+		static inline bool cheatManagerConstructed = false;
+
+		static inline float delay = 1.0f;
+
+		static inline HANDLE thread = nullptr;
+		static void Worker();
+
+	public:
+		static void Enable();
+		static void Disable();
+	};
+#endif
+
+	static void Init();
+}
 
 
 
@@ -937,8 +1047,12 @@ namespace Inputs
 		static inline ImGui::KeyBinding characterMovement_Launch;
 		static inline ImGui::KeyBinding characterMovement_Dash;
 
-		static inline ImGui::KeyBinding characterOmniMovement_Up;
-		static inline ImGui::KeyBinding characterOmniMovement_Down;
+		static inline ImGui::KeyBinding characterOmniMovement_Up{ ImGuiKey_E };
+		static inline ImGui::KeyBinding characterOmniMovement_Down{ ImGuiKey_Q };;
+		static inline ImGui::KeyBinding characterOmniMovement_Forward{ ImGuiKey_W };;
+		static inline ImGui::KeyBinding characterOmniMovement_Backward{ ImGuiKey_S };;
+		static inline ImGui::KeyBinding characterOmniMovement_Left{ ImGuiKey_A };;
+		static inline ImGui::KeyBinding characterOmniMovement_Right{ ImGuiKey_D };;
 
 		static inline ImGui::KeyBinding characterCamera_StartFade;
 		static inline ImGui::KeyBinding characterCamera_StopFade;
@@ -947,26 +1061,17 @@ namespace Inputs
 		static inline ImGui::KeyBinding freeCamera_TeleportCameraToPlayer;
 		static inline ImGui::KeyBinding freeCamera_Toggle;
 		static inline ImGui::KeyBinding freeCamera_TeleportPlayerToCamera;
+		static inline ImGui::KeyBinding freeCamera_MoveUp{ ImGuiKey_E };
+		static inline ImGui::KeyBinding freeCamera_MoveDown{ ImGuiKey_Q };
 		static inline ImGui::KeyBinding freeCamera_MoveForward{ ImGuiKey_W };
 		static inline ImGui::KeyBinding freeCamera_MoveBackward{ ImGuiKey_S };
 		static inline ImGui::KeyBinding freeCamera_MoveLeft{ ImGuiKey_A };
 		static inline ImGui::KeyBinding freeCamera_MoveRight{ ImGuiKey_D };
-		static inline ImGui::KeyBinding freeCamera_MoveUp{ ImGuiKey_E };
-		static inline ImGui::KeyBinding freeCamera_MoveDown{ ImGuiKey_Q };
 		static inline ImGui::KeyBinding freeCamera_RotateUp{ ImGuiKey_UpArrow };
 		static inline ImGui::KeyBinding freeCamera_RotateDown{ ImGuiKey_DownArrow };
 		static inline ImGui::KeyBinding freeCamera_RotateLeft{ ImGuiKey_LeftArrow };
 		static inline ImGui::KeyBinding freeCamera_RotateRight{ ImGuiKey_RightArrow };
 #endif
-
-
-	private:
-		static inline HANDLE thread = nullptr;
-		static inline bool isProcessing = false;
-		static void Worker();
-	public:
-		static void EnableProcessing();
-		static void DisableProcessing();
 	};
 };
 

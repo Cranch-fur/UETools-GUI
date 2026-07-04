@@ -360,8 +360,15 @@ namespace Unreal
 			std::string levelPath;
 			SDK::FLinearColor levelColor;
 
+			bool shouldBeLoaded;
+			bool shouldBeVisible;
+
 			Level::DataStructure level;
 		};
+
+
+		static std::vector<SDK::ULevelStreaming*> GetAll(SDK::UWorld* worldReference);
+		static std::vector<SDK::ULevelStreaming*> GetAll();
 
 
 		static std::vector<LevelStreaming::DataStructure> FilterByLevelPath(const std::vector<LevelStreaming::DataStructure>& levelStreamingsCollection, const std::string& filter, const bool& caseSensitive);
@@ -387,7 +394,7 @@ namespace Unreal
 
 			Level::DataStructure persistentLevel;
 
-			std::vector<LevelStreaming::DataStructure> streamingLevels;
+			std::vector<LevelStreaming::DataStructure> levelStreamings;
 
 			double gameTimeInSeconds;
 
@@ -406,11 +413,11 @@ namespace Unreal
 		static SDK::UWorld* Get();
 
 
-		static bool RemoveStreamingLevelAtIndex(SDK::UWorld* worldReference, const int32_t& index);
-		static bool RemoveStreamingLevelAtIndex(const int32_t& index);
+		static bool RemoveLevelStreamingAtIndex(SDK::UWorld* worldReference, const int32_t& index);
+		static bool RemoveLevelStreamingAtIndex(const int32_t& index);
 
-		static bool RemoveStreamingLevelByName(SDK::UWorld* worldReference, const std::string& streamingLevelName);
-		static bool RemoveStreamingLevelByName(const std::string& streamingLevelName);
+		static bool RemoveLevelStreamingByName(SDK::UWorld* worldReference, const std::string& levelStreamingName);
+		static bool RemoveLevelStreamingByName(const std::string& levelStreamingName);
 	};
 
 
@@ -487,6 +494,13 @@ namespace Unreal
 			SDK::UCheatManager* reference;
 		};
 
+
+		/*
+		* @brief Retrieves the current instance of the Cheat Manager, if one is available.
+		* @return A valid pointer to the existing instance;
+		*		  otherwise returns 'nullptr' to indicate that no instance is currently accessible.
+		*/
+		static SDK::UCheatManager* Get();
 
 		/*
 		* @brief Constructs a Cheat Manager and assigns it to the active Player Controller.
@@ -593,6 +607,9 @@ namespace Unreal
 		static bool Jump(SDK::ACharacter* characterReference);
 		static bool Jump(const int32_t& playerIndex);
 
+
+		static bool LocalLaunch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity = false, const bool& overrideVerticalVelocity = false);
+		static bool LocalLaunch(const int32_t& playerIndex, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity = false, const bool& overrideVerticalVelocity = false);
 
 		static bool Launch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity = false, const bool& overrideVerticalVelocity = false);
 		static bool Launch(const int32_t& playerIndex, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity = false, const bool& overrideVerticalVelocity = false);
@@ -990,14 +1007,91 @@ namespace Unreal
 	public:
 		struct DataStructure
 		{
-			std::string name;
 			SDK::UFunction* reference;
-			std::string memoryAddress;
+			uint32_t flags;
+			std::string name;
+			
+
+			std::string FlagsAsString() const
+			{
+				if (flags == 0)
+					return "None";
+
+				std::string outString;
+				uint32_t foundFlags = 0;
+
+				auto checkAndAppendFlag = [&](const char* flagName, const uint32_t& flagValue)
+				{
+					if (flags & flagValue)
+					{
+						if (outString.empty() == false)
+							outString += " | ";
+
+						outString += flagName;
+						foundFlags |= flagValue;
+					}
+				};
+
+				checkAndAppendFlag("Final",					 static_cast<uint32_t>(SDK::EFunctionFlags::Final));
+				checkAndAppendFlag("RequiredAPI",			 static_cast<uint32_t>(SDK::EFunctionFlags::RequiredAPI));
+				checkAndAppendFlag("BlueprintAuthorityOnly", static_cast<uint32_t>(SDK::EFunctionFlags::BlueprintAuthorityOnly));
+				checkAndAppendFlag("BlueprintCosmetic",		 static_cast<uint32_t>(SDK::EFunctionFlags::BlueprintCosmetic));
+				checkAndAppendFlag("Net",					 static_cast<uint32_t>(SDK::EFunctionFlags::Net));
+				checkAndAppendFlag("NetReliable",			 static_cast<uint32_t>(SDK::EFunctionFlags::NetReliable));
+				checkAndAppendFlag("NetRequest",			 static_cast<uint32_t>(SDK::EFunctionFlags::NetRequest));
+				checkAndAppendFlag("Exec",					 static_cast<uint32_t>(SDK::EFunctionFlags::Exec));
+				checkAndAppendFlag("Native",				 static_cast<uint32_t>(SDK::EFunctionFlags::Native));
+				checkAndAppendFlag("Event",					 static_cast<uint32_t>(SDK::EFunctionFlags::Event));
+				checkAndAppendFlag("NetResponse",			 static_cast<uint32_t>(SDK::EFunctionFlags::NetResponse));
+				checkAndAppendFlag("Static",				 static_cast<uint32_t>(SDK::EFunctionFlags::Static));
+				checkAndAppendFlag("NetMulticast",			 static_cast<uint32_t>(SDK::EFunctionFlags::NetMulticast));
+				checkAndAppendFlag("UbergraphFunction",		 static_cast<uint32_t>(SDK::EFunctionFlags::UbergraphFunction));
+				checkAndAppendFlag("MulticastDelegate",		 static_cast<uint32_t>(SDK::EFunctionFlags::MulticastDelegate));
+				checkAndAppendFlag("Public",				 static_cast<uint32_t>(SDK::EFunctionFlags::Public));
+				checkAndAppendFlag("Private",				 static_cast<uint32_t>(SDK::EFunctionFlags::Private));
+				checkAndAppendFlag("Protected",				 static_cast<uint32_t>(SDK::EFunctionFlags::Protected));
+				checkAndAppendFlag("Delegate",				 static_cast<uint32_t>(SDK::EFunctionFlags::Delegate));
+				checkAndAppendFlag("NetServer",				 static_cast<uint32_t>(SDK::EFunctionFlags::NetServer));
+				checkAndAppendFlag("HasOutParms",			 static_cast<uint32_t>(SDK::EFunctionFlags::HasOutParms));
+				checkAndAppendFlag("HasDefaults",			 static_cast<uint32_t>(SDK::EFunctionFlags::HasDefaults));
+				checkAndAppendFlag("NetClient",				 static_cast<uint32_t>(SDK::EFunctionFlags::NetClient));
+				checkAndAppendFlag("DLLImport",				 static_cast<uint32_t>(SDK::EFunctionFlags::DLLImport));
+				checkAndAppendFlag("BlueprintCallable",		 static_cast<uint32_t>(SDK::EFunctionFlags::BlueprintCallable));
+				checkAndAppendFlag("BlueprintEvent",		 static_cast<uint32_t>(SDK::EFunctionFlags::BlueprintEvent));
+				checkAndAppendFlag("BlueprintPure",			 static_cast<uint32_t>(SDK::EFunctionFlags::BlueprintPure));
+				checkAndAppendFlag("EditorOnly",			 static_cast<uint32_t>(SDK::EFunctionFlags::EditorOnly));
+				checkAndAppendFlag("Const",					 static_cast<uint32_t>(SDK::EFunctionFlags::Const));
+				checkAndAppendFlag("NetValidate",			 static_cast<uint32_t>(SDK::EFunctionFlags::NetValidate));
+
+				uint32_t unknownFlags = flags & ~foundFlags;
+				if (unknownFlags != 0)
+				{
+					if (outString.empty() == false)
+					{
+						outString += " | ";
+					}
+
+					outString += std::format("Unknown(0x{:08X})", unknownFlags);
+				}
+
+				return outString;
+			}
+
+
+			std::string MemoryAddressAsString() const
+			{
+				if (reference == nullptr)
+					return "nullptr";
+
+				return std::format("{:p}", static_cast<void*>(reference));
+			}
 		};
 
 
-		static std::vector<Function::DataStructure> GetFunctions(SDK::UObject* objectReference);
+		static std::vector<Function::DataStructure> GetFunctions(SDK::UObject* objectReference, const SDK::EFunctionFlags& hasFlags = SDK::EFunctionFlags::None);
+
 		static bool CallFunction(SDK::UObject* objectReference, SDK::UFunction* functionReference);
+		static bool CallFunction_ThreadSafe(SDK::UObject* objectReference, SDK::UFunction* functionReference);
 
 
 		static std::vector<Function::DataStructure> FilterByName(const std::vector<Function::DataStructure>& functionsCollection, const std::string& filter, const bool& caseSensitive);
