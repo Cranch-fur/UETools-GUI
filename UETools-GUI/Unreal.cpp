@@ -2441,6 +2441,8 @@ std::wstring Unreal::Object::NormalizeObjectPath(std::wstring objectPath)
 		{
 			normalizedObjectPath = normalizedObjectPath + L"." + assetName + L"_C";
 		}
+
+		wasObjectPathNormalized = true;
 	}
 
 	return wasObjectPathNormalized ? normalizedObjectPath : objectPath;
