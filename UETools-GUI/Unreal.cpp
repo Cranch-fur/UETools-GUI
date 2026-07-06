@@ -30,7 +30,7 @@ bool Unreal::Console::Construct(const bool& ignorePresence)
 		Before assigning Console to the Game Viewport Client, ensure that SpawnObject() returned a valid pointer.
 	*/
 	SDK::UEngine* Engine = Engine::Get();
-	if (SDK::UObject* objectReference = SDK::UGameplayStatics::SpawnObject(Engine ? Engine->ConsoleClass : SDK::TSubclassOf<SDK::UConsole>(SDK::UConsole::StaticClass()), GameViewportClient))
+	if (SDK::UObject* objectReference = Unreal::Object::Construct(Engine ? Engine->ConsoleClass : SDK::TSubclassOf<SDK::UConsole>(SDK::UConsole::StaticClass()), GameViewportClient))
 	{
 		GameViewportClient->ViewportConsole = static_cast<SDK::UConsole*>(objectReference); // Clarify that newly spawned Object is of class Console.
 
@@ -572,7 +572,7 @@ bool Unreal::CheatManager::Construct(const bool& ignorePresence)
 		playerController->CheatClass = SDK::UCheatManager::StaticClass();
 
 	/* Before assigning Cheat Manager to the Player Controller, ensure that SpawnObject() returned a valid pointer. */
-	if (SDK::UObject* objectReference = SDK::UGameplayStatics::SpawnObject(playerController->CheatClass, playerController))
+	if (SDK::UObject* objectReference = Unreal::Object::Construct(playerController->CheatClass, playerController))
 	{
 		playerController->CheatManager = static_cast<SDK::UCheatManager*>(objectReference); // Clarify that newly spawned Object is of class Cheat Manager.
 		return true;
@@ -602,7 +602,7 @@ bool Unreal::CheatManager::Summon(const SDK::TSubclassOf<SDK::AActor>& actorClas
 	if (playerController == nullptr)
 		return false;
 
-	SDK::UObject* objectReference = SDK::UGameplayStatics::SpawnObject(SDK::UCheatManager::StaticClass(), playerController);
+	SDK::UObject* objectReference = Unreal::Object::Construct(SDK::UCheatManager::StaticClass(), playerController);
 	if (objectReference == nullptr)
 		return false;
 
@@ -643,7 +643,7 @@ bool Unreal::CheatManager::SoftSummon(const std::wstring& actorPath)
 	if (playerController == nullptr)
 		return false;
 
-	SDK::UObject* objectReference = SDK::UGameplayStatics::SpawnObject(SDK::UCheatManager::StaticClass(), playerController);
+	SDK::UObject* objectReference = Unreal::Object::Construct(SDK::UCheatManager::StaticClass(), playerController);
 	if (objectReference == nullptr)
 		return false;
 
@@ -2312,6 +2312,15 @@ SDK::UObject* Unreal::Object::SoftLoadObject(const std::wstring& objectPath)
 	return nullptr;
 }
 #endif
+
+
+SDK::UObject* Unreal::Object::Construct(const SDK::TSubclassOf<SDK::UObject>& objectClass, SDK::UObject* outer)
+{
+	if (outer == nullptr)
+		return nullptr;
+	
+	return SDK::UGameplayStatics::SpawnObject(objectClass, outer);
+}
 
 
 std::wstring Unreal::Object::GetObjectNameFromPath(std::wstring objectPath)

@@ -972,6 +972,9 @@ namespace Unreal
 #endif
 
 
+		static SDK::UObject* Construct(const SDK::TSubclassOf<SDK::UObject>& objectClass, SDK::UObject* outer);
+
+
 		static std::wstring GetObjectNameFromPath(std::wstring objectPath);
 
 		static std::wstring NormalizeObjectPath(std::wstring objectPath);

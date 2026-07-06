@@ -6708,7 +6708,7 @@ void Templates::Menus::Debug::Sub_Objects()
 						{
 							SDK::UClass* objectClass = objectReference->Class;
 
-							if (SDK::UObject* objectInstance = SDK::UGameplayStatics::SpawnObject(objectClass, objectReference))
+							if (SDK::UObject* objectInstance = Unreal::Object::Construct(objectClass, objectReference))
 							{
 								anyObjectConstructed = true;
 							}
