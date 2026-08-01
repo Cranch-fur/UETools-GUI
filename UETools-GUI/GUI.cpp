@@ -6792,7 +6792,7 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 			}
 			break;
 
-#ifdef UE5
+#ifndef UE5
 		case Unreal::Actor::E_ActorKind::AtmosphericFog:
 			if (SDK::AAtmosphericFog* atmosphericFog = static_cast<SDK::AAtmosphericFog*>(actor.reference))
 			{
