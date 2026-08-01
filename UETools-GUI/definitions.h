@@ -148,4 +148,5 @@
 	#define COLLISION_VISUALIZER
 
 	Enables everything related to collision visualization (e.g. Draw Collision).
+	Isn't compatible with older versions of the Engine (e.g. 4.22.3) as important variables weren't exposed to Blueprints yet.
 */

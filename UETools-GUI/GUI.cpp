@@ -1888,6 +1888,10 @@ void Features::Debug::Update()
 			Features::Debug::playerController.pawn.transform = Unreal::Actor::GetTransform(pawn);
 
 			Features::Debug::playerController.pawn.isControlled = pawn->IsControlled();
+			/*
+				IsPawnControlled() isn't present in older versions of the Engine (e.g. 4.22.3). Use following code:
+				Features::Debug::playerController.pawn.isPawnControlled = false;
+			*/
 			Features::Debug::playerController.pawn.isPawnControlled = pawn->IsPawnControlled();
 			Features::Debug::playerController.pawn.isPlayerControlled = pawn->IsPlayerControlled();
 			Features::Debug::playerController.pawn.isLocallyControlled = pawn->IsLocallyControlled();
@@ -1970,6 +1974,10 @@ void Features::Debug::Update()
 
 		Features::Debug::world.isServer = SDK::UKismetSystemLibrary::IsServer(world);
 		Features::Debug::world.isDedicatedServer = SDK::UKismetSystemLibrary::IsDedicatedServer(world);
+		/*
+			IsSplitScreen() isn't present in older versions of the Engine (e.g. 4.22.3). Use following code:
+			Features::Debug::world.isSplitScreen = false;
+		*/
 		Features::Debug::world.isSplitScreen = SDK::UKismetSystemLibrary::IsSplitScreen(world);
 		Features::Debug::world.isStandalone = SDK::UKismetSystemLibrary::IsStandalone(world);
 	}
@@ -6374,6 +6382,10 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 
 					ImGui::NewLine();
 
+					/*
+						bCastDeepShadow isn't member of LightComponent in older versions of the Engine (e.g. 4.22.3).
+						Comment out following section of the code.
+					*/
 					ImGui::TextBoolColored("Cast Deep Shadow:", lightComponent->bCastDeepShadow);
 					if (ImGui::Button("Enable##CastDeepShadow"))
 					{
@@ -6384,7 +6396,7 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 					ImGui::SameLine();
 					if (ImGui::Button("Disable##CastDeepShadow"))
 					{
-						lightComponent->bCastVolumetricShadow = false;
+						lightComponent->bCastDeepShadow = false;
 						RefreshLightComponent(lightComponent);
 						GUI::PlayActionSound(true);
 					}

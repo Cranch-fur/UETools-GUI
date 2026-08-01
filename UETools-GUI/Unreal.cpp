@@ -413,6 +413,10 @@ bool Unreal::LevelStreaming::LoadLevelInstance(const std::wstring& objectPath, c
 	static SDK::TSubclassOf<SDK::ULevelStreamingDynamic> optionalLevelStreamingClass;
 	SDK::ULevelStreamingDynamic::LoadLevelInstance(world, SDK::FString(objectPath.c_str()), locationOffset, rotationOffset, &outSuccess, SDK::FString(instancedNameOverride.c_str()), optionalLevelStreamingClass, false);
 #else
+	/*
+		LoadLevelInstance() takes fewer arguments in older versions of the Engine (e.g. 4.22.3). Use following code:
+		SDK::ULevelStreamingDynamic::LoadLevelInstance(world, SDK::FString(objectPath.c_str()), locationOffset, rotationOffset, &outSuccess);
+	*/
 	SDK::ULevelStreamingDynamic::LoadLevelInstance(world, SDK::FString(objectPath.c_str()), locationOffset, rotationOffset, &outSuccess, SDK::FString(instancedNameOverride.c_str()));
 #endif
 
@@ -961,6 +965,10 @@ std::vector<SDK::UActorComponent*> Unreal::ActorComponent::GetAllOfClass(SDK::AA
 	if (actorReference == nullptr)
 		return outCollection;
 
+	/* 
+		For older Engine versions (e.g. 4.22.3) code would be the following:
+		SDK::TArray<SDK::UActorComponent*> foundComponents = actorReference->GetComponentsByClass(SDK::UActorComponent::StaticClass());
+	*/
 	SDK::TArray<SDK::UActorComponent*> foundComponents = actorReference->K2_GetComponentsByClass(SDK::UActorComponent::StaticClass());
 	for (SDK::UActorComponent* actorComponent : foundComponents)
 	{
@@ -2490,6 +2498,19 @@ std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByClassAndObjec
 #ifdef SOFT_PATH
 SDK::UClass* Unreal::Object::SoftLoadClass(const std::wstring& objectPath)
 {
+	/*
+		UKismetSystemLibrary::Conv_SoftClassPathToSoftClassRef isn't present in older versions of the Engine (e.g. 4.22.3). Replace function code with following:
+
+		SDK::UObject* loadedObject = SoftLoadObject(objectPath);
+
+		if (loadedObject && loadedObject->IsA(SDK::UClass::StaticClass()))
+		{
+			return static_cast<SDK::UClass*>(loadedObject);
+		}
+
+		return nullptr;
+	*/
+
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
 		return nullptr;
