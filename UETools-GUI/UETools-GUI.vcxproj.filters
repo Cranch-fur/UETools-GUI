@@ -183,5 +183,8 @@
     <Image Include="..\Textures\Actor_Base.png">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="..\Textures\Actor_SkyAtmosphere.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

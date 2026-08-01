@@ -1157,8 +1157,13 @@ Unreal::Actor::E_ActorKind Unreal::Actor::GetActorKind(SDK::AActor* actorReferen
 		if (actorReference->IsA(SDK::ASkyLight::StaticClass()))
 			return E_ActorKind::SkyLight;
 
+		if (actorReference->IsA(SDK::ASkyAtmosphere::StaticClass()))
+			return E_ActorKind::SkyAtmosphere;
+
+#ifndef UE5
 		if (actorReference->IsA(SDK::AAtmosphericFog::StaticClass()))
 			return E_ActorKind::AtmosphericFog;
+#endif
 
 		if (actorReference->IsA(SDK::AExponentialHeightFog::StaticClass()))
 			return E_ActorKind::ExponentialHeightFog;

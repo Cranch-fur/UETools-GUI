@@ -701,7 +701,10 @@ namespace Unreal
 			RectLight,
 			DirectionalLight,
 			SkyLight,
+			SkyAtmosphere,
+#ifndef UE5
 			AtmosphericFog,
+#endif
 			ExponentialHeightFog,
 			Camera,
 			Pawn,

@@ -188,6 +188,7 @@
     <Image Include="..\Textures\Actor_Pawn.png" />
     <Image Include="..\Textures\Actor_PointLight.png" />
     <Image Include="..\Textures\Actor_RectLight.png" />
+    <Image Include="..\Textures\Actor_SkyAtmosphere.png" />
     <Image Include="..\Textures\Actor_SkyLight.png" />
     <Image Include="..\Textures\Actor_SpotLight.png" />
     <Image Include="..\Textures\Actor_TargetPoint.png" />

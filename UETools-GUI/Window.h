@@ -85,6 +85,7 @@ public:
         TextureMetaData T_Actor_RectLight =            { Actor_RectLight, "Actor_RectLight" };
         TextureMetaData T_Actor_DirectionalLight =     { Actor_DirectionalLight, "Actor_DirectionalLight" };
         TextureMetaData T_Actor_SkyLight =             { Actor_SkyLight, "Actor_SkyLight" };
+        TextureMetaData T_Actor_SkyAtmosphere =        { Actor_SkyAtmosphere, "Actor_SkyAtmosphere" };
         TextureMetaData T_Actor_AtmosphericFog =       { Actor_AtmosphericFog, "Actor_AtmosphericFog" };
         TextureMetaData T_Actor_ExponentialHeightFog = { Actor_ExponentialHeightFog, "Actor_ExponentialHeightFog" };
         TextureMetaData T_Actor_Camera =               { Actor_Camera, "Actor_Camera" };

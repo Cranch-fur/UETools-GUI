@@ -5573,13 +5573,21 @@ void Templates::Menus::Debug::Sub_Actors()
 
 			ImGui::NewLine();
 
-			ImGui::BigText("Fog");
+			ImGui::BigText("Atmosphere");
+			if (ImGui::IconButton(Window::texturesCollection.T_Actor_SkyAtmosphere, "Sky Atmosphere"))
+			{
+				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ASkyAtmosphere::StaticClass());
+				GUI::PlayActionSound(wasSuccessfull);
+			}
+			ImGui::SameLine();
+#ifndef UE5
 			if (ImGui::IconButton(Window::texturesCollection.T_Actor_AtmosphericFog, "Atmospheric Fog"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::AAtmosphericFog::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
+#endif
 			if (ImGui::IconButton(Window::texturesCollection.T_Actor_ExponentialHeightFog, "Exponential Height Fog"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::AExponentialHeightFog::StaticClass());
@@ -6757,6 +6765,34 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 			}
 			break;
 
+		case Unreal::Actor::E_ActorKind::SkyAtmosphere:
+			if (SDK::ASkyAtmosphere* skyAtmosphere = static_cast<SDK::ASkyAtmosphere*>(actor.reference))
+			{
+				if (SDK::USkyAtmosphereComponent* skyAtmosphereComponent = skyAtmosphere->SkyAtmosphereComponent)
+				{
+					ImGui::TitleText("Sky Atmosphere Settings");
+					if (ImGui::TreeNode("Details##SkyAtmosphereSettings"))
+					{
+						ImGui::Text("Rayleigh Scattering Scale");
+						ImGui::SliderFloatEditable("##RayleighScatteringScale", &skyAtmosphereComponent->RayleighScatteringScale, 0.0f, 100.0f);
+
+						ImGui::NewLine();
+
+						ImGui::Text("Mie Scattering Scale");
+						ImGui::SliderFloatEditable("##MieScatteringScale", &skyAtmosphereComponent->MieScatteringScale, 0.0f, 100.0f);
+
+						ImGui::NewLine();
+
+						ImGui::Text("Mie Absorption Scale");
+						ImGui::SliderFloatEditable("##MieAbsorptionScale", &skyAtmosphereComponent->MieAbsorptionScale, 0.0f, 100.0f);
+
+						ImGui::TreePop();
+					}
+				}
+			}
+			break;
+
+#ifdef UE5
 		case Unreal::Actor::E_ActorKind::AtmosphericFog:
 			if (SDK::AAtmosphericFog* atmosphericFog = static_cast<SDK::AAtmosphericFog*>(actor.reference))
 			{
@@ -6779,6 +6815,7 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 				}
 			}
 			break;
+#endif
 
 		case Unreal::Actor::E_ActorKind::ExponentialHeightFog:
 			if (SDK::AExponentialHeightFog* exponentialHeightFog = static_cast<SDK::AExponentialHeightFog*>(actor.reference))
@@ -6989,7 +7026,12 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 							if (textRenderComponent)
 							{
 								std::wstring content = Utilities::String::ToWString(textRenderContentBuffer);
+#ifdef UE5
+								SDK::FText text = SDK::UKismetTextLibrary::Conv_StringToText(SDK::FString(content.c_str()));
+								textRenderComponent->SetText(text);
+#else
 								textRenderComponent->SetText(SDK::FString(content.c_str()));
+#endif
 								lastTextRenderContentSource = textRenderComponent;
 
 								GUI::PlayActionSound(true);

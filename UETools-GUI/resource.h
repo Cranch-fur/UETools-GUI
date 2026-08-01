@@ -4,7 +4,7 @@
 //
 #define APP_VERSION_MAJOR               6
 #define APP_VERSION_MINOR               0
-#define APP_VERSION_PATCH               1
+#define APP_VERSION_PATCH               2
 #define APP_VERSION_BUILD               0
 
 #define APP_VERSION_INTERNAL_HELPER(x) #x
@@ -22,20 +22,21 @@
 #define Actor_RectLight                 107
 #define Actor_DirectionalLight          108
 #define Actor_SkyLight                  109
-#define Actor_AtmosphericFog            110
-#define Actor_ExponentialHeightFog      111
-#define Actor_Camera                    112
-#define Actor_Pawn                      113
-#define Actor_DefaultPawn               114
-#define Actor_Decal                     115
-#define Actor_TextRender                116
-#define Actor_TargetPoint               117
+#define Actor_SkyAtmosphere             110
+#define Actor_AtmosphericFog            111
+#define Actor_ExponentialHeightFog      112
+#define Actor_Camera                    113
+#define Actor_Pawn                      114
+#define Actor_DefaultPawn               115
+#define Actor_Decal                     116
+#define Actor_TextRender                117
+#define Actor_TargetPoint               118
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        118
+#define _APS_NEXT_RESOURCE_VALUE        119
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101
