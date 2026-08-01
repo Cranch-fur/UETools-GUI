@@ -8,25 +8,25 @@
 
 SDK::FVector Math::Vector_Add(const SDK::FVector& A, const SDK::FVector& B)
 {
-    SDK::FVector outVector;
-    outVector.X = A.X + B.X;
-    outVector.Y = A.Y + B.Y;
-    outVector.Z = A.Z + B.Z;
-
-    return outVector;
+    return SDK::FVector
+    {
+        A.X + B.X,
+        A.Y + B.Y,
+        A.Z + B.Z
+    };
 }
 
-SDK::FVector Math::Vector_Multiply(const SDK::FVector& A, const float& B)
+SDK::FVector Math::Vector_Multiply(const SDK::FVector& A, float B)
 {
-    SDK::FVector outVector;
-    outVector.X = A.X * B;
-    outVector.Y = A.Y * B;
-    outVector.Z = A.Z * B;
-
-    return outVector;
+    return SDK::FVector
+    {
+        A.X * B,
+        A.Y * B,
+        A.Z * B
+    };
 }
 
-SDK::FVector Math::Vector_Normal(const SDK::FVector& vector, const float& tolerance)
+SDK::FVector Math::Vector_Normal(const SDK::FVector& vector, float tolerance)
 {
     float vectorLengthSquared = (vector.X * vector.X) + (vector.Y * vector.Y) + (vector.Z * vector.Z);
     if (vectorLengthSquared < tolerance)
@@ -246,7 +246,7 @@ SDK::FTransform Math::Unreal_ToFTransform(const Unreal::Transform& unrealTransfo
 
 
 
-uint32_t Math::ColorFloat4_ToU32(const float color[4])
+uint32_t Math::ColorFloat4_ToU32(float color[4])
 {
     uint8_t r = (uint8_t)(std::clamp(color[0], 0.0f, 1.0f) * 255.0f + 0.5f);
     uint8_t g = (uint8_t)(std::clamp(color[1], 0.0f, 1.0f) * 255.0f + 0.5f);
@@ -258,7 +258,7 @@ uint32_t Math::ColorFloat4_ToU32(const float color[4])
 
 
 
-uint32_t Math::Seconds_ToMilliseconds(const double& seconds)
+uint32_t Math::Seconds_ToMilliseconds(double seconds)
 {
     return static_cast<uint32_t>(std::lround(seconds * 1000.0));
 }
@@ -266,29 +266,29 @@ uint32_t Math::Seconds_ToMilliseconds(const double& seconds)
 
 
 
-float Math::Unit_ToMetre(const float& centimetres)
+float Math::Unit_ToMetre(float centimetres)
 {
     return centimetres / 100.0f;
 }
-float Math::Unit_ToInch(const float& centimetres)
+float Math::Unit_ToInch(float centimetres)
 {
     return centimetres / 2.54f;
 }
 
-float Math::Metre_ToUnit(const float& metres)
+float Math::Metre_ToUnit(float metres)
 {
     return metres * 100.0f;
 }
-float Math::Metre_ToInch(const float& metres)
+float Math::Metre_ToInch(float metres)
 {
     return Unit_ToInch(Metre_ToUnit(metres));
 }
 
-float Math::Inch_ToUnit(const float& inches)
+float Math::Inch_ToUnit(float inches)
 {
     return inches * 2.54f;
 }
-float Math::Inch_ToMetre(const float& inches)
+float Math::Inch_ToMetre(float inches)
 {
     return Unit_ToMetre(Inch_ToUnit(inches));
 }

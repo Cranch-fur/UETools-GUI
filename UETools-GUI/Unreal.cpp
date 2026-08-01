@@ -14,7 +14,7 @@ SDK::UConsole* Unreal::Console::Get()
 	return GameViewportClient->ViewportConsole;
 }
 
-bool Unreal::Console::Construct(const bool& ignorePresence)
+bool Unreal::Console::Construct(bool ignorePresence)
 {
 	SDK::UGameViewportClient* GameViewportClient = GameViewportClient::Get();
 	if (GameViewportClient == nullptr)
@@ -65,11 +65,11 @@ bool Unreal::Console::Print(const std::string& string)
 	return Print(std::wstring(string.begin(), string.end()));
 }
 
-bool Unreal::Console::Print(const int32_t& integer)
+bool Unreal::Console::Print(int32_t integer)
 {
 	return Print(std::to_wstring(integer));
 }
-bool Unreal::Console::Print(const uint32_t& unsignedInteger)
+bool Unreal::Console::Print(uint32_t unsignedInteger)
 {
 	return Print(std::to_wstring(unsignedInteger));
 }
@@ -136,6 +136,41 @@ bool Unreal::InputSettings::AssignConsoleBindings()
 	if (bindingsNum > 2)
 		InputSettings->ConsoleKeys[2].KeyName = SDK::UKismetStringLibrary::Conv_StringToName(L"¸");
 
+	return true;
+}
+
+
+
+
+
+
+SDK::UUserInterfaceSettings* Unreal::UserInterfaceSettings::Get()
+{
+	SDK::UUserInterfaceSettings* UserInterfaceSettings = SDK::UUserInterfaceSettings::GetDefaultObj();
+	return UserInterfaceSettings ? UserInterfaceSettings : nullptr;
+}
+
+
+bool Unreal::UserInterfaceSettings::GetApplicationScale(float* outScale)
+{
+	if (outScale == nullptr)
+		return false;
+
+	SDK::UUserInterfaceSettings* UserInterfaceSettings = UserInterfaceSettings::Get();
+	if (UserInterfaceSettings == nullptr)
+		return false;
+
+	*outScale = UserInterfaceSettings->ApplicationScale;
+	return true;
+}
+
+bool Unreal::UserInterfaceSettings::SetApplicationScale(float scale)
+{
+	SDK::UUserInterfaceSettings* UserInterfaceSettings = UserInterfaceSettings::Get();
+	if (UserInterfaceSettings == nullptr)
+		return false;
+
+	UserInterfaceSettings->ApplicationScale = scale;
 	return true;
 }
 
@@ -224,8 +259,7 @@ SDK::AGameStateBase* Unreal::GameState::Get()
 
 
 
-#ifdef LEVEL_SEQUENCE
-bool Unreal::Level::CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset, const float& startTime, const float& playRate, const int32_t& loopCount)
+bool Unreal::Level::CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset, float startTime, float playRate, int32_t loopCount)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr || levelSequenceAsset == nullptr)
@@ -245,7 +279,7 @@ bool Unreal::Level::CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset,
 	return levelSequenceActor;
 }
 
-bool Unreal::Level::CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSequenceAsset, const float& startTime, const float& playRate, const int32_t& loopCount)
+bool Unreal::Level::CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSequenceAsset, float startTime, float playRate, int32_t loopCount)
 {
 	__try
 	{
@@ -258,7 +292,7 @@ bool Unreal::Level::CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSeq
 }
 
 #ifdef SOFT_PATH
-bool Unreal::Level::CreateLevelSequence(const std::wstring& levelSequencePath, const float& startTime, const float& playRate, const int32_t& loopCount)
+bool Unreal::Level::CreateLevelSequence(const std::wstring& levelSequencePath, float startTime, float playRate, int32_t loopCount)
 {
 	SDK::UObject* objectReference = Object::SoftLoadObject(levelSequencePath);
 	bool success = false;
@@ -276,7 +310,7 @@ bool Unreal::Level::CreateLevelSequence(const std::wstring& levelSequencePath, c
 	return success;
 }
 
-bool Unreal::Level::CreateLevelSequence_ThreadSafe(const std::wstring& levelSequencePath, const float& startTime, const float& playRate, const int32_t& loopCount)
+bool Unreal::Level::CreateLevelSequence_ThreadSafe(const std::wstring& levelSequencePath, float startTime, float playRate, int32_t loopCount)
 {
 	__try
 	{
@@ -287,7 +321,6 @@ bool Unreal::Level::CreateLevelSequence_ThreadSafe(const std::wstring& levelSequ
 		return false;
 	}
 }
-#endif
 #endif
 
 
@@ -322,7 +355,7 @@ std::vector<SDK::ULevelStreaming*> Unreal::LevelStreaming::GetAll()
 }
 
 
-std::vector<Unreal::LevelStreaming::DataStructure> Unreal::LevelStreaming::FilterByLevelPath(const std::vector<LevelStreaming::DataStructure>& levelStreamingsCollection, const std::string& filter, const bool& caseSensitive)
+std::vector<Unreal::LevelStreaming::DataStructure> Unreal::LevelStreaming::FilterByLevelPath(const std::vector<LevelStreaming::DataStructure>& levelStreamingsCollection, const std::string& filter, bool caseSensitive)
 {
 	std::vector<LevelStreaming::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -360,7 +393,7 @@ std::vector<Unreal::LevelStreaming::DataStructure> Unreal::LevelStreaming::Filte
 
 
 #ifdef SOFT_PATH
-bool Unreal::LevelStreaming::LoadLevelInstance(const std::wstring& objectPath, const SDK::FVector& locationOffset, const SDK::FRotator& rotationOffset, const bool& useInstancedName)
+bool Unreal::LevelStreaming::LoadLevelInstance(const std::wstring& objectPath, const SDK::FVector& locationOffset, const SDK::FRotator& rotationOffset, bool useInstancedName)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
@@ -399,7 +432,7 @@ SDK::UWorld* Unreal::World::Get()
 }
 
 
-bool Unreal::World::RemoveLevelStreamingAtIndex(SDK::UWorld* worldReference, const int32_t& index)
+bool Unreal::World::RemoveLevelStreamingAtIndex(SDK::UWorld* worldReference, int32_t index)
 {
 	if (worldReference == nullptr)
 		return false;
@@ -411,7 +444,7 @@ bool Unreal::World::RemoveLevelStreamingAtIndex(SDK::UWorld* worldReference, con
 	return worldReference->StreamingLevels.Remove(index);
 }
 
-bool Unreal::World::RemoveLevelStreamingAtIndex(const int32_t& index)
+bool Unreal::World::RemoveLevelStreamingAtIndex(int32_t index)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
@@ -458,7 +491,7 @@ bool Unreal::World::RemoveLevelStreamingByName(const std::string& levelStreaming
 
 
 
-SDK::APawn* Unreal::Pawn::Get(const int32_t& playerIndex)
+SDK::APawn* Unreal::Pawn::Get(int32_t playerIndex)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
@@ -472,7 +505,7 @@ SDK::APawn* Unreal::Pawn::Get(const int32_t& playerIndex)
 }
 
 
-bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, SDK::UAnimMontage* animationMontageAsset, const float& startAt, const float& playRate, const bool& stopAllMontages)
+bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, SDK::UAnimMontage* animationMontageAsset, float startAt, float playRate, bool stopAllMontages)
 {
 	if (pawnReference == nullptr || animationMontageAsset == nullptr)
 		return false;
@@ -490,7 +523,7 @@ bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, SDK::UAnimMon
 }
 
 #ifdef SOFT_PATH
-bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, const std::wstring& animationMontagePath, const float& startAt, const float& playRate, const bool& stopAllMontages)
+bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, const std::wstring& animationMontagePath, float startAt, float playRate, bool stopAllMontages)
 {
 	SDK::UObject* objectReference = Object::SoftLoadObject(animationMontagePath);
 	bool success = false;
@@ -510,7 +543,7 @@ bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, const std::ws
 #endif
 
 
-bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, SDK::UAnimationAsset* animationAsset, const bool& looping)
+bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, SDK::UAnimationAsset* animationAsset, bool looping)
 {
 	if (pawnReference == nullptr || animationAsset == nullptr)
 		return false;
@@ -525,7 +558,7 @@ bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, SDK::UAnimationAsset
 }
 
 #ifdef SOFT_PATH
-bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, const std::wstring& animationPath, const bool& looping)
+bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, const std::wstring& animationPath, bool looping)
 {
 	SDK::UObject* objectReference = Object::SoftLoadObject(animationPath);
 	bool success = false;
@@ -559,7 +592,7 @@ SDK::UCheatManager* Unreal::CheatManager::Get()
 }
 
 
-bool Unreal::CheatManager::Construct(const bool& ignorePresence)
+bool Unreal::CheatManager::Construct(bool ignorePresence)
 {
 	SDK::APlayerController* playerController = PlayerController::Get();
 	if (playerController == nullptr)
@@ -656,7 +689,7 @@ bool Unreal::CheatManager::SoftSummon(const std::wstring& actorPath)
 
 
 
-SDK::APlayerController* Unreal::PlayerController::Get(const int32_t& playerIndex)
+SDK::APlayerController* Unreal::PlayerController::Get(int32_t playerIndex)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
@@ -683,7 +716,7 @@ SDK::FVector Unreal::PlayerController::GetLocation(SDK::APlayerController* playe
 		return SDK::FVector();
 }
 
-SDK::FVector Unreal::PlayerController::GetLocation(const int32_t& playerIndex)
+SDK::FVector Unreal::PlayerController::GetLocation(int32_t playerIndex)
 {
 	SDK::APlayerController* playerController = PlayerController::Get(playerIndex);
 	return Unreal::PlayerController::GetLocation(playerController);
@@ -702,7 +735,7 @@ SDK::FRotator Unreal::PlayerController::GetRotation(SDK::APlayerController* play
 		return SDK::FRotator();
 }
 
-SDK::FRotator Unreal::PlayerController::GetRotation(const int32_t& playerIndex)
+SDK::FRotator Unreal::PlayerController::GetRotation(int32_t playerIndex)
 {
 	SDK::APlayerController* playerController = PlayerController::Get(playerIndex);
 	return Unreal::PlayerController::GetRotation(playerController);
@@ -721,7 +754,7 @@ SDK::FVector Unreal::PlayerController::GetScale3D(SDK::APlayerController* player
 		return SDK::FVector();
 }
 
-SDK::FVector Unreal::PlayerController::GetScale3D(const int32_t& playerIndex)
+SDK::FVector Unreal::PlayerController::GetScale3D(int32_t playerIndex)
 {
 	SDK::APlayerController* playerController = PlayerController::Get(playerIndex);
 	return Unreal::PlayerController::GetScale3D(playerController);
@@ -740,28 +773,29 @@ Unreal::Transform Unreal::PlayerController::GetTransform(SDK::APlayerController*
 		return Unreal::Transform();
 }
 
-Unreal::Transform Unreal::PlayerController::GetTransform(const int32_t& playerIndex)
+Unreal::Transform Unreal::PlayerController::GetTransform(int32_t playerIndex)
 {
 	SDK::APlayerController* playerController = PlayerController::Get(playerIndex);
 	return Unreal::PlayerController::GetTransform(playerController);
 }
 
 
-void Unreal::PlayerController::SetViewTarget(SDK::AActor* actorReference, const SDK::EViewTargetBlendFunction& blendFunction, const float& blendTime, const float& blendExponent)
+bool Unreal::PlayerController::SetViewTarget(SDK::AActor* actorReference, SDK::EViewTargetBlendFunction blendFunction, float blendTime, float blendExponent)
 {
 	if (actorReference == nullptr)
-		return;
+		return false;
 
 	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
 	if (playerController == nullptr)
-		return;
+		return false;
 
 	playerController->SetViewTargetWithBlend(actorReference, blendTime, blendFunction, blendExponent, false);
+	return true;
 }
 
-void Unreal::PlayerController::SetViewTarget(SDK::AActor* actorReference)
+bool Unreal::PlayerController::SetViewTarget(SDK::AActor* actorReference)
 {
-	SetViewTarget(actorReference, SDK::EViewTargetBlendFunction::VTBlend_Linear, 0.0f, 0.0f);
+	return SetViewTarget(actorReference, SDK::EViewTargetBlendFunction::VTBlend_Linear, 0.0f, 0.0f);
 }
 
 
@@ -769,7 +803,7 @@ void Unreal::PlayerController::SetViewTarget(SDK::AActor* actorReference)
 
 
 
-SDK::ACharacter* Unreal::Character::Get(const int32_t& playerIndex)
+SDK::ACharacter* Unreal::Character::Get(int32_t playerIndex)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
@@ -794,7 +828,7 @@ bool Unreal::Character::Jump(SDK::ACharacter* characterReference)
 
 	return canJump;
 }
-bool Unreal::Character::Jump(const int32_t& playerIndex)
+bool Unreal::Character::Jump(int32_t playerIndex)
 {
 	SDK::ACharacter* Character = Character::Get(playerIndex);
 
@@ -809,7 +843,7 @@ bool Unreal::Character::Jump(const int32_t& playerIndex)
 }
 
 
-bool Unreal::Character::LocalLaunch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity, const bool& overrideVerticalVelocity)
+bool Unreal::Character::LocalLaunch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, bool overrideHorizontalVelocity, bool overrideVerticalVelocity)
 {
 	if (characterReference == nullptr || characterReference->CharacterMovement == nullptr
 									  || characterReference->CharacterMovement->bCheatFlying
@@ -843,12 +877,12 @@ bool Unreal::Character::LocalLaunch(SDK::ACharacter* characterReference, const S
 
 	return true;
 }
-bool Unreal::Character::LocalLaunch(const int32_t& playerIndex, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity, const bool& overrideVerticalVelocity)
+bool Unreal::Character::LocalLaunch(int32_t playerIndex, const SDK::FVector& launchVelocity, bool overrideHorizontalVelocity, bool overrideVerticalVelocity)
 {
 	return LocalLaunch(Character::Get(playerIndex), launchVelocity, overrideHorizontalVelocity, overrideVerticalVelocity);
 }
 
-bool Unreal::Character::Launch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity, const bool& overrideVerticalVelocity)
+bool Unreal::Character::Launch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, bool overrideHorizontalVelocity, bool overrideVerticalVelocity)
 {
 	if (characterReference == nullptr || characterReference->CharacterMovement == nullptr
 									  || characterReference->CharacterMovement->bCheatFlying
@@ -858,7 +892,7 @@ bool Unreal::Character::Launch(SDK::ACharacter* characterReference, const SDK::F
 
 	characterReference->LaunchCharacter(launchVelocity, overrideHorizontalVelocity, overrideVerticalVelocity);
 }
-bool Unreal::Character::Launch(const int32_t& playerIndex, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity, const bool& overrideVerticalVelocity)
+bool Unreal::Character::Launch(int32_t playerIndex, const SDK::FVector& launchVelocity, bool overrideHorizontalVelocity, bool overrideVerticalVelocity)
 {
 	return Launch(Character::Get(playerIndex), launchVelocity, overrideHorizontalVelocity, overrideVerticalVelocity);
 }
@@ -876,7 +910,7 @@ bool Unreal::Character::Walk(SDK::ACharacter* characterReference)
 
 	return true;
 }
-bool Unreal::Character::Walk(const int32_t& playerIndex)
+bool Unreal::Character::Walk(int32_t playerIndex)
 {
 	return Walk(Character::Get(playerIndex));
 }
@@ -893,7 +927,7 @@ bool Unreal::Character::Fly(SDK::ACharacter* characterReference)
 
 	return true;
 }
-bool Unreal::Character::Fly(const int32_t& playerIndex)
+bool Unreal::Character::Fly(int32_t playerIndex)
 {
 	return Fly(Character::Get(playerIndex));
 }
@@ -910,7 +944,7 @@ bool Unreal::Character::Ghost(SDK::ACharacter* characterReference)
 
 	return true;
 }
-bool Unreal::Character::Ghost(const int32_t& playerIndex)
+bool Unreal::Character::Ghost(int32_t playerIndex)
 {
 	return Ghost(Character::Get(playerIndex));
 }
@@ -990,7 +1024,7 @@ Unreal::Transform Unreal::ActorComponent::GetTransform(SDK::USceneComponent* sce
 }
 
 
-std::vector<Unreal::ActorComponent::DataStructure> Unreal::ActorComponent::FilterByClassName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, const bool& caseSensitive)
+std::vector<Unreal::ActorComponent::DataStructure> Unreal::ActorComponent::FilterByClassName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, bool caseSensitive)
 {
 	std::vector<ActorComponent::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -1019,7 +1053,7 @@ std::vector<Unreal::ActorComponent::DataStructure> Unreal::ActorComponent::Filte
 	return outCollection;
 }
 
-std::vector<Unreal::ActorComponent::DataStructure> Unreal::ActorComponent::FilterByObjectName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, const bool& caseSensitive)
+std::vector<Unreal::ActorComponent::DataStructure> Unreal::ActorComponent::FilterByObjectName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, bool caseSensitive)
 {
 	std::vector<ActorComponent::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -1048,7 +1082,7 @@ std::vector<Unreal::ActorComponent::DataStructure> Unreal::ActorComponent::Filte
 	return outCollection;
 }
 
-std::vector<Unreal::ActorComponent::DataStructure> Unreal::ActorComponent::FilterByClassAndObjectName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, const bool& caseSensitive)
+std::vector<Unreal::ActorComponent::DataStructure> Unreal::ActorComponent::FilterByClassAndObjectName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, bool caseSensitive)
 {
 	std::vector<ActorComponent::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -1090,27 +1124,52 @@ std::vector<Unreal::ActorComponent::DataStructure> Unreal::ActorComponent::Filte
 
 
 
-#ifdef ACTOR_KIND
 Unreal::Actor::E_ActorKind Unreal::Actor::GetActorKind(SDK::AActor* actorReference)
 {
 	if (actorReference == nullptr)
 		return E_ActorKind::General;
 
-	if (actorReference->IsA(SDK::APointLight::StaticClass()))
-		return E_ActorKind::PointLight;
+	if (actorReference->IsA(SDK::ALight::StaticClass()))
+	{
+		if (actorReference->IsA(SDK::APointLight::StaticClass()))
+			return E_ActorKind::PointLight;
 
-	if (actorReference->IsA(SDK::ASpotLight::StaticClass()))
-		return E_ActorKind::SpotLight;
+		if (actorReference->IsA(SDK::ASpotLight::StaticClass()))
+			return E_ActorKind::SpotLight;
+
+		if (actorReference->IsA(SDK::ARectLight::StaticClass()))
+			return E_ActorKind::RectLight;
+
+		if (actorReference->IsA(SDK::ADirectionalLight::StaticClass()))
+			return E_ActorKind::DirectionalLight;
+	}
+
+	if (actorReference->IsA(SDK::AInfo::StaticClass()))
+	{
+		if (actorReference->IsA(SDK::ASkyLight::StaticClass()))
+			return E_ActorKind::SkyLight;
+
+		if (actorReference->IsA(SDK::AAtmosphericFog::StaticClass()))
+			return E_ActorKind::AtmosphericFog;
+
+		if (actorReference->IsA(SDK::AExponentialHeightFog::StaticClass()))
+			return E_ActorKind::ExponentialHeightFog;
+	}
+	
+	if (actorReference->IsA(SDK::ACameraActor::StaticClass()))
+		return E_ActorKind::Camera;
 
 	if (actorReference->IsA(SDK::APawn::StaticClass()))
 		return E_ActorKind::Pawn;
+
+	if (actorReference->IsA(SDK::ADecalActor::StaticClass()))
+		return E_ActorKind::Decal;
 
 	if (actorReference->IsA(SDK::ATextRenderActor::StaticClass()))
 		return E_ActorKind::TextRender;
 
 	return E_ActorKind::General;
 }
-#endif
 
 
 SDK::EComponentMobility Unreal::Actor::GetMobility(SDK::AActor* actorReference)
@@ -1193,7 +1252,7 @@ std::vector<SDK::AActor*> Unreal::Actor::GetAll()
 }
 
 
-std::vector<Unreal::Actor::DataStructure> Unreal::Actor::FilterByClassName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, const bool& caseSensitive, const float& inDistance)
+std::vector<Unreal::Actor::DataStructure> Unreal::Actor::FilterByClassName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, bool caseSensitive, float inDistance)
 {
 	std::vector<Actor::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -1248,7 +1307,7 @@ std::vector<Unreal::Actor::DataStructure> Unreal::Actor::FilterByClassName(const
 	return outCollection;
 }
 
-std::vector<Unreal::Actor::DataStructure> Unreal::Actor::FilterByObjectName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, const bool& caseSensitive, const float& inDistance)
+std::vector<Unreal::Actor::DataStructure> Unreal::Actor::FilterByObjectName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, bool caseSensitive, float inDistance)
 {
 	std::vector<Actor::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -1288,7 +1347,7 @@ std::vector<Unreal::Actor::DataStructure> Unreal::Actor::FilterByObjectName(cons
 	return outCollection;
 }
 
-std::vector<Unreal::Actor::DataStructure> Unreal::Actor::FilterByClassAndObjectName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, const bool& caseSensitive, const float& inDistance)
+std::vector<Unreal::Actor::DataStructure> Unreal::Actor::FilterByClassAndObjectName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, bool caseSensitive, float inDistance)
 {
 	std::vector<Actor::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -1345,7 +1404,7 @@ std::vector<Unreal::Actor::DataStructure> Unreal::Actor::FilterByClassAndObjectN
 }
 
 
-bool Unreal::Actor::SetActorLocationAndRotation(SDK::AActor* actorReference, const SDK::FVector& location, const SDK::FRotator& rotation, const bool& sweep)
+bool Unreal::Actor::SetLocationAndRotation(SDK::AActor* actorReference, const SDK::FVector& location, const SDK::FRotator& rotation, bool sweep)
 {
 	if (actorReference == nullptr)
 		return false;
@@ -1370,7 +1429,7 @@ bool Unreal::Actor::SetActorLocationAndRotation(SDK::AActor* actorReference, con
 
 bool Unreal::Actor::TeleportTo(SDK::AActor* actorReference, const SDK::FVector& location, const SDK::FRotator& rotation)
 {
-	return SetActorLocationAndRotation(actorReference, location, rotation, false);
+	return SetLocationAndRotation(actorReference, location, rotation, false);
 }
 
 bool Unreal::Actor::TeleportTo(SDK::AActor* actorReference, const SDK::FVector& location)
@@ -1394,7 +1453,7 @@ bool Unreal::Actor::TeleportTo(SDK::AActor* actorReference, const SDK::FRotator&
 
 bool Unreal::Actor::SweepTo(SDK::AActor* actorReference, const SDK::FVector& location, const SDK::FRotator& rotation)
 {
-	return SetActorLocationAndRotation(actorReference, location, rotation, true);
+	return SetLocationAndRotation(actorReference, location, rotation, true);
 }
 
 bool Unreal::Actor::SweepTo(SDK::AActor* actorReference, const SDK::FVector& location)
@@ -1416,6 +1475,16 @@ bool Unreal::Actor::SweepTo(SDK::AActor* actorReference, const SDK::FRotator& ro
 }
 
 
+bool Unreal::Actor::SetScale3D(SDK::AActor* actorReference, const SDK::FVector& scale3D)
+{
+	if (actorReference == nullptr)
+		return false;
+
+	actorReference->SetActorScale3D(scale3D);
+	return true;
+}
+
+
 bool Unreal::Actor::GetIsCollisionEnabled(SDK::AActor* actorReference)
 {
 	if (actorReference == nullptr)
@@ -1424,7 +1493,7 @@ bool Unreal::Actor::GetIsCollisionEnabled(SDK::AActor* actorReference)
 	return actorReference->bActorEnableCollision;
 }
 
-bool Unreal::Actor::SetIsCollisionEnabled(SDK::AActor* actorReference, const bool& newIsCollisionEnabled)
+bool Unreal::Actor::SetIsCollisionEnabled(SDK::AActor* actorReference, bool newIsCollisionEnabled)
 {
 	if (actorReference == nullptr)
 		return false;
@@ -1442,7 +1511,7 @@ bool Unreal::Actor::GetIsVisible(SDK::AActor* actorReference)
 	return actorReference->bHidden == false;
 }
 
-bool Unreal::Actor::SetIsVisible(SDK::AActor* actorReference, const bool& newIsVisible)
+bool Unreal::Actor::SetIsVisible(SDK::AActor* actorReference, bool newIsVisible)
 {
 	if (actorReference == nullptr)
 		return false;
@@ -1460,7 +1529,7 @@ float Unreal::Actor::GetCustomTimeDilation(SDK::AActor* actorReference)
 	return actorReference->CustomTimeDilation;
 }
 
-bool Unreal::Actor::SetCustomTimeDilation(SDK::AActor* actorReference, const float& newCustomTimeDilation)
+bool Unreal::Actor::SetCustomTimeDilation(SDK::AActor* actorReference, float newCustomTimeDilation)
 {
 	if (actorReference == nullptr)
 		return false;
@@ -1469,6 +1538,22 @@ bool Unreal::Actor::SetCustomTimeDilation(SDK::AActor* actorReference, const flo
 	return true;
 }
 
+
+bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, SDK::UMaterialInterface* materialInterfaceReference, int32_t materialSlot)
+{
+	if (actorReference == nullptr)
+		return false;
+
+	if (materialInterfaceReference == nullptr)
+		return false;
+
+	std::vector<SDK::UActorComponent*> foundComponents = Unreal::ActorComponent::GetAllOfClass(actorReference, SDK::UPrimitiveComponent::StaticClass());
+	for (SDK::UActorComponent* component : foundComponents)
+	{
+		SDK::UPrimitiveComponent* primitiveComponent = static_cast<SDK::UPrimitiveComponent*>(component);
+		primitiveComponent->CreateDynamicMaterialInstance(materialSlot, materialInterfaceReference, SDK::FName());
+	}
+}
 
 bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, SDK::UMaterialInterface* materialInterfaceReference)
 {
@@ -1482,7 +1567,7 @@ bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, SDK::UMaterialInter
 	for (SDK::UActorComponent* component : foundComponents)
 	{
 		SDK::UPrimitiveComponent* primitiveComponent = static_cast<SDK::UPrimitiveComponent*>(component);
-		for (int8_t i = 0; i < 8; i++)
+		for (int8_t i = 0; i < 16; i++)
 		{
 			primitiveComponent->CreateDynamicMaterialInstance(i, materialInterfaceReference, SDK::FName());
 		}
@@ -1492,6 +1577,27 @@ bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, SDK::UMaterialInter
 }
 
 #ifdef SOFT_PATH
+bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, const std::wstring& materialInterfacePath, int32_t materialSlot)
+{
+	if (actorReference == nullptr)
+		return false;
+
+	SDK::UObject* objectReference = Object::SoftLoadObject(materialInterfacePath);
+	bool success = false;
+
+	if (objectReference && objectReference->IsA(SDK::UMaterialInstance::StaticClass()))
+	{
+		SDK::UMaterialInterface* materialInterface = static_cast<SDK::UMaterialInterface*>(objectReference);
+		success = SetMaterial(actorReference, materialInterface, materialSlot);
+	}
+
+#ifdef SOFT_LOAD_FREEMEMORY
+	World::RemoveLevelStreamingByName(Utilities::String::ToString(Unreal::Object::ShortenObjectPath(materialInterfacePath)));
+#endif
+
+	return success;
+}
+
 bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, const std::wstring& materialInterfacePath)
 {
 	if (actorReference == nullptr)
@@ -1603,59 +1709,164 @@ Unreal::Transform Unreal::Actor::GetTransform(SDK::AActor* actorReference)
 }
 
 
-bool Unreal::Actor::IsValid(SDK::AActor* actorReference)
+SDK::FVector Unreal::Actor::GetRelativeLocation(SDK::AActor* actorReference)
+{
+	if (actorReference == nullptr)
+		return SDK::FVector();
+
+	if (actorReference->RootComponent == nullptr)
+		return SDK::FVector();
+
+	return actorReference->RootComponent->RelativeLocation;
+}
+
+SDK::FRotator Unreal::Actor::GetRelativeRotation(SDK::AActor* actorReference)
+{
+	if (actorReference == nullptr)
+		return SDK::FRotator();
+
+	if (actorReference->RootComponent == nullptr)
+		return SDK::FRotator();
+
+	return actorReference->RootComponent->RelativeRotation;
+}
+
+SDK::FVector Unreal::Actor::GetRelativeScale3D(SDK::AActor* actorReference)
+{
+	if (actorReference == nullptr)
+		return SDK::FVector();
+
+	if (actorReference->RootComponent == nullptr)
+		return SDK::FVector();
+
+	return actorReference->RootComponent->RelativeScale3D;
+}
+
+Unreal::Transform Unreal::Actor::GetRelativeTransform(SDK::AActor* actorReference)
+{
+	if (actorReference == nullptr)
+		return Unreal::Transform();
+
+	if (actorReference->RootComponent == nullptr)
+		return Unreal::Transform();
+
+	return Math::F_ToUnrealTransform(actorReference->RootComponent->GetRelativeTransform());
+}
+
+
+bool Unreal::Actor::SetRelativeLocationAndRotation(SDK::AActor* actorReference, const SDK::FVector& location, const SDK::FRotator& rotation, bool sweep)
 {
 	if (actorReference == nullptr)
 		return false;
 
-	SDK::UWorld* world = World::Get();
-	if (world)
-	{
-		/*
-			Most of the Actors can be found within arrays of currently loaded game levels.
+	if (actorReference->RootComponent == nullptr)
+		return false;
 
-			Walking through these small arrays, we can save up on performance and only
-			use full scan as our last resort - if neither of methods have found the Actor.
-		*/
+	SDK::EComponentMobility actorMobility = Actor::GetMobility(actorReference);
+	bool isUnableToMove = actorMobility != SDK::EComponentMobility::Movable;
+	if (isUnableToMove)
+		Actor::MakeMovable(actorReference);
 
-		/* Check is Actor is present within current Persistent Level. */
-		if (world->PersistentLevel)
-		{
-			SDK::TArray<SDK::AActor*>& persistentLevelActors = world->PersistentLevel->Actors;
-			for (SDK::AActor* actor : persistentLevelActors)
-			{
-				if (actor == actorReference)
-					return SDK::UKismetSystemLibrary::IsValid(actor);
-			}
-		}
+	bool isRough = sweep == false;
 
-		/* Walk through all of the streaming levels. */
-		if (world->StreamingLevels.Num() > 0)
-		{
-			for (SDK::ULevelStreaming* levelStreaming : world->StreamingLevels)
-			{
-				if (levelStreaming->LoadedLevel)
-				{
-					SDK::TArray<SDK::AActor*>& streamingLevelActors = levelStreaming->LoadedLevel->Actors;
-					for (SDK::AActor* actor : streamingLevelActors)
-					{
-						if (actor == actorReference)
-							return SDK::UKismetSystemLibrary::IsValid(actor);
-					}
-				}
-			}
-		}
-	}
+	SDK::FHitResult hitResult;
+	actorReference->K2_SetActorRelativeLocation(location, sweep, &hitResult, isRough);
+	actorReference->K2_SetActorRelativeRotation(rotation, sweep, &hitResult, isRough);
 
-	/* Full scan. Extremely expensive to perform. */
-	int32_t objectsNum = SDK::UObject::GObjects->Num();
-	for (int i = 0; i < objectsNum; i++)
-	{
-		SDK::UObject* objectReference = SDK::UObject::GObjects->GetByIndex(i);
+	if (isUnableToMove)
+		Actor::SetMobility(actorReference, actorMobility);
 
-		if (objectReference == actorReference)
-			return SDK::UKismetSystemLibrary::IsValid(objectReference);
-	}
+	return true;
+}
+
+
+bool Unreal::Actor::RelativeTeleportTo(SDK::AActor* actorReference, const SDK::FVector& relativeLocation, const SDK::FRotator& relativeRotation)
+{
+	return SetRelativeLocationAndRotation(actorReference, relativeLocation, relativeRotation, false);
+}
+
+bool Unreal::Actor::RelativeTeleportTo(SDK::AActor* actorReference, const SDK::FVector& relativeLocation)
+{
+	if (actorReference == nullptr)
+		return false;
+
+	SDK::FRotator relativeRotation = Unreal::Actor::GetRelativeRotation(actorReference);
+	return RelativeTeleportTo(actorReference, relativeLocation, relativeRotation);
+}
+
+bool Unreal::Actor::RelativeTeleportTo(SDK::AActor* actorReference, const SDK::FRotator& relativeRotation)
+{
+	if (actorReference == nullptr)
+		return false;
+
+	SDK::FVector relativeLocation = Unreal::Actor::GetRelativeLocation(actorReference);
+	return RelativeTeleportTo(actorReference, relativeLocation, relativeRotation);
+}
+
+
+bool Unreal::Actor::RelativeSweepTo(SDK::AActor* actorReference, const SDK::FVector& relativeLocation, const SDK::FRotator& relativeRotation)
+{
+	return SetRelativeLocationAndRotation(actorReference, relativeLocation, relativeRotation, true);
+}
+
+bool Unreal::Actor::RelativeSweepTo(SDK::AActor* actorReference, const SDK::FVector& relativeLocation)
+{
+	if (actorReference == nullptr)
+		return false;
+
+	SDK::FRotator relativeRotation = Unreal::Actor::GetRelativeRotation(actorReference);
+	return RelativeSweepTo(actorReference, relativeLocation, relativeRotation);
+}
+
+bool Unreal::Actor::RelativeSweepTo(SDK::AActor* actorReference, const SDK::FRotator& relativeRotation)
+{
+	if (actorReference == nullptr)
+		return false;
+
+	SDK::FVector relativeLocation = Unreal::Actor::GetRelativeLocation(actorReference);
+	return RelativeSweepTo(actorReference, relativeLocation, relativeRotation);
+}
+
+
+bool Unreal::Actor::SetRelativeScale3D(SDK::AActor* actorReference, const SDK::FVector& relativeScale3D)
+{
+	if (actorReference == nullptr)
+		return false;
+
+	if (actorReference->RootComponent == nullptr)
+		return false;
+
+	actorReference->RootComponent->SetRelativeScale3D(relativeScale3D);
+	return true;
+}
+
+
+bool Unreal::Actor::AttachTo(SDK::AActor* actorReference, SDK::AActor* attachToActorReference, SDK::EAttachmentRule locationRule, SDK::EAttachmentRule rotationRule, SDK::EAttachmentRule scaleRule)
+{
+	if (actorReference == nullptr)
+		return false;
+
+	if (attachToActorReference == nullptr)
+		return false;
+
+	actorReference->K2_AttachToActor(attachToActorReference, SDK::UKismetStringLibrary::Conv_StringToName(L"Root"), locationRule, rotationRule, scaleRule, true);
+	return true;
+}
+
+bool Unreal::Actor::AttachTo(SDK::AActor* actorReference, SDK::AActor* attachToActorReference, SDK::EAttachmentRule attachementRule)
+{
+	return Actor::AttachTo(actorReference, attachToActorReference, attachementRule, attachementRule, attachementRule);
+}
+
+bool Unreal::Actor::AttachTo(SDK::AActor* actorReference, SDK::AActor* attachToActorReference)
+{
+	return Actor::AttachTo(actorReference, attachToActorReference, SDK::EAttachmentRule::SnapToTarget, SDK::EAttachmentRule::SnapToTarget, SDK::EAttachmentRule::SnapToTarget);
+}
+
+
+bool Unreal::Actor::IsValid(SDK::AActor* actorReference)
+{
+	return Object::IsValid(actorReference);
 }
 
 
@@ -1827,7 +2038,7 @@ std::vector<SDK::UUserWidget*> Unreal::UserWidget::GetAll()
 }
 
 
-std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByClassName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, const bool& caseSensitive, const bool& topLevelOnly)
+std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByClassName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, bool caseSensitive, bool topLevelOnly, bool rendered)
 {
 	std::vector<UserWidget::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -1835,7 +2046,10 @@ std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByClass
 	/* Filter Widgets by "Search Filter" */
 	for (Unreal::UserWidget::DataStructure widget : widgetsCollection)
 	{
-		if (topLevelOnly && widget.isInViewport == false)
+		if (topLevelOnly && widget.isTopLevel == false)
+			continue;
+
+		if (rendered && widget.isRendered == false)
 			continue;
 
 		/* "Search Filter" is empty - Widget considered a match automatically. */
@@ -1859,7 +2073,7 @@ std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByClass
 	return outCollection;
 }
 
-std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByObjectName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, const bool& caseSensitive, const bool& topLevelOnly)
+std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByObjectName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, bool caseSensitive, bool topLevelOnly, bool rendered)
 {
 	std::vector<UserWidget::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -1867,7 +2081,10 @@ std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByObjec
 	/* Filter Widgets by "Search Filter" */
 	for (Unreal::UserWidget::DataStructure widget : widgetsCollection)
 	{
-		if (topLevelOnly && widget.isInViewport == false)
+		if (topLevelOnly && widget.isTopLevel == false)
+			continue;
+
+		if (rendered && widget.isRendered == false)
 			continue;
 
 		/* "Search Filter" is empty - Widget considered a match automatically. */
@@ -1891,7 +2108,7 @@ std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByObjec
 	return outCollection;
 }
 
-std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByClassAndObjectName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, const bool& caseSensitive, const bool& topLevelOnly)
+std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByClassAndObjectName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, bool caseSensitive, bool topLevelOnly, bool rendered)
 {
 	std::vector<UserWidget::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -1899,7 +2116,10 @@ std::vector<Unreal::UserWidget::DataStructure> Unreal::UserWidget::FilterByClass
 	/* Filter Widgets by "Search Filter" */
 	for (Unreal::UserWidget::DataStructure widget : widgetsCollection)
 	{
-		if (topLevelOnly && widget.isInViewport == false)
+		if (topLevelOnly && widget.isTopLevel == false)
+			continue;
+
+		if (rendered && widget.isRendered == false)
 			continue;
 
 		/* "Search Filter" is empty - Widget considered a match automatically. */
@@ -1960,6 +2180,30 @@ SDK::UUserWidget* Unreal::UserWidget::SoftConstruct(const std::wstring& widgetPa
 	return widget;
 }
 #endif
+
+
+bool Unreal::UserWidget::GetVisibility(SDK::UUserWidget* widgetReference, SDK::ESlateVisibility* outVisibility)
+{
+	if (widgetReference == nullptr)
+		return false;
+
+	if (outVisibility == nullptr)
+		return false;
+
+	*outVisibility = widgetReference->Visibility;
+	return true;
+}
+
+bool Unreal::UserWidget::SetVisibility(SDK::UUserWidget* widgetReference, SDK::ESlateVisibility newVisibility)
+{
+	if (widgetReference == nullptr)
+		return false;
+
+	if (widgetReference->Visibility != newVisibility)
+		widgetReference->SetVisibility(newVisibility);
+
+	return true;
+}
 
 
 
@@ -2124,7 +2368,7 @@ std::vector<SDK::UObject*> Unreal::Object::GetAll()
 }
 
 
-std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByClassName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, const bool& caseSensitive)
+std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByClassName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, bool caseSensitive)
 {
 	std::vector<Object::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -2168,7 +2412,7 @@ std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByClassName(con
 	return outCollection;
 }
 
-std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByObjectName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, const bool& caseSensitive)
+std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByObjectName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, bool caseSensitive)
 {
 	std::vector<Object::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -2197,7 +2441,7 @@ std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByObjectName(co
 	return outCollection;
 }
 
-std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByClassAndObjectName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, const bool& caseSensitive)
+std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByClassAndObjectName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, bool caseSensitive)
 {
 	std::vector<Object::DataStructure> outCollection;
 	size_t filterLength = filter.length();
@@ -2320,6 +2564,37 @@ SDK::UObject* Unreal::Object::Construct(const SDK::TSubclassOf<SDK::UObject>& ob
 		return nullptr;
 	
 	return SDK::UGameplayStatics::SpawnObject(objectClass, outer);
+}
+
+
+bool Unreal::Object::IsValid(SDK::UObject* objectReference)
+{
+	if (objectReference == nullptr)
+		return false;
+
+	__try
+	{
+		if (objectReference->Flags & (SDK::EObjectFlags::BeginDestroyed | SDK::EObjectFlags::FinishDestroyed))
+			return false;
+
+		int32_t index = objectReference->Index;
+		if (index < 0)
+			return false;
+
+		int32_t objectsNum = SDK::UObject::GObjects->Num();
+		if (index >= objectsNum)
+			return false;
+
+		SDK::UObject* objectAtIndex = SDK::UObject::GObjects->GetByIndex(index);
+		if (objectReference != objectAtIndex)
+			return false;
+
+		return SDK::UKismetSystemLibrary::IsValid(objectReference);
+	}
+	__except (EXCEPTION())
+	{
+		return false;
+	}
 }
 
 
@@ -2501,7 +2776,7 @@ Unreal::Class::Hierarchy Unreal::Class::GetClassHierarchy(SDK::UObject* objectRe
 
 
 
-std::vector<Unreal::Function::DataStructure> Unreal::Function::GetFunctions(SDK::UObject* objectReference, const SDK::EFunctionFlags& hasFlags)
+std::vector<Unreal::Function::DataStructure> Unreal::Function::GetFunctions(SDK::UObject* objectReference, SDK::EFunctionFlags hasFlags)
 {
 	std::vector<Function::DataStructure> outCollection;
 
@@ -2516,11 +2791,11 @@ std::vector<Unreal::Function::DataStructure> Unreal::Function::GetFunctions(SDK:
 			if (uField->IsA(SDK::UFunction::StaticClass()))
 			{
 				SDK::UFunction* uFunction = static_cast<SDK::UFunction*>(uField);
-				if ((hasFlags == SDK::EFunctionFlags::None) || (uFunction->FunctionFlags & static_cast<uint32_t>(hasFlags)) != 0)
+				if ((hasFlags == SDK::EFunctionFlags::None) || (static_cast<uint32_t>(uFunction->FunctionFlags) & static_cast<uint32_t>(hasFlags)) != 0)
 				{
 					Function::DataStructure function;
 					function.reference = uFunction;
-					function.flags = uFunction->FunctionFlags;
+					function.flags = static_cast<uint32_t>(uFunction->FunctionFlags);
 					function.name = uFunction->GetName();
 
 					outCollection.push_back(function);
@@ -2556,7 +2831,7 @@ bool Unreal::Function::CallFunction_ThreadSafe(SDK::UObject* objectReference, SD
 }
 
 
-std::vector<Unreal::Function::DataStructure> Unreal::Function::FilterByName(const std::vector<Function::DataStructure>& functionsCollection, const std::string& filter, const bool& caseSensitive)
+std::vector<Unreal::Function::DataStructure> Unreal::Function::FilterByName(const std::vector<Function::DataStructure>& functionsCollection, const std::string& filter, bool caseSensitive)
 {
 	std::vector<Function::DataStructure> outCollection;
 	size_t filterLength = filter.length();

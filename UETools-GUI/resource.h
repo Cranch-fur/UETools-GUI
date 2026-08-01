@@ -2,9 +2,9 @@
 // Microsoft Visual C++ generated include file.
 // Used by UETools-GUI.rc
 //
-#define APP_VERSION_MAJOR               5
-#define APP_VERSION_MINOR               5
-#define APP_VERSION_PATCH               2
+#define APP_VERSION_MAJOR               6
+#define APP_VERSION_MINOR               0
+#define APP_VERSION_PATCH               0
 #define APP_VERSION_BUILD               0
 
 #define APP_VERSION_INTERNAL_HELPER(x) #x
@@ -13,20 +13,29 @@
 #define APP_VERSION_STRING_FULL APP_VERSION_INTERNAL_TOSTR(APP_VERSION_MAJOR) "." APP_VERSION_INTERNAL_TOSTR(APP_VERSION_MINOR) "." APP_VERSION_INTERNAL_TOSTR(APP_VERSION_PATCH) "." APP_VERSION_INTERNAL_TOSTR(APP_VERSION_BUILD)
 #define APP_VERSION_STRING_SHORT APP_VERSION_INTERNAL_TOSTR(APP_VERSION_MAJOR) "." APP_VERSION_INTERNAL_TOSTR(APP_VERSION_MINOR)
 
-#define Actor_Green                     101
-#define Actor_Red                       102
-
-#define SIZE_BUFFER_POSITIONSENTRY      255
-#define SIZE_BUFFER_SINGLEOBJECTPATH    2048
-#define SIZE_BUFFER_SEARCHFILTER        2048
-#define SIZE_BUFFER_CONSOLE             2048
-#define SIZE_BUFFER_MULTIOBJECTPATH     16384
+#define Placeholder                     101
+#define Friendly                        102
+#define Hostile                         103
+#define Actor_Base                      104
+#define Actor_PointLight                105
+#define Actor_SpotLight                 106
+#define Actor_RectLight                 107
+#define Actor_DirectionalLight          108
+#define Actor_SkyLight                  109
+#define Actor_AtmosphericFog            110
+#define Actor_ExponentialHeightFog      111
+#define Actor_Camera                    112
+#define Actor_Pawn                      113
+#define Actor_DefaultPawn               114
+#define Actor_Decal                     115
+#define Actor_TextRender                116
+#define Actor_TargetPoint               117
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        103
+#define _APS_NEXT_RESOURCE_VALUE        118
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101

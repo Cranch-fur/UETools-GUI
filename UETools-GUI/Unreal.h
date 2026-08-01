@@ -63,7 +63,7 @@ namespace Unreal
 		* @param ignorePresence - If set to 'True', a new Console will always be created, even if one already exist.
 		* @return 'True' if the Console was successfully created and assigned; 'False' otherwise.
 		*/
-		static bool Construct(const bool& ignorePresence = false);
+		static bool Construct(bool ignorePresence = false);
 
 
 		/*
@@ -81,8 +81,8 @@ namespace Unreal
 		static bool Print(const std::wstring& wString);
 		static bool Print(const std::string& string);
 
-		static bool Print(const int32_t& integer);
-		static bool Print(const uint32_t& unsignedInteger);
+		static bool Print(int32_t integer);
+		static bool Print(uint32_t unsignedInteger);
 
 		static bool Print(const SDK::FVector& vector);
 		static bool Print(const SDK::FRotator& rotator);
@@ -125,6 +125,28 @@ namespace Unreal
 		* @return 'True' if the keys were successfully assigned; otherwise 'False'.
 		*/
 		static bool AssignConsoleBindings();
+	};
+
+
+	class UserInterfaceSettings
+	{
+	public:
+		struct DataStructure : DataStructureBase
+		{
+			SDK::UUserInterfaceSettings* reference;
+		};
+
+
+		/*
+		* @brief Retrieves the current instance of the Input Settings, if one is available.
+		* @return A valid pointer to the existing instance;
+		*		  otherwise returns 'nullptr' to indicate that no instance is currently accessible.
+		*/
+		static SDK::UUserInterfaceSettings* Get();
+
+
+		static bool GetApplicationScale(float* outScale);
+		static bool SetApplicationScale(float scale = 1.0f);
 	};
 
 
@@ -339,13 +361,11 @@ namespace Unreal
 		};
 
 
-#ifdef LEVEL_SEQUENCE
-		static bool CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset, const float& startTime, const float& playRate, const int32_t& loopCount);
-		static bool CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSequenceAsset, const float& startTime, const float& playRate, const int32_t& loopCount);
+		static bool CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset, float startTime, float playRate, int32_t loopCount);
+		static bool CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSequenceAsset, float startTime, float playRate, int32_t loopCount);
 #ifdef SOFT_PATH
-		static bool CreateLevelSequence(const std::wstring& levelSequencePath, const float& startTime, const float& playRate, const int32_t& loopCount);
-		static bool CreateLevelSequence_ThreadSafe(const std::wstring& levelSequencePath, const float& startTime, const float& playRate, const int32_t& loopCount);
-#endif
+		static bool CreateLevelSequence(const std::wstring& levelSequencePath, float startTime, float playRate, int32_t loopCount);
+		static bool CreateLevelSequence_ThreadSafe(const std::wstring& levelSequencePath, float startTime, float playRate, int32_t loopCount);
 #endif
 	};
 
@@ -360,9 +380,6 @@ namespace Unreal
 			std::string levelPath;
 			SDK::FLinearColor levelColor;
 
-			bool shouldBeLoaded;
-			bool shouldBeVisible;
-
 			Level::DataStructure level;
 		};
 
@@ -371,11 +388,11 @@ namespace Unreal
 		static std::vector<SDK::ULevelStreaming*> GetAll();
 
 
-		static std::vector<LevelStreaming::DataStructure> FilterByLevelPath(const std::vector<LevelStreaming::DataStructure>& levelStreamingsCollection, const std::string& filter, const bool& caseSensitive);
+		static std::vector<LevelStreaming::DataStructure> FilterByLevelPath(const std::vector<LevelStreaming::DataStructure>& levelStreamingsCollection, const std::string& filter, bool caseSensitive);
 
 
 #ifdef SOFT_PATH
-		static bool LoadLevelInstance(const std::wstring& objectPath, const SDK::FVector& locationOffset = { 0.0f, 0.0f, 0.0f }, const SDK::FRotator& rotationOffset = { 0.0f, 0.0f, 0.0f }, const bool& useInstancedName = false);
+		static bool LoadLevelInstance(const std::wstring& objectPath, const SDK::FVector& locationOffset = { 0.0f, 0.0f, 0.0f }, const SDK::FRotator& rotationOffset = { 0.0f, 0.0f, 0.0f }, bool useInstancedName = false);
 #endif
 	};
 
@@ -413,8 +430,8 @@ namespace Unreal
 		static SDK::UWorld* Get();
 
 
-		static bool RemoveLevelStreamingAtIndex(SDK::UWorld* worldReference, const int32_t& index);
-		static bool RemoveLevelStreamingAtIndex(const int32_t& index);
+		static bool RemoveLevelStreamingAtIndex(SDK::UWorld* worldReference, int32_t index);
+		static bool RemoveLevelStreamingAtIndex(int32_t index);
 
 		static bool RemoveLevelStreamingByName(SDK::UWorld* worldReference, const std::string& levelStreamingName);
 		static bool RemoveLevelStreamingByName(const std::string& levelStreamingName);
@@ -458,18 +475,18 @@ namespace Unreal
 		* @return A valid pointer to the existing instance;
 		*		  otherwise returns 'nullptr' to indicate that no instance is currently accessible.
 		*/
-		static SDK::APawn* Get(const int32_t& playerIndex = 0);
+		static SDK::APawn* Get(int32_t playerIndex = 0);
 
 
-		static bool PlayAnimationMontage(SDK::APawn* pawnReference, SDK::UAnimMontage* animationMontageAsset, const float& startAt, const float& playRate, const bool& stopAllMontages);
+		static bool PlayAnimationMontage(SDK::APawn* pawnReference, SDK::UAnimMontage* animationMontageAsset, float startAt, float playRate, bool stopAllMontages);
 #ifdef SOFT_PATH
-		static bool PlayAnimationMontage(SDK::APawn* pawnReference, const std::wstring& animationMontagePath, const float& startAt, const float& playRate, const bool& stopAllMontages);
+		static bool PlayAnimationMontage(SDK::APawn* pawnReference, const std::wstring& animationMontagePath, float startAt, float playRate, bool stopAllMontages);
 #endif
 
 
-		static bool PlayAnimation(SDK::APawn* pawnReference, SDK::UAnimationAsset* animationAsset, const bool& looping);
+		static bool PlayAnimation(SDK::APawn* pawnReference, SDK::UAnimationAsset* animationAsset, bool looping);
 #ifdef SOFT_PATH
-		static bool PlayAnimation(SDK::APawn* pawnReference, const std::wstring& animationPath, const bool& looping);
+		static bool PlayAnimation(SDK::APawn* pawnReference, const std::wstring& animationPath, bool looping);
 #endif
 	};
 
@@ -507,7 +524,7 @@ namespace Unreal
 		* @param ignorePresence - If set to 'True', a new Cheat Manager will always be created, even if one already exist.
 		* @return 'True' if the Cheat Manager was successfully created and assigned; 'False' otherwise.
 		*/
-		static bool Construct(const bool& ignorePresence = false);
+		static bool Construct(bool ignorePresence = false);
 
 
 		/*
@@ -574,21 +591,21 @@ namespace Unreal
 		* @return A valid pointer to the existing instance;
 		*		  otherwise returns 'nullptr' to indicate that no instance is currently accessible.
 		*/
-		static SDK::APlayerController* Get(const int32_t& playerIndex = 0);
+		static SDK::APlayerController* Get(int32_t playerIndex = 0);
 
 
 		static SDK::FVector GetLocation(SDK::APlayerController* playerControllerReference);
-		static SDK::FVector GetLocation(const int32_t& playerIndex);
+		static SDK::FVector GetLocation(int32_t playerIndex);
 		static SDK::FRotator GetRotation(SDK::APlayerController* playerControllerReference);
-		static SDK::FRotator GetRotation(const int32_t& playerIndex);
+		static SDK::FRotator GetRotation(int32_t playerIndex);
 		static SDK::FVector GetScale3D(SDK::APlayerController* playerControllerReference);
-		static SDK::FVector GetScale3D(const int32_t& playerIndex);
+		static SDK::FVector GetScale3D(int32_t playerIndex);
 		static Unreal::Transform GetTransform(SDK::APlayerController* playerControllerReference);
-		static Unreal::Transform GetTransform(const int32_t& playerIndex);
+		static Unreal::Transform GetTransform(int32_t playerIndex);
 
 
-		static void SetViewTarget(SDK::AActor* actorReference, const SDK::EViewTargetBlendFunction& blendFunction, const float& blendTime, const float& blendExponent);
-		static void SetViewTarget(SDK::AActor* actorReference);
+		static bool SetViewTarget(SDK::AActor* actorReference, SDK::EViewTargetBlendFunction blendFunction, float blendTime, float blendExponent);
+		static bool SetViewTarget(SDK::AActor* actorReference);
 	};
 
 
@@ -601,28 +618,28 @@ namespace Unreal
 		* @return A valid pointer to the existing instance;
 		*		  otherwise returns 'nullptr' to indicate that no instance is currently accessible.
 		*/
-		static SDK::ACharacter* Get(const int32_t& playerIndex = 0);
+		static SDK::ACharacter* Get(int32_t playerIndex = 0);
 
 
 		static bool Jump(SDK::ACharacter* characterReference);
-		static bool Jump(const int32_t& playerIndex);
+		static bool Jump(int32_t playerIndex);
 
 
-		static bool LocalLaunch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity = false, const bool& overrideVerticalVelocity = false);
-		static bool LocalLaunch(const int32_t& playerIndex, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity = false, const bool& overrideVerticalVelocity = false);
+		static bool LocalLaunch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, bool overrideHorizontalVelocity = false, bool overrideVerticalVelocity = false);
+		static bool LocalLaunch(int32_t playerIndex, const SDK::FVector& launchVelocity, bool overrideHorizontalVelocity = false, bool overrideVerticalVelocity = false);
 
-		static bool Launch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity = false, const bool& overrideVerticalVelocity = false);
-		static bool Launch(const int32_t& playerIndex, const SDK::FVector& launchVelocity, const bool& overrideHorizontalVelocity = false, const bool& overrideVerticalVelocity = false);
+		static bool Launch(SDK::ACharacter* characterReference, const SDK::FVector& launchVelocity, bool overrideHorizontalVelocity = false, bool overrideVerticalVelocity = false);
+		static bool Launch(int32_t playerIndex, const SDK::FVector& launchVelocity, bool overrideHorizontalVelocity = false, bool overrideVerticalVelocity = false);
 
 
 		static bool Walk(SDK::ACharacter* characterReference);
-		static bool Walk(const int32_t& playerIndex);
+		static bool Walk(int32_t playerIndex);
 
 		static bool Fly(SDK::ACharacter* characterReference);
-		static bool Fly(const int32_t& playerIndex);
+		static bool Fly(int32_t playerIndex);
 
 		static bool Ghost(SDK::ACharacter* characterReference);
-		static bool Ghost(const int32_t& playerIndex);
+		static bool Ghost(int32_t playerIndex);
 	};
 
 
@@ -636,15 +653,6 @@ namespace Unreal
 		struct DataStructure : DataStructureBase
 		{
 			SDK::UActorComponent* reference;
-
-			bool isActive;
-			bool autoActivate;
-			bool editorOnly;
-
-			bool netAddressible;
-			bool replicates;
-
-			SDK::EComponentCreationMethod creationMethod;
 		};
 
 
@@ -676,45 +684,40 @@ namespace Unreal
 		static Unreal::Transform GetTransform(SDK::USceneComponent* sceneComponentReference);
 
 
-		static std::vector<ActorComponent::DataStructure> FilterByClassName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, const bool& caseSensitive);
-		static std::vector<ActorComponent::DataStructure> FilterByObjectName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, const bool& caseSensitive);
-		static std::vector<ActorComponent::DataStructure> FilterByClassAndObjectName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, const bool& caseSensitive);
+		static std::vector<ActorComponent::DataStructure> FilterByClassName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, bool caseSensitive);
+		static std::vector<ActorComponent::DataStructure> FilterByObjectName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, bool caseSensitive);
+		static std::vector<ActorComponent::DataStructure> FilterByClassAndObjectName(const std::vector<ActorComponent::DataStructure>& componentsCollection, const std::string& filter, bool caseSensitive);
 	};
 
 
 	class Actor
 	{
 	public:
-#ifdef ACTOR_KIND
 		enum class E_ActorKind
 		{
 			General,
 			PointLight,
 			SpotLight,
+			RectLight,
+			DirectionalLight,
+			SkyLight,
+			AtmosphericFog,
+			ExponentialHeightFog,
+			Camera,
 			Pawn,
+			Decal,
 			TextRender
 		};
 		static E_ActorKind GetActorKind(SDK::AActor* actorReference);
-#endif
 
 
 		struct DataStructure : DataStructureBaseWithClassHierarchy
 		{
 			SDK::AActor* reference;
 
-#ifdef ACTOR_KIND
 			E_ActorKind kind;
-#endif
 
 			Transform transform;
-
-			SDK::EComponentMobility mobility;
-
-			bool isCollisionEnabled;
-
-			bool isVisible;
-
-			float customTimeDilation;
 
 			std::vector<ActorComponent::DataStructure> components;
 		};
@@ -758,18 +761,18 @@ namespace Unreal
 		/*
 		* @param inDistance - Maximum distance from Player in Units.
 		*/
-		static std::vector<Actor::DataStructure> FilterByClassName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, const bool& caseSensitive, const float& inDistance = 0.0f);
+		static std::vector<Actor::DataStructure> FilterByClassName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, bool caseSensitive, float inDistance = 0.0f);
 		/*
 		* @param inDistance - Maximum distance from Player in Units.
 		*/
-		static std::vector<Actor::DataStructure> FilterByObjectName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, const bool& caseSensitive, const float& inDistance = 0.0f);
+		static std::vector<Actor::DataStructure> FilterByObjectName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, bool caseSensitive, float inDistance = 0.0f);
 		/*
 		* @param inDistance - Maximum distance from Player in Units.
 		*/
-		static std::vector<Actor::DataStructure> FilterByClassAndObjectName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, const bool& caseSensitive, const float& inDistance = 0.0f);
+		static std::vector<Actor::DataStructure> FilterByClassAndObjectName(const std::vector<Actor::DataStructure>& actorsCollection, const std::string& filter, bool caseSensitive, float inDistance = 0.0f);
 
 
-		static bool SetActorLocationAndRotation(SDK::AActor* actorReference, const SDK::FVector& location, const SDK::FRotator& rotation, const bool& sweep);
+		static bool SetLocationAndRotation(SDK::AActor* actorReference, const SDK::FVector& location, const SDK::FRotator& rotation, bool sweep);
 
 		static bool TeleportTo(SDK::AActor* actorReference, const SDK::FVector& location, const SDK::FRotator& rotation);
 		static bool TeleportTo(SDK::AActor* actorReference, const SDK::FVector& location);
@@ -780,20 +783,25 @@ namespace Unreal
 		static bool SweepTo(SDK::AActor* actorReference, const SDK::FRotator& rotation);
 
 
+		static bool SetScale3D(SDK::AActor* actorReference, const SDK::FVector& scale3D);
+
+
 		static bool GetIsCollisionEnabled(SDK::AActor* actorReference);
-		static bool SetIsCollisionEnabled(SDK::AActor* actorReference, const bool& newIsCollisionEnabled);
+		static bool SetIsCollisionEnabled(SDK::AActor* actorReference, bool newIsCollisionEnabled);
 
 
 		static bool GetIsVisible(SDK::AActor* actorReference);
-		static bool SetIsVisible(SDK::AActor* actorReference, const bool& newIsVisible);
+		static bool SetIsVisible(SDK::AActor* actorReference, bool newIsVisible);
 
 
 		static float GetCustomTimeDilation(SDK::AActor* actorReference);
-		static bool SetCustomTimeDilation(SDK::AActor* actorReference, const float& newCustomTimeDilation);
+		static bool SetCustomTimeDilation(SDK::AActor* actorReference, float newCustomTimeDilation);
 
 
+		static bool SetMaterial(SDK::AActor* actorReference, SDK::UMaterialInterface* materialInterfaceReference, int32_t materialSlot);
 		static bool SetMaterial(SDK::AActor* actorReference, SDK::UMaterialInterface* materialInterfaceReference);
 #ifdef SOFT_PATH
+		static bool SetMaterial(SDK::AActor* actorReference, const std::wstring& materialInterfacePath, int32_t materialSlot);
 		static bool SetMaterial(SDK::AActor* actorReference, const std::wstring& materialInterfacePath);
 #endif
 
@@ -810,6 +818,29 @@ namespace Unreal
 		static SDK::FRotator GetRotation(SDK::AActor* actorReference);
 		static SDK::FVector GetScale3D(SDK::AActor* actorReference);
 		static Unreal::Transform GetTransform(SDK::AActor* actorReference);
+
+
+		static SDK::FVector GetRelativeLocation(SDK::AActor* actorReference);
+		static SDK::FRotator GetRelativeRotation(SDK::AActor* actorReference);
+		static SDK::FVector GetRelativeScale3D(SDK::AActor* actorReference);
+		static Unreal::Transform GetRelativeTransform(SDK::AActor* actorReference);
+
+		static bool SetRelativeLocationAndRotation(SDK::AActor* actorReference, const SDK::FVector& relativeLocation, const SDK::FRotator& relativeRotation, bool sweep);
+
+		static bool RelativeTeleportTo(SDK::AActor* actorReference, const SDK::FVector& relativeLocation, const SDK::FRotator& relativeRotation);
+		static bool RelativeTeleportTo(SDK::AActor* actorReference, const SDK::FVector& relativeLocation);
+		static bool RelativeTeleportTo(SDK::AActor* actorReference, const SDK::FRotator& relativeRotation);
+
+		static bool RelativeSweepTo(SDK::AActor* actorReference, const SDK::FVector& relativeLocation, const SDK::FRotator& relativeRotation);
+		static bool RelativeSweepTo(SDK::AActor* actorReference, const SDK::FVector& relativeLocation);
+		static bool RelativeSweepTo(SDK::AActor* actorReference, const SDK::FRotator& relativeRotation);
+
+		static bool SetRelativeScale3D(SDK::AActor* actorReference, const SDK::FVector& relativeScale3D);
+
+
+		static bool AttachTo(SDK::AActor* actorReference, SDK::AActor* attachToActorReference, SDK::EAttachmentRule locationRule, SDK::EAttachmentRule rotationRule, SDK::EAttachmentRule scaleRule);
+		static bool AttachTo(SDK::AActor* actorReference, SDK::AActor* attachToActorReference, SDK::EAttachmentRule attachementRule);
+		static bool AttachTo(SDK::AActor* actorReference, SDK::AActor* attachToActorReference);
 
 
 		static bool IsValid(SDK::AActor* actorReference);
@@ -865,6 +896,20 @@ namespace Unreal
 
 
 
+	class PanelWidget
+	{
+	public:
+		struct DataStructure : DataStructureBaseWithClassHierarchy
+		{
+			SDK::UPanelWidget* reference;
+		};
+	};
+
+
+
+
+
+
 	class UserWidget
 	{
 	public:
@@ -872,10 +917,13 @@ namespace Unreal
 		{
 			SDK::UUserWidget* reference;
 
-			SDK::UPanelWidget* parent;
+			bool isTopLevel;
+			Unreal::PanelWidget::DataStructure parent;
 
-			bool isInViewport;
-			SDK::ESlateVisibility visibility;
+			SDK::FGeometry cachedGeometry;
+			SDK::FVector2D absolutePosition;
+			SDK::FVector2D absoluteSize;
+			bool isRendered;
 		};
 
 
@@ -895,9 +943,9 @@ namespace Unreal
 		static std::vector<SDK::UUserWidget*> GetAll();
 
 
-		static std::vector<UserWidget::DataStructure> FilterByClassName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, const bool& caseSensitive, const bool& topLevelOnly);
-		static std::vector<UserWidget::DataStructure> FilterByObjectName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, const bool& caseSensitive, const bool& topLevelOnly);
-		static std::vector<UserWidget::DataStructure> FilterByClassAndObjectName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, const bool& caseSensitive, const bool& topLevelOnly);
+		static std::vector<UserWidget::DataStructure> FilterByClassName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, bool caseSensitive, bool topLevelOnly, bool rendered);
+		static std::vector<UserWidget::DataStructure> FilterByObjectName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, bool caseSensitive, bool topLevelOnly, bool rendered);
+		static std::vector<UserWidget::DataStructure> FilterByClassAndObjectName(const std::vector<UserWidget::DataStructure>& widgetsCollection, const std::string& filter, bool caseSensitive, bool topLevelOnly, bool rendered);
 
 
 		static SDK::UUserWidget* Construct(const SDK::TSubclassOf<SDK::UUserWidget>& widgetClass);
@@ -906,6 +954,10 @@ namespace Unreal
 #ifdef SOFT_PATH
 		static SDK::UUserWidget* SoftConstruct(const std::wstring& widgetPath);
 #endif
+
+
+		static bool GetVisibility(SDK::UUserWidget* widgetReference, SDK::ESlateVisibility* outVisibility);
+		static bool SetVisibility(SDK::UUserWidget* widgetReference, SDK::ESlateVisibility newVisibility);
 	};
 	
 
@@ -958,9 +1010,9 @@ namespace Unreal
 		static std::vector<SDK::UObject*> GetAll();
 
 
-		static std::vector<Object::DataStructure> FilterByClassName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, const bool& caseSensitive);
-		static std::vector<Object::DataStructure> FilterByObjectName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, const bool& caseSensitive);
-		static std::vector<Object::DataStructure> FilterByClassAndObjectName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, const bool& caseSensitive);
+		static std::vector<Object::DataStructure> FilterByClassName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, bool caseSensitive);
+		static std::vector<Object::DataStructure> FilterByObjectName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, bool caseSensitive);
+		static std::vector<Object::DataStructure> FilterByClassAndObjectName(const std::vector<Object::DataStructure>& objectsCollection, const std::string& filter, bool caseSensitive);
 
 
 #ifdef SOFT_PATH
@@ -973,6 +1025,14 @@ namespace Unreal
 
 
 		static SDK::UObject* Construct(const SDK::TSubclassOf<SDK::UObject>& objectClass, SDK::UObject* outer);
+
+
+		/*
+		* @brief See if Object is present in global UObject array.
+		* 
+		* Function is "ThreadSafe" out of the box.
+		*/
+		static bool IsValid(SDK::UObject* objectReference);
 
 
 		static std::wstring GetObjectNameFromPath(std::wstring objectPath);
@@ -1023,7 +1083,7 @@ namespace Unreal
 				std::string outString;
 				uint32_t foundFlags = 0;
 
-				auto checkAndAppendFlag = [&](const char* flagName, const uint32_t& flagValue)
+				auto checkAndAppendFlag = [&](const char* flagName, uint32_t flagValue)
 				{
 					if (flags & flagValue)
 					{
@@ -1091,13 +1151,13 @@ namespace Unreal
 		};
 
 
-		static std::vector<Function::DataStructure> GetFunctions(SDK::UObject* objectReference, const SDK::EFunctionFlags& hasFlags = SDK::EFunctionFlags::None);
+		static std::vector<Function::DataStructure> GetFunctions(SDK::UObject* objectReference, SDK::EFunctionFlags hasFlags = SDK::EFunctionFlags::None);
 
 		static bool CallFunction(SDK::UObject* objectReference, SDK::UFunction* functionReference);
 		static bool CallFunction_ThreadSafe(SDK::UObject* objectReference, SDK::UFunction* functionReference);
 
 
-		static std::vector<Function::DataStructure> FilterByName(const std::vector<Function::DataStructure>& functionsCollection, const std::string& filter, const bool& caseSensitive);
+		static std::vector<Function::DataStructure> FilterByName(const std::vector<Function::DataStructure>& functionsCollection, const std::string& filter, bool caseSensitive);
 	};
 
 

@@ -133,49 +133,19 @@
 */
 
 /*
-	#define ACTOR_TRACE
-
-	The way Line Tracing work often differ from Engine to Engine (e.g. 4.25 -> 4.27),
-	it's disabled by default in order to avoid a potential set of compilation errors.
-*/
-
-/*
 	#define SOFT_PATH
 
-	Enables everything related to soft path (e.g. Actor Summon & Widget Construct).
-*/
-
-#define SOFT_LOAD_FREEMEMORY
-/*
-	WARNING: Use with caution.
-	In titles with active/aggressive Garbage Collection, Object would be unloaded too early in the process resulting in a game crash.
+	Enables everything related to soft path (e.g. Actor Summon & Level Sequence).
 */
 
 /*
-	#define ACTORS_TRACKING
+	#define SOFT_LOAD_FREEMEMORY
 
-	Enables everything related to Actors tracking (e.g. Enable Tracking).
+	Determines if we should unload Actor we tried to summon / Object we tried to construct from memory once it's no longer needed.
 */
 
 /*
 	#define COLLISION_VISUALIZER
 
 	Enables everything related to collision visualization (e.g. Draw Collision).
-*/
-
-#define ACTOR_KIND
-/*
-	Enables everything related to Actor Kind subsystem (e.g. Point Light Settings, Spot Light Settings, Pawn Actions...).
-*/
-
-/*
-	#define LEVEL_SEQUENCE
-
-	Enables everything related to Level Sequences.
-*/
-
-/*
-	#define FREE_CAMERA
-
-	Enables everything related to Free Camera.
 */

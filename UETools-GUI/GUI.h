@@ -21,14 +21,6 @@
 
 namespace ImGui
 {
-	/*
-		Swap default font with new "ProggyVector-minimal.ttf".
-		imgui_draw.cpp -> ImFontAtlas::AddFontDefault(...)
-		{
-			return AddFontDefaultVector(font_cfg);
-		}
-	*/
-
 	struct Viewport
 	{
 		ImGuiViewport* iViewport;
@@ -45,40 +37,73 @@ namespace ImGui
 	class Texture2D
 	{
 	private:
-		static inline std::unordered_map<std::string, ImTextureID> texturesMap;
+		static inline std::unordered_map<std::string, ImTextureID> ImTextures;
+
 	public:
 		static bool Exists(const std::string& textureName);
+		static bool Exists(const Window::TextureMetaData& textureMetaData);
+
 		static ImTextureID Get(const std::string& textureName);
+		static ImTextureID Get(const Window::TextureMetaData& textureMetaData);
+
 		static void Add(const std::string& textureName, ImTextureID iTextureId);
+		static void Add(const Window::TextureMetaData& textureMetaData, ImTextureID iTextureId);
+
 		static bool IsValid(const ImTextureID& iTextureId);
+	};
+
+	bool IconButton(const char* textureName, const char* text, const ImVec2& size = { 96.0f, 96.0f });
+	bool IconButton(const Window::TextureMetaData& textureMetaData, const char* text, const ImVec2& size = { 96.0f, 96.0f });
+
+
+	class Color
+	{
+	public:
+		static inline ImU32 Red = IM_COL32(204, 77, 51, 255);
+		static inline ImU32 Green = IM_COL32(51, 204, 77, 255);
+		static inline ImU32 Blue = IM_COL32(51, 102, 204, 255);
+		static inline ImU32 White = IM_COL32(255, 255, 255, 255);
+		static inline ImU32 Black = IM_COL32(0, 0, 0, 255);
+		static inline ImU32 Alpha = IM_COL32(0, 0, 0, 0);
+	};
+
+	class LinearColor
+	{
+	public:
+		static inline ImVec4 Red = ImGui::ColorConvertU32ToFloat4(Color::Red);
+		static inline ImVec4 Green = ImGui::ColorConvertU32ToFloat4(Color::Green);
+		static inline ImVec4 Blue = ImGui::ColorConvertU32ToFloat4(Color::Blue);
+		static inline ImVec4 White = ImGui::ColorConvertU32ToFloat4(Color::White);
+		static inline ImVec4 Black = ImGui::ColorConvertU32ToFloat4(Color::Black);
+		static inline ImVec4 Alpha = ImGui::ColorConvertU32ToFloat4(Color::Alpha);
 	};
 	
 
-	void TextBool(const char* label, const bool& inBool, const char* text_true, const char* text_false, const bool& useColoring, const ImU32& color_true, const ImU32& color_false);
-	void TextBool(const char* label, const bool& inBool);
-	void TextBoolColored(const char* label, const bool& status);
-	void TextBoolPresence(const char* label, const bool& presence);
-	void TextBoolPresenceColored(const char* label, const bool& presence);
-	void TextBoolMultiplePresence(const char* label, const bool& presence);
-	void TextBoolMultiplePresenceColored(const char* label, const bool& presence);
+	void TextBool(const char* label, bool inBool, const char* text_true, const char* text_false, bool useColoring, ImU32 color_true, ImU32 color_false);
+	void TextBool(const char* label, bool inBool);
+	void TextBoolColored(const char* label, bool status);
+	void TextBoolPresence(const char* label, bool presence);
+	void TextBoolPresenceColored(const char* label, bool presence);
+	void TextBoolMultiplePresence(const char* label, bool presence);
+	void TextBoolMultiplePresenceColored(const char* label, bool presence);
 
 
-	void TextFloat(const char* label, const float& value, const bool& useColoring, const ImU32& color_positive, const ImU32& color_negative);
-	void TextFloat(const char* label, const float& value);
-	void TextFloatColored(const char* label, const float& value);
+	void TextFloat(const char* label, float value, bool useColoring, ImU32 color_positive, ImU32 color_negative);
+	void TextFloat(const char* label, float value);
+	void TextFloatColored(const char* label, float value);
 
 
-	void TextInt(const char* label, const int32_t& value, const bool& useColoring, const ImU32& color_positive, const ImU32& color_negative);
-	void TextInt(const char* label, const int32_t& value);
-	void TextIntColored(const char* label, const int32_t& value);
+	void TextInt(const char* label, int32_t value, bool useColoring, ImU32 color_positive, ImU32 color_negative);
+	void TextInt(const char* label, int32_t value);
+	void TextIntColored(const char* label, int32_t value);
 
 
-	void TextVector(const char* label, const SDK::FVector& value, const bool& useColoring, const ImU32& color_positive, const ImU32& color_negative);
+	void TextVector(const char* label, const SDK::FVector& value, bool useColoring, ImU32 color_positive, ImU32 color_negative);
 	void TextVector(const char* label, const SDK::FVector& value);
 	void TextVectorColored(const char* label, const SDK::FVector& value);
 
 
-	void TextRotator(const char* label, const SDK::FRotator& value, const bool& useColoring, const ImU32& color_positive, const ImU32& color_negative);
+	void TextRotator(const char* label, const SDK::FRotator& value, bool useColoring, ImU32 color_positive, ImU32 color_negative);
 	void TextRotator(const char* label, const SDK::FRotator& value);
 	void TextRotatorColored(const char* label, const SDK::FRotator& value);
 
@@ -94,11 +119,95 @@ namespace ImGui
 	void TextCopyable(const char* fmt, ...);
 
 
-	void ReadOnlyInputText(const char* label, const char* text, const bool& showCopyButton = true);
+	void ReadOnlyInputText(const char* label, const char* text, bool showCopyButton = true);
 
 
-	bool ColorConfig3(const char* label, float col[3]);
-	bool ColorConfig4(const char* label, float col[4]);
+	bool SliderIntEditable(const char* label, int32_t* v, int32_t v_min, int32_t v_max, const char* format = "%d", ImGuiSliderFlags flags = 0);
+	bool SliderFloatEditable(const char* label, float* v, float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+	bool SliderDoubleEditable(const char* label, double* v, double v_min, double v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
+
+
+	bool ColorConfig3(const char* label, float color[3]);
+	bool ColorConfig4(const char* label, float color[4]);
+
+
+	template<typename Container, typename Func>
+	inline void PaginatedList(const char* id, int32_t* currentPage, Container& rows, int32_t rowsPerPage, Func FnRenderRow)
+	{
+		if (currentPage == nullptr)
+			return;
+
+		int32_t totalRows = rows.size();
+		if (totalRows == 0)
+			return;
+
+		int32_t totalPages = (totalRows + rowsPerPage - 1) / rowsPerPage;
+
+		if (*currentPage >= totalPages)
+		{
+			int32_t lastPage = totalPages - 1;
+			*currentPage = (lastPage > 0) ? lastPage : 0;
+		}
+
+		ImGui::PushID(id);
+
+		if (totalPages > 1)
+		{
+			int32_t nextFramePage = *currentPage;
+
+			if (ImGui::Button("<<"))
+			{
+				nextFramePage -= 10;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("<"))
+			{
+				nextFramePage -= 1;
+			}
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(300.0f);
+			int32_t displayPage = *currentPage + 1;
+			if (ImGui::SliderInt("##PageSlider", &displayPage, 1, totalPages, "Page %d"))
+			{
+				nextFramePage = displayPage - 1;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(">"))
+			{
+				nextFramePage += 1;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(">>"))
+			{
+				nextFramePage += 10;
+			}
+
+			if (nextFramePage < 0)
+			{
+				nextFramePage = 0;
+			}
+			else if (nextFramePage >= totalPages)
+			{
+				nextFramePage = totalPages - 1;
+			}
+
+			*currentPage = nextFramePage;
+
+			ImGui::Separator();
+		}
+
+		int32_t startIndex = *currentPage * rowsPerPage;
+
+		int32_t projectedEnd = startIndex + rowsPerPage;
+		int32_t endIndex = projectedEnd < totalRows ? projectedEnd : totalRows;
+
+		for (int32_t i = startIndex; i < endIndex; ++i)
+		{
+			FnRenderRow(rows[i]);
+		}
+
+		ImGui::PopID();
+	}
 
 
 	enum E_ObjectFilterMode
@@ -107,7 +216,7 @@ namespace ImGui
 		ObjectName,
 		All
 	};
-	void ObjectFilterModeComboBox(const char* label, E_ObjectFilterMode* v);
+	bool ObjectFilterModeComboBox(const char* label, E_ObjectFilterMode* v);
 
 
 	/*
@@ -141,7 +250,7 @@ namespace ImGui
 	* @return 'True' if the binding was changed; otherwise 'False'
 	*/
 	bool KeyBindingInput(const char* label, KeyBinding* binding);
-	bool IsKeyBindingPressed(KeyBinding* binding, const bool& waitForRelease = true);
+	bool IsKeyBindingPressed(KeyBinding* binding, bool waitForRelease = true);
 	bool IsKeyBindingDown(KeyBinding* binding);
 	bool IsKeyBindingReleased(KeyBinding* binding);
 	
@@ -155,63 +264,66 @@ namespace ImGui
 	bool IsMouseButtonDown(const E_MouseButton& mouseButton);
 
 
+	enum E_FontScale
+	{
+		Tiny,
+		Little,
+		Small,
+		Regular,
+		Big,
+		Large,
+		Title,
+		Custom
+	};
+	static inline E_FontScale fontScale = E_FontScale::Regular;
+
 	/*
 	* @brief Sets the font scale to the specified value.
 	* @param fontScale - scale factor.
 	*/
-	static void SetFontScale(const float& fontScale)
-	{
-		SetWindowFontScale(fontScale);
-	}
+	static void SetFontScale(float fontScale);
+	/*
+	* @brief Sets the font scale to the specified type.
+	* @param fontScale - E_FontScale type.
+	*/
+	static void SetFontScale(E_FontScale fontScale);
+
 	/*
 	* @brief Sets the font scale to 0.5x.
 	*/
-	static void SetFontTiny()
-	{
-		SetFontScale(0.5f);
-	}
+	static void SetFontTiny();
 	/*
 	* @brief Sets the font scale to 0.75x.
 	*/
-	static void SetFontLittle()
-	{
-		SetFontScale(0.75f);
-	}
+	static void SetFontLittle();
 	/*
 	* @brief Sets the font scale to 0.9x.
 	*/
-	static void SetFontSmall()
-	{
-		SetFontScale(0.9f);
-	}
+	static void SetFontSmall();
 	/*
 	* @brief Sets the font scale to 1.0x.
 	*/
-	static void SetFontRegular()
-	{
-		SetFontScale(1.0f);
-	}
+	static void SetFontRegular();
 	/*
 	* @brief Sets the font scale to 1.1x.
 	*/
-	static void SetFontBig()
-	{
-		SetFontScale(1.1f);
-	}
+	static void SetFontBig();
 	/*
 	* @brief Sets the font scale to 1.25x.
 	*/
-	static void SetFontLarge()
-	{
-		SetFontScale(1.25f);
-	}
+	static void SetFontLarge();
 	/*
 	* @brief Sets the font scale to 1.5x.
 	*/
-	static void SetFontTitle()
-	{
-		SetFontScale(1.5f);
-	}
+	static void SetFontTitle();
+
+
+	static void TinyText(const char* fmt, ...);
+	static void LittleText(const char* fmt, ...);
+	static void SmallText(const char* fmt, ...);
+	static void BigText(const char* fmt, ...);
+	static void LargeText(const char* fmt, ...);
+	static void TitleText(const char* fmt, ...);
 
 
 
@@ -261,7 +373,7 @@ public:
 	{
 		return isTitleInFocus;
 	}
-	static void SetIsTitleInFocus(const bool& newIsInFocus)
+	static void SetIsTitleInFocus(bool newIsInFocus)
 	{
 		isTitleInFocus = newIsInFocus;
 	}
@@ -274,7 +386,7 @@ public:
 	{
 		return isMenuActive;
 	}
-	static void SetIsMenuActive(const bool& newIsActive)
+	static void SetIsMenuActive(bool newIsActive)
 	{
 		isMenuActive = newIsActive;
 	}
@@ -300,7 +412,7 @@ public:
 	{
 		return menuDebugLevel == 2;
 	}
-	static void SetMenuDebugLevel(const int8_t& newMenuDebugLevel)
+	static void SetMenuDebugLevel(int8_t newMenuDebugLevel)
 	{
 		menuDebugLevel = newMenuDebugLevel;
 	}
@@ -352,7 +464,7 @@ public:
 		ACTION_ERROR
 	};
 	static void PlayUISound(const E_Sound& soundToPlay);
-	static void PlayActionSound(const bool& wasSuccessfull)
+	static void PlayActionSound(bool wasSuccessfull)
 	{
 		PlayUISound(wasSuccessfull ? E_Sound::ACTION_SUCCESS : E_Sound::ACTION_ERROR);
 	}
@@ -405,6 +517,10 @@ namespace Features
 	{
 	public:
 		static inline bool enableSound = true;
+
+		static inline ImFont* fontBitmap = nullptr;
+		static inline ImFont* fontVector = nullptr;
+		static inline bool useVectorFont = true;
 	};
 
 
@@ -436,8 +552,8 @@ namespace Features
 		static inline bool wasProjectPlatformObtained;
 		static inline std::string projectPlatform;
 
-		static inline bool wasProjectEngineVersionObtained;
-		static inline std::string projectEngineVersion;
+		static inline bool wasEngineVersionObtained;
+		static inline std::string engineVersion;
 
 		static inline bool wasUsernameObtained;
 		static inline std::string username;
@@ -454,19 +570,18 @@ namespace Features
 
 
 #ifdef SOFT_PATH
-	class ActorSpawn
+	class ActorSummon
 	{
 	public:
-		static inline const size_t bufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
-		static inline char buffer[bufferSize] = {};
+		static inline const size_t pathBufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
+		static inline char pathBuffer[pathBufferSize] = {};
 
 		static inline float location[3];
-		static inline bool useCharacterLocation = true;
+		static inline bool usePlayerLocation = true;
 		static inline float rotation[3];
-		static inline bool useCharacterRotation = true;
+		static inline bool usePlayerRotation = true;
 		static inline float scale[3] = { 1.0f, 1.0f, 1.0f };
-
-		static inline std::vector<SDK::FString> loadedClasses;
+		static inline bool usePlayerScale = false;
 	};
 #endif
 
@@ -481,7 +596,7 @@ namespace Features
 
 		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
 		static inline char filterBuffer[filterBufferSize] = {};
-		static inline bool filterCaseSensitive = true;
+		static inline bool filterCaseSensitive = false;
 	};
 
 
@@ -492,27 +607,31 @@ namespace Features
 	public:
 		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
 		static inline char filterBuffer[filterBufferSize] = {};
-		static inline bool filterCaseSensitive = true;
+		static inline bool filterCaseSensitive = false;
 		static inline ImGui::E_ObjectFilterMode filterMode = ImGui::E_ObjectFilterMode::All;
-		static inline bool filterCheckValidness = false;
 		static inline float filterDistance = 0.0f;
-
-		static inline float color_Valid[4] = { 0.2f, 0.8f, 0.3f, 1.0f };
-		static inline float color_Invalid[4] = { 0.8f, 0.3f, 0.2f, 1.0f };
 
 		static inline std::vector<Unreal::Actor::DataStructure> actors;
 		static inline std::vector<Unreal::Actor::DataStructure> filteredActors;
 
-		static inline const size_t componentsFilterBufferSize = SIZE_BUFFER_SEARCHFILTER;
-		static inline char componentsFilterBuffer[componentsFilterBufferSize] = {};
-		static inline bool componentsFilterCaseSensitive = true;
-		static inline ImGui::E_ObjectFilterMode componentsFilterMode = ImGui::E_ObjectFilterMode::All;
+		static inline int32_t currentPage = 0;
+		static inline const int32_t rowsPerPage = 25;
 
+		static inline float viewTargetBlendTime = 1.0f;
+		static inline float viewTargetBlendExponent = 1.0f;
+
+		static inline Unreal::Actor::DataStructure actorToAttach = {};
 
 		static Unreal::Actor::DataStructure GetActorData(SDK::AActor* actorReference);
 		static void Update();
 		static void Update(const Unreal::Actor::DataStructure& actor);
 		static void Filter();
+
+
+		static inline const size_t componentsFilterBufferSize = SIZE_BUFFER_SEARCHFILTER;
+		static inline char componentsFilterBuffer[componentsFilterBufferSize] = {};
+		static inline bool componentsFilterCaseSensitive = false;
+		static inline ImGui::E_ObjectFilterMode componentsFilterMode = ImGui::E_ObjectFilterMode::All;
 	};
 
 
@@ -523,14 +642,16 @@ namespace Features
 	public:
 		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
 		static inline char filterBuffer[filterBufferSize] = {};
-		static inline bool filterCaseSensitive = true;
+		static inline bool filterCaseSensitive = false;
 		static inline ImGui::E_ObjectFilterMode filterMode = ImGui::E_ObjectFilterMode::All;
 		static inline bool filterTopLevelOnly = true;
+		static inline bool filterRenderedOnly = true;
 
 		static inline std::vector<Unreal::UserWidget::DataStructure> widgets;
 		static inline std::vector<Unreal::UserWidget::DataStructure> filteredWidgets;
 
-		static inline std::vector<std::pair<SDK::UUserWidget*, SDK::ESlateVisibility>> storedWidgetsVisibility;
+		static inline int32_t currentPage = 0;
+		static inline const int32_t rowsPerPage = 10;
 
 
 		static Unreal::UserWidget::DataStructure GetWidgetData(SDK::UUserWidget* widgetReference);
@@ -542,11 +663,27 @@ namespace Features
 
 
 
+	class WidgetVisualisation
+	{
+	public:
+		static inline Unreal::UserWidget::DataStructure widgetToVisualise = {};
+
+		static inline float color[4] = { 1.0f, 0.0f, 1.0f, 1.0f };
+		static inline float lineThickness = 2.0f;
+
+
+		static void Draw();
+		static void Draw_ThreadSafe();
+	};
+
+
+
+
 	class ObjectConstruct
 	{
 	public:
-		static inline const size_t objectPathBufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
-		static inline char objectPathBuffer[objectPathBufferSize] = {};
+		static inline const size_t pathBufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
+		static inline char pathBuffer[pathBufferSize] = {};
 	};
 
 
@@ -557,11 +694,14 @@ namespace Features
 	public:
 		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
 		static inline char filterBuffer[filterBufferSize] = {};
-		static inline bool filterCaseSensitive = true;
+		static inline bool filterCaseSensitive = false;
 		static inline ImGui::E_ObjectFilterMode filterMode = ImGui::E_ObjectFilterMode::All;
 
 		static inline std::vector<Unreal::Object::DataStructure> objects;
 		static inline std::vector<Unreal::Object::DataStructure> filteredObjects;
+
+		static inline int32_t currentPage = 0;
+		static inline const int32_t rowsPerPage = 25;
 
 
 		static Unreal::Object::DataStructure GetObjectData(SDK::UObject* objectReference);
@@ -573,7 +713,6 @@ namespace Features
 
 
 
-#ifdef ACTOR_TRACE
 	class ActorTrace
 	{
 	public:
@@ -600,12 +739,10 @@ namespace Features
 		static void Draw();
 		static void Draw_ThreadSafe();
 	};
-#endif
 
 
 
 
-#ifdef ACTORS_TRACKING
 	class ActorsTracker
 	{
 	public:
@@ -613,15 +750,13 @@ namespace Features
 
 		static inline float actorColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-		static inline bool checkValidness = false;
-
-		static inline bool showDistance = false;
+		static inline bool showDistance = true;
+		static inline bool fadeOnCloseup = true;
 
 
 		static void Draw();
 		static void Draw_ThreadSafe();
 	};
-#endif
 
 
 
@@ -666,6 +801,9 @@ namespace Features
 	public:
 		static inline const size_t materialInstancePathBufferSize = SIZE_BUFFER_SINGLEOBJECTPATH;
 		static inline char materialInstancePathBuffer[materialInstancePathBufferSize] = {};
+
+		static inline int32_t materialSlot;
+		static inline bool useAllMaterialSlots = true;
 	};
 #endif
 
@@ -696,8 +834,8 @@ namespace Features
 	{
 	public:
 		/* Allocate large buffer to account for combined paths (e.g: "/Game/Blueprints/Watermelon.Watermelon_C | /Game/Blueprints/Cookie.Cookie_C") */
-		static inline const size_t widgetPathBufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
-		static inline char widgetPathBuffer[widgetPathBufferSize] = {};
+		static inline const size_t pathBufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
+		static inline char pathBuffer[pathBufferSize] = {};
 
 		static inline int32_t zOrder = 0;
 	};
@@ -709,21 +847,23 @@ namespace Features
 	class LevelStreaming
 	{
 	public:
-		static inline std::vector<Unreal::LevelStreaming::DataStructure> levels;
-
-		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
+				static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
 		static inline char filterBuffer[filterBufferSize] = {};
-		static inline bool filterCaseSensitive = true;
+		static inline bool filterCaseSensitive = false;
 
-		static inline const ImVec4 color_visible = ImGui::ColorConvertU32ToFloat4(IM_COL32(51, 204, 77, 255));
-		static inline const ImVec4 color_loaded = ImGui::ColorConvertU32ToFloat4(IM_COL32(51, 102, 204, 255));
-		static inline const ImVec4 color_null = ImGui::ColorConvertU32ToFloat4(IM_COL32(204, 77, 51, 255));
+		static inline std::vector<Unreal::LevelStreaming::DataStructure> levels;
+		static inline std::vector<Unreal::LevelStreaming::DataStructure> filteredLevels;
+
 		static inline bool useEditorColors = false;
+
+		static inline int32_t currentPage = 0;
+		static inline const int32_t rowsPerPage = 10;
 
 
 		static Unreal::LevelStreaming::DataStructure GetLevelStreamingData(SDK::ULevelStreaming* levelStreamingReference);
 		static void Update();
 		static void Update(const Unreal::LevelStreaming::DataStructure& levelStreaming);
+		static void Filter();
 	};
 
 
@@ -740,12 +880,10 @@ namespace Features
 		static inline float locationOffset[3];
 		static inline float rotationOffset[3];
 	};
-#endif
 
 
 
 
-#if defined(SOFT_PATH) && defined(LEVEL_SEQUENCE)
 	class PlayLevelSequence
 	{
 	public:
@@ -834,7 +972,7 @@ namespace Features
 		static inline const std::string entryRotationSuffix = "_Rotation";
 
 	public:
-		static const int32_t entriesLimit = 1000;
+		static inline const int32_t entriesLimit = 1000;
 
 		static inline const size_t newEntryTitleBufferSize = SIZE_BUFFER_POSITIONSENTRY;
 		static inline char newEntryTitleBuffer[newEntryTitleBufferSize] = {};
@@ -848,7 +986,7 @@ namespace Features
 		static inline std::vector<Positions::PositionEntry> entries;
 
 	private:
-		static bool ReadPositionFromConfig(ConfigInstance* positionsConfig, const int& positionId, Positions::PositionEntry* positionEntry);
+		static bool ReadPositionFromConfig(ConfigInstance* positionsConfig, int32_t positionId, Positions::PositionEntry* positionEntry);
 
 	public:
 		static void Load();
@@ -858,7 +996,6 @@ namespace Features
 
 
 
-#ifdef FREE_CAMERA
 	class FreeCamera
 	{
 	public:
@@ -890,13 +1027,12 @@ namespace Features
 		static bool Disable();
 		static void Toggle();
 
-		static bool Move(const float& forwardStep, const float& rightStep, const float& upStep);
-		static bool Rotate(const float& horizontalStep, const float& verticalStep);
+		static bool Move(float forwardStep, float rightStep, float upStep);
+		static bool Rotate(float horizontalStep, float verticalStep);
 
-		static bool TeleportCameraToPlayer();
 		static bool TeleportPlayerToCamera();
+		static bool TeleportCameraToPlayer();
 	};
-#endif
 
 
 
@@ -908,7 +1044,7 @@ namespace Features
 
 		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
 		static inline char filterBuffer[filterBufferSize] = {};
-		static inline bool filterCaseSensitive = true;
+		static inline bool filterCaseSensitive = false;
 
 		static void Update();
 	};
@@ -1029,13 +1165,13 @@ namespace Inputs
 	public:
 		static inline ImGui::KeyBinding general_MenuOpenClose{ ImGuiKey_Insert };
 
-#ifdef ACTOR_TRACE
+
 		static inline ImGui::KeyBinding debug_ActorTrace;
-#endif
+
 		static inline ImGui::KeyBinding debug_ActorsListUpdate;
-#ifdef ACTORS_TRACKING
+
 		static inline ImGui::KeyBinding debug_ActorsListTracking;
-#endif
+
 #ifdef COLLISION_VISUALIZER
 		static inline ImGui::KeyBinding debug_ActorsListCollisionDraw;
 #endif
@@ -1057,10 +1193,9 @@ namespace Inputs
 		static inline ImGui::KeyBinding characterCamera_StartFade;
 		static inline ImGui::KeyBinding characterCamera_StopFade;
 
-#ifdef FREE_CAMERA
-		static inline ImGui::KeyBinding freeCamera_TeleportCameraToPlayer;
 		static inline ImGui::KeyBinding freeCamera_Toggle;
 		static inline ImGui::KeyBinding freeCamera_TeleportPlayerToCamera;
+		static inline ImGui::KeyBinding freeCamera_TeleportCameraToPlayer;
 		static inline ImGui::KeyBinding freeCamera_MoveUp{ ImGuiKey_E };
 		static inline ImGui::KeyBinding freeCamera_MoveDown{ ImGuiKey_Q };
 		static inline ImGui::KeyBinding freeCamera_MoveForward{ ImGuiKey_W };
@@ -1071,7 +1206,6 @@ namespace Inputs
 		static inline ImGui::KeyBinding freeCamera_RotateDown{ ImGuiKey_DownArrow };
 		static inline ImGui::KeyBinding freeCamera_RotateLeft{ ImGuiKey_LeftArrow };
 		static inline ImGui::KeyBinding freeCamera_RotateRight{ ImGuiKey_RightArrow };
-#endif
 	};
 };
 
@@ -1084,18 +1218,18 @@ namespace Inputs
 class DebugDraw
 {
 public:
-	static void DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, const uint32_t& drawColor, const float& drawThickness);
-	static void DrawVolume(SDK::AVolume* volume, const uint32_t& drawColor, const float& drawThickness);
+	static void DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, const uint32_t& drawColor, float drawThickness);
+	static void DrawVolume(SDK::AVolume* volume, const uint32_t& drawColor, float drawThickness);
 
-	static void DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, const uint32_t& drawColor, const float& drawThickness);
-	static void DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, const uint32_t& drawColor, const float& drawThickness);
+	static void DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, const uint32_t& drawColor, float drawThickness);
+	static void DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, const uint32_t& drawColor, float drawThickness);
 
-	static void DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, const bool& drawAllSockets, const uint32_t& drawColor, const float& drawThickness);
+	static void DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets, const uint32_t& drawColor, float drawThickness);
 
-	static void DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, const uint32_t& drawColor, const float& drawThickness);
-	static void DrawSphereComponent(SDK::USphereComponent* sphereComponent, const uint32_t& drawColor, const float& drawThickness);
-	static void DrawBoxComponent(SDK::UBoxComponent* boxComponent, const uint32_t& drawColor, const float& drawThickness);
-	static void DrawSplineComponent(SDK::USplineComponent* splineComponent, const uint32_t& drawColor, const float& drawThickness);
+	static void DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, const uint32_t& drawColor, float drawThickness);
+	static void DrawSphereComponent(SDK::USphereComponent* sphereComponent, const uint32_t& drawColor, float drawThickness);
+	static void DrawBoxComponent(SDK::UBoxComponent* boxComponent, const uint32_t& drawColor, float drawThickness);
+	static void DrawSplineComponent(SDK::USplineComponent* splineComponent, const uint32_t& drawColor, float drawThickness);
 };
 #endif
 
@@ -1106,16 +1240,22 @@ public:
 
 namespace Templates
 {
+	class ClassHierarchy
+	{
+	public:
+		static void Draw(const std::vector<std::string>& superClassesNames);
+	};
+
 	class Functions
 	{
 	public:
 		static void Draw(SDK::UObject* objectReference);
 	};
 
-	class Console
+	class LocationRotationScale
 	{
 	public:
-		static void Draw();
+		static void Draw(SDK::AActor* actorReference);
 	};
 
 	namespace Descriptions
@@ -1146,8 +1286,13 @@ namespace Templates
 			static void Sub_PlayerController();
 			static void Sub_World();
 			static void Sub_Actors();
+			static void Sub_Actors_ThreadSafe();
+			static void Sub_Actors_Kind(const Unreal::Actor::DataStructure& actor);
+			static void Sub_Actors_Components(const Unreal::Actor::DataStructure& actor);
 			static void Sub_Widgets();
+			static void Sub_Widgets_ThreadSafe();
 			static void Sub_Objects();
+			static void Sub_Objects_ThreadSafe();
 
 		public:
 			static void Draw();
@@ -1157,23 +1302,29 @@ namespace Templates
 		{
 		public:
 			static void Draw();
+			static void Draw_ThreadSafe();
 		};
 
 		class Character
 		{
 		public:
 			static void Draw();
+			static void Draw_ThreadSafe();
 		};
 
-#ifdef FREE_CAMERA
 		class FreeCamera
 		{
 		public:
 			static void Draw();
 		};
-#endif
 
 		class Settings
+		{
+		public:
+			static void Draw();
+		};
+
+		class BootlegConsole
 		{
 		public:
 			static void Draw();

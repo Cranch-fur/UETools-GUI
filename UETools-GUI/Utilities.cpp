@@ -1580,7 +1580,7 @@ std::wstring Utilities::String::ReplaceLastOf(const wchar_t* wcString, const wch
 
 
 
-bool Utilities::String::Contains(const std::string& string, const std::string& substring, const bool& useCase)
+bool Utilities::String::Contains(const std::string& string, const std::string& substring, bool useCase)
 {
     if (string.empty() || substring.empty())
         return false;
@@ -1593,18 +1593,18 @@ bool Utilities::String::Contains(const std::string& string, const std::string& s
     return stringLower.find(substringLower) != std::string::npos;
 }
 
-bool Utilities::String::Contains(const std::string& string, const std::wstring& substring, const bool& useCase)
+bool Utilities::String::Contains(const std::string& string, const std::wstring& substring, bool useCase)
 {
     return Contains(string, ToString(substring), useCase);
 }
 
-bool Utilities::String::Contains(const char* cString, const char* substring, const bool& useCase)
+bool Utilities::String::Contains(const char* cString, const char* substring, bool useCase)
 {
     return Contains(ToString(cString), ToString(substring), useCase);
 }
 
 
-bool Utilities::String::Contains(const std::wstring& wString, const std::wstring& substring, const bool& useCase)
+bool Utilities::String::Contains(const std::wstring& wString, const std::wstring& substring, bool useCase)
 {
     if (wString.empty() || substring.empty())
         return false;
@@ -1617,12 +1617,12 @@ bool Utilities::String::Contains(const std::wstring& wString, const std::wstring
     return wStringLower.find(substringLower) != std::wstring::npos;
 }
 
-bool Utilities::String::Contains(const std::wstring& wString, const std::string& substring, const bool& useCase)
+bool Utilities::String::Contains(const std::wstring& wString, const std::string& substring, bool useCase)
 {
     return Contains(wString, ToWString(substring), useCase);
 }
 
-bool Utilities::String::Contains(const wchar_t* wcString, const wchar_t* substring, const bool& useCase)
+bool Utilities::String::Contains(const wchar_t* wcString, const wchar_t* substring, bool useCase)
 {
     return Contains(ToWString(wcString), ToWString(substring), useCase);
 }
@@ -1630,7 +1630,7 @@ bool Utilities::String::Contains(const wchar_t* wcString, const wchar_t* substri
 
 
 
-bool Utilities::String::StartsWith(const std::string& string, const std::string& substring, const bool& useCase)
+bool Utilities::String::StartsWith(const std::string& string, const std::string& substring, bool useCase)
 {
     if (substring.empty())
         return true;
@@ -1646,18 +1646,18 @@ bool Utilities::String::StartsWith(const std::string& string, const std::string&
     return stringLower.compare(0, substringLower.length(), substringLower) == 0;
 }
 
-bool Utilities::String::StartsWith(const std::string& string, const std::wstring& substring, const bool& useCase)
+bool Utilities::String::StartsWith(const std::string& string, const std::wstring& substring, bool useCase)
 {
     return StartsWith(string, ToString(substring), useCase);
 }
 
-bool Utilities::String::StartsWith(const char* cString, const char* substring, const bool& useCase)
+bool Utilities::String::StartsWith(const char* cString, const char* substring, bool useCase)
 {
     return StartsWith(ToString(cString), ToString(substring), useCase);
 }
 
 
-bool Utilities::String::StartsWith(const std::wstring& wString, const std::wstring& substring, const bool& useCase)
+bool Utilities::String::StartsWith(const std::wstring& wString, const std::wstring& substring, bool useCase)
 {
     if (substring.empty())
         return true;
@@ -1673,12 +1673,12 @@ bool Utilities::String::StartsWith(const std::wstring& wString, const std::wstri
     return wStringLower.compare(0, substringLower.length(), substringLower) == 0;
 }
 
-bool Utilities::String::StartsWith(const std::wstring& wString, const std::string& substring, const bool& useCase)
+bool Utilities::String::StartsWith(const std::wstring& wString, const std::string& substring, bool useCase)
 {
     return StartsWith(wString, ToWString(substring), useCase);
 }
 
-bool Utilities::String::StartsWith(const wchar_t* wcString, const wchar_t* substring, const bool& useCase)
+bool Utilities::String::StartsWith(const wchar_t* wcString, const wchar_t* substring, bool useCase)
 {
     return StartsWith(ToWString(wcString), ToWString(substring), useCase);
 }
@@ -1686,7 +1686,7 @@ bool Utilities::String::StartsWith(const wchar_t* wcString, const wchar_t* subst
 
 
 
-bool Utilities::String::EndsWith(const std::string& string, const std::string& substring, const bool& useCase)
+bool Utilities::String::EndsWith(const std::string& string, const std::string& substring, bool useCase)
 {
     if (substring.empty())
         return true;
@@ -1702,18 +1702,18 @@ bool Utilities::String::EndsWith(const std::string& string, const std::string& s
     return stringLower.compare(stringLower.length() - substringLower.length(), substringLower.length(), substringLower) == 0;
 }
 
-bool Utilities::String::EndsWith(const std::string& string, const std::wstring& substring, const bool& useCase)
+bool Utilities::String::EndsWith(const std::string& string, const std::wstring& substring, bool useCase)
 {
     return EndsWith(string, ToString(substring), useCase);
 }
 
-bool Utilities::String::EndsWith(const char* cString, const char* substring, const bool& useCase)
+bool Utilities::String::EndsWith(const char* cString, const char* substring, bool useCase)
 {
     return EndsWith(ToString(cString), ToString(substring), useCase);
 }
 
 
-bool Utilities::String::EndsWith(const std::wstring& wString, const std::wstring& substring, const bool& useCase)
+bool Utilities::String::EndsWith(const std::wstring& wString, const std::wstring& substring, bool useCase)
 {
     if (substring.empty())
         return true;
@@ -1729,12 +1729,12 @@ bool Utilities::String::EndsWith(const std::wstring& wString, const std::wstring
     return wStringLower.compare(wStringLower.length() - substringLower.length(), substringLower.length(), substringLower) == 0;
 }
 
-bool Utilities::String::EndsWith(const std::wstring& wString, const std::string& substring, const bool& useCase)
+bool Utilities::String::EndsWith(const std::wstring& wString, const std::string& substring, bool useCase)
 {
     return EndsWith(wString, ToWString(substring), useCase);
 }
 
-bool Utilities::String::EndsWith(const wchar_t* wcString, const wchar_t* substring, const bool& useCase)
+bool Utilities::String::EndsWith(const wchar_t* wcString, const wchar_t* substring, bool useCase)
 {
     return EndsWith(ToWString(wcString), ToWString(substring), useCase);
 }
@@ -1742,7 +1742,7 @@ bool Utilities::String::EndsWith(const wchar_t* wcString, const wchar_t* substri
 
 
 
-std::vector<std::string> Utilities::String::Split(const std::string& string, const char& separator, const bool& removeSeparatorSpaces)
+std::vector<std::string> Utilities::String::Split(const std::string& string, const char& separator, bool removeSeparatorSpaces)
 {
 	std::vector<std::string> outCollection;
 
@@ -1783,32 +1783,32 @@ std::vector<std::string> Utilities::String::Split(const std::string& string, con
 	return outCollection;
 }
 
-std::vector<std::string> Utilities::String::Split(const std::wstring& wString, const char& separator, const bool& removeSeparatorSpaces)
+std::vector<std::string> Utilities::String::Split(const std::wstring& wString, const char& separator, bool removeSeparatorSpaces)
 {
 	std::string string = ToString(wString);
 	return Split(string, separator, removeSeparatorSpaces);
 }
 
-std::vector<std::string> Utilities::String::Split(const char* cString, const char& separator, const bool& removeSeparatorSpaces)
+std::vector<std::string> Utilities::String::Split(const char* cString, const char& separator, bool removeSeparatorSpaces)
 {
 	std::string string = ToString(cString);
 	return Split(string, separator, removeSeparatorSpaces);
 }
 
-std::vector<std::string> Utilities::String::Split(const wchar_t* wcString, const char& separator, const bool& removeSeparatorSpaces)
+std::vector<std::string> Utilities::String::Split(const wchar_t* wcString, const char& separator, bool removeSeparatorSpaces)
 {
 	std::string string = ToString(wcString);
 	return Split(string, separator, removeSeparatorSpaces);
 }
 
 
-std::vector<std::wstring> Utilities::String::Split(const std::string& string, const wchar_t& separator, const bool& removeSeparatorSpaces)
+std::vector<std::wstring> Utilities::String::Split(const std::string& string, const wchar_t& separator, bool removeSeparatorSpaces)
 {
 	std::wstring wString = ToWString(string);
 	return Split(wString, separator, removeSeparatorSpaces);
 }
 
-std::vector<std::wstring> Utilities::String::Split(const std::wstring& wideString, const wchar_t& separator, const bool& removeSeparatorSpaces)
+std::vector<std::wstring> Utilities::String::Split(const std::wstring& wideString, const wchar_t& separator, bool removeSeparatorSpaces)
 {
 	std::vector<std::wstring> outCollection;
 
@@ -1849,13 +1849,13 @@ std::vector<std::wstring> Utilities::String::Split(const std::wstring& wideStrin
 	return outCollection;
 }
 
-std::vector<std::wstring> Utilities::String::Split(const char* cString, const wchar_t& separator, const bool& removeSeparatorSpaces)
+std::vector<std::wstring> Utilities::String::Split(const char* cString, const wchar_t& separator, bool removeSeparatorSpaces)
 {
 	std::wstring wString = ToWString(cString);
 	return Split(wString, separator, removeSeparatorSpaces);
 }
 
-std::vector<std::wstring> Utilities::String::Split(const wchar_t* wcString, const wchar_t& separator, const bool& removeSeparatorSpaces)
+std::vector<std::wstring> Utilities::String::Split(const wchar_t* wcString, const wchar_t& separator, bool removeSeparatorSpaces)
 {
 	std::wstring wString = ToWString(wcString);
 	return Split(wString, separator, removeSeparatorSpaces);
@@ -1957,12 +1957,12 @@ bool Utilities::Directory::Create(const std::wstring& directoryPath)
 }
 
 
-bool Utilities::Directory::Destroy(const std::string& directoryPath, const bool& deleteContents)
+bool Utilities::Directory::Destroy(const std::string& directoryPath, bool deleteContents)
 {
     return Directory::Destroy(String::ToWString(directoryPath), deleteContents);
 }
 
-bool Utilities::Directory::Destroy(const std::wstring& directoryPath, const bool& deleteContents)
+bool Utilities::Directory::Destroy(const std::wstring& directoryPath, bool deleteContents)
 {
     if (deleteContents)
     {
@@ -2553,7 +2553,7 @@ std::string Utilities::Time::GetUtcDate()
 
 
 
-bool Utilities::Resources::LoadImageResource(const int32_t& resourceId, const std::wstring& resourceType, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+bool Utilities::Resources::LoadImageResource(const int32_t resourceId, const std::wstring& resourceType, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
 {
     if (outPixels == nullptr || outWidth == nullptr || outHeight == nullptr)
         return false;
@@ -2630,18 +2630,18 @@ bool Utilities::Resources::LoadImageResource(const int32_t& resourceId, const st
     return success;
 }
 
-bool Utilities::Resources::LoadImageResource(const int32_t& resourceId, const std::string& resourceType, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+bool Utilities::Resources::LoadImageResource(const int32_t resourceId, const std::string& resourceType, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
 {
     return LoadImageResource(resourceId, Utilities::String::ToWString(resourceType), outPixels, outWidth, outHeight);
 }
 
 
-bool Utilities::Resources::LoadPNG(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+bool Utilities::Resources::LoadPNG(const int32_t resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
 {
     return LoadImageResource(resourceId, L"PNG", outPixels, outWidth, outHeight);
 }
 
-bool Utilities::Resources::LoadJPG(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+bool Utilities::Resources::LoadJPG(const int32_t resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
 {
     bool success = LoadImageResource(resourceId, L"JPG", outPixels, outWidth, outHeight);
 
@@ -2651,22 +2651,22 @@ bool Utilities::Resources::LoadJPG(const int32_t& resourceId, std::vector<uint8_
     return success;
 }
 
-bool Utilities::Resources::LoadBMP(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+bool Utilities::Resources::LoadBMP(const int32_t resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
 {
     return LoadImageResource(resourceId, L"BMP", outPixels, outWidth, outHeight);;
 }
 
-bool Utilities::Resources::LoadGIF(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+bool Utilities::Resources::LoadGIF(const int32_t resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
 {
     return LoadImageResource(resourceId, L"GIF", outPixels, outWidth, outHeight);;
 }
 
-bool Utilities::Resources::LoadTIFF(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+bool Utilities::Resources::LoadTIFF(const int32_t resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
 {
     return LoadImageResource(resourceId, L"TIFF", outPixels, outWidth, outHeight);;
 }
 
-bool Utilities::Resources::LoadICO(const int32_t& resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
+bool Utilities::Resources::LoadICO(const int32_t resourceId, std::vector<uint8_t>* outPixels, int32_t* outWidth, int32_t* outHeight)
 {
     return LoadImageResource(resourceId, L"ICO", outPixels, outWidth, outHeight);;
 }
@@ -2746,7 +2746,7 @@ bool Utilities::Memory::Internal::IsValidPtr(const void* memoryPtr)
     return true;
 }
 
-bool Utilities::Memory::Internal::IsValidAddress(const uintptr_t& memoryAddress)
+bool Utilities::Memory::Internal::IsValidAddress(uintptr_t memoryAddress)
 {
     void* memoryPtr = reinterpret_cast<void*>(memoryAddress);
     return IsValidPtr(memoryPtr);
@@ -2762,7 +2762,7 @@ void* Utilities::Memory::Internal::PtrAddOffset(const void* memoryPtr, size_t of
     return PtrAddOffset(memoryAddress, offset);
 }
 
-void* Utilities::Memory::Internal::PtrAddOffset(const uintptr_t& memoryAddress, size_t offset)
+void* Utilities::Memory::Internal::PtrAddOffset(uintptr_t memoryAddress, size_t offset)
 {
     /* Calculate the new address by adding the offset. */
     uintptr_t newMemoryAddress = AddressAddOffset(memoryAddress, offset);
@@ -2780,7 +2780,7 @@ uintptr_t Utilities::Memory::Internal::AddressAddOffset(const void* memoryPtr, s
     return AddressAddOffset(memoryAddress, offset);
 }
 
-uintptr_t Utilities::Memory::Internal::AddressAddOffset(const uintptr_t& memoryAddress, size_t offset)
+uintptr_t Utilities::Memory::Internal::AddressAddOffset(uintptr_t memoryAddress, size_t offset)
 {
     /* Calculate the new address by adding the offset. */
     uintptr_t newMemoryAddress = memoryAddress + offset;
@@ -2805,7 +2805,7 @@ void* Utilities::Memory::Internal::PtrDereference(const void* memoryPtr, size_t 
     return PtrDereference(memoryAddress, offset);
 }
 
-void* Utilities::Memory::Internal::PtrDereference(const uintptr_t& memoryAddress, size_t offset)
+void* Utilities::Memory::Internal::PtrDereference(uintptr_t memoryAddress, size_t offset)
 {
     /* Get the dereferenced address. */
     uintptr_t newMemoryAddress = AddressDereference(memoryAddress, offset);
@@ -2822,7 +2822,7 @@ uintptr_t Utilities::Memory::Internal::AddressDereference(const void* memoryPtr,
     return AddressDereference(memoryAddress, offset);
 }
 
-uintptr_t Utilities::Memory::Internal::AddressDereference(const uintptr_t& memoryAddress, size_t offset)
+uintptr_t Utilities::Memory::Internal::AddressDereference(uintptr_t memoryAddress, size_t offset)
 {
     /* Calculate the target address by adding the offset. */
     uintptr_t targetAddress = memoryAddress + offset;
@@ -2852,7 +2852,7 @@ void* Utilities::Memory::Internal::PtrFollowPointerChain(const void* memoryPtr, 
     return reinterpret_cast<void*>(newMemoryAddress);
 }
 
-uintptr_t Utilities::Memory::Internal::AddressFollowPointerChain(const uintptr_t& memoryAddress, const std::vector<uintptr_t>& memoryOffsets)
+uintptr_t Utilities::Memory::Internal::AddressFollowPointerChain(uintptr_t memoryAddress, const std::vector<uintptr_t>& memoryOffsets)
 {
     uintptr_t newMemoryAddress = memoryAddress;
     size_t offsetsCount = memoryOffsets.size();
@@ -2883,7 +2883,7 @@ bool Utilities::Memory::Internal::GetBool(const void* memoryPtr)
     return GetBool(memoryAddress);
 }
 
-bool Utilities::Memory::Internal::GetBool(const uintptr_t& memoryAddress)
+bool Utilities::Memory::Internal::GetBool(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -2899,7 +2899,7 @@ bool Utilities::Memory::Internal::SetBool(const void* memoryPtr, bool newValue)
     return SetBool(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::SetBool(const uintptr_t& memoryAddress, bool newValue)
+bool Utilities::Memory::Internal::SetBool(uintptr_t memoryAddress, bool newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -2930,7 +2930,7 @@ bool Utilities::Memory::Internal::PatchBool(const void* memoryPtr, bool from, bo
     return PatchBool(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::PatchBool(const uintptr_t& memoryAddress, bool from, bool to)
+bool Utilities::Memory::Internal::PatchBool(uintptr_t memoryAddress, bool from, bool to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -2963,7 +2963,7 @@ bool Utilities::Memory::Internal::IndirectGetBool(const void* memoryPtr)
     return IndirectGetBool(memoryAddress);
 }
 
-bool Utilities::Memory::Internal::IndirectGetBool(const uintptr_t& memoryAddress)
+bool Utilities::Memory::Internal::IndirectGetBool(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -2984,7 +2984,7 @@ bool Utilities::Memory::Internal::IndirectSetBool(const void* memoryPtr, bool ne
     return IndirectSetBool(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::IndirectSetBool(const uintptr_t& memoryAddress, bool newValue)
+bool Utilities::Memory::Internal::IndirectSetBool(uintptr_t memoryAddress, bool newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3020,7 +3020,7 @@ bool Utilities::Memory::Internal::IndirectPatchBool(const void* memoryPtr, bool 
     return IndirectPatchBool(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchBool(const uintptr_t& memoryAddress, bool from, bool to)
+bool Utilities::Memory::Internal::IndirectPatchBool(uintptr_t memoryAddress, bool from, bool to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3061,7 +3061,7 @@ int8_t Utilities::Memory::Internal::GetInt8(const void* memoryPtr)
     return GetInt8(memoryAddress);
 }
 
-int8_t Utilities::Memory::Internal::GetInt8(const uintptr_t& memoryAddress)
+int8_t Utilities::Memory::Internal::GetInt8(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3077,7 +3077,7 @@ bool Utilities::Memory::Internal::SetInt8(const void* memoryPtr, int8_t newValue
     return SetInt8(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::SetInt8(const uintptr_t& memoryAddress, int8_t newValue)
+bool Utilities::Memory::Internal::SetInt8(uintptr_t memoryAddress, int8_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3108,7 +3108,7 @@ bool Utilities::Memory::Internal::PatchInt8(const void* memoryPtr, int8_t from, 
     return PatchInt8(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::PatchInt8(const uintptr_t& memoryAddress, int8_t from, int8_t to)
+bool Utilities::Memory::Internal::PatchInt8(uintptr_t memoryAddress, int8_t from, int8_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3141,7 +3141,7 @@ int8_t Utilities::Memory::Internal::IndirectGetInt8(const void* memoryPtr)
     return IndirectGetInt8(memoryAddress);
 }
 
-int8_t Utilities::Memory::Internal::IndirectGetInt8(const uintptr_t& memoryAddress)
+int8_t Utilities::Memory::Internal::IndirectGetInt8(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3162,7 +3162,7 @@ bool Utilities::Memory::Internal::IndirectSetInt8(const void* memoryPtr, int8_t 
     return IndirectSetInt8(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::IndirectSetInt8(const uintptr_t& memoryAddress, int8_t newValue)
+bool Utilities::Memory::Internal::IndirectSetInt8(uintptr_t memoryAddress, int8_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3198,7 +3198,7 @@ bool Utilities::Memory::Internal::IndirectPatchInt8(const void* memoryPtr, int8_
     return IndirectPatchInt8(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchInt8(const uintptr_t& memoryAddress, int8_t from, int8_t to)
+bool Utilities::Memory::Internal::IndirectPatchInt8(uintptr_t memoryAddress, int8_t from, int8_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3240,7 +3240,7 @@ int16_t Utilities::Memory::Internal::GetInt16(const void* memoryPtr)
     return GetInt16(memoryAddress);
 }
 
-int16_t Utilities::Memory::Internal::GetInt16(const uintptr_t& memoryAddress)
+int16_t Utilities::Memory::Internal::GetInt16(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3256,7 +3256,7 @@ bool Utilities::Memory::Internal::SetInt16(const void* memoryPtr, int16_t newVal
     return SetInt16(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::SetInt16(const uintptr_t& memoryAddress, int16_t newValue)
+bool Utilities::Memory::Internal::SetInt16(uintptr_t memoryAddress, int16_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3287,7 +3287,7 @@ bool Utilities::Memory::Internal::PatchInt16(const void* memoryPtr, int16_t from
     return PatchInt16(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::PatchInt16(const uintptr_t& memoryAddress, int16_t from, int16_t to)
+bool Utilities::Memory::Internal::PatchInt16(uintptr_t memoryAddress, int16_t from, int16_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3320,7 +3320,7 @@ int16_t Utilities::Memory::Internal::IndirectGetInt16(const void* memoryPtr)
     return IndirectGetInt16(memoryAddress);
 }
 
-int16_t Utilities::Memory::Internal::IndirectGetInt16(const uintptr_t& memoryAddress)
+int16_t Utilities::Memory::Internal::IndirectGetInt16(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3341,7 +3341,7 @@ bool Utilities::Memory::Internal::IndirectSetInt16(const void* memoryPtr, int16_
     return IndirectSetInt16(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::IndirectSetInt16(const uintptr_t& memoryAddress, int16_t newValue)
+bool Utilities::Memory::Internal::IndirectSetInt16(uintptr_t memoryAddress, int16_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3377,7 +3377,7 @@ bool Utilities::Memory::Internal::IndirectPatchInt16(const void* memoryPtr, int1
     return IndirectPatchInt16(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchInt16(const uintptr_t& memoryAddress, int16_t from, int16_t to)
+bool Utilities::Memory::Internal::IndirectPatchInt16(uintptr_t memoryAddress, int16_t from, int16_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3420,7 +3420,7 @@ int32_t Utilities::Memory::Internal::GetInt32(const void* memoryPtr)
 
 }
 
-int32_t Utilities::Memory::Internal::GetInt32(const uintptr_t& memoryAddress)
+int32_t Utilities::Memory::Internal::GetInt32(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3436,7 +3436,7 @@ bool Utilities::Memory::Internal::SetInt32(const void* memoryPtr, int32_t newVal
     return SetInt32(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::SetInt32(const uintptr_t& memoryAddress, int32_t newValue)
+bool Utilities::Memory::Internal::SetInt32(uintptr_t memoryAddress, int32_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3467,7 +3467,7 @@ bool Utilities::Memory::Internal::PatchInt32(const void* memoryPtr, int32_t from
     return PatchInt32(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::PatchInt32(const uintptr_t& memoryAddress, int32_t from, int32_t to)
+bool Utilities::Memory::Internal::PatchInt32(uintptr_t memoryAddress, int32_t from, int32_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3503,7 +3503,7 @@ int32_t Utilities::Memory::Internal::IndirectGetInt32(const void* memoryPtr)
     return IndirectGetInt32(memoryAddress);
 }
 
-int32_t Utilities::Memory::Internal::IndirectGetInt32(const uintptr_t& memoryAddress)
+int32_t Utilities::Memory::Internal::IndirectGetInt32(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3524,7 +3524,7 @@ bool Utilities::Memory::Internal::IndirectSetInt32(const void* memoryPtr, int32_
     return IndirectSetInt32(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::IndirectSetInt32(const uintptr_t& memoryAddress, int32_t newValue)
+bool Utilities::Memory::Internal::IndirectSetInt32(uintptr_t memoryAddress, int32_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3560,7 +3560,7 @@ bool Utilities::Memory::Internal::IndirectPatchInt32(const void* memoryPtr, int3
     return IndirectPatchInt32(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchInt32(const uintptr_t& memoryAddress, int32_t from, int32_t to)
+bool Utilities::Memory::Internal::IndirectPatchInt32(uintptr_t memoryAddress, int32_t from, int32_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3601,7 +3601,7 @@ int64_t Utilities::Memory::Internal::GetInt64(const void* memoryPtr)
     return GetInt64(memoryAddress);
 }
 
-int64_t Utilities::Memory::Internal::GetInt64(const uintptr_t& memoryAddress)
+int64_t Utilities::Memory::Internal::GetInt64(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3617,7 +3617,7 @@ bool Utilities::Memory::Internal::SetInt64(const void* memoryPtr, int64_t newVal
     return SetInt64(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::SetInt64(const uintptr_t& memoryAddress, int64_t newValue)
+bool Utilities::Memory::Internal::SetInt64(uintptr_t memoryAddress, int64_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3648,7 +3648,7 @@ bool Utilities::Memory::Internal::PatchInt64(const void* memoryPtr, int64_t from
     return PatchInt64(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::PatchInt64(const uintptr_t& memoryAddress, int64_t from, int64_t to)
+bool Utilities::Memory::Internal::PatchInt64(uintptr_t memoryAddress, int64_t from, int64_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3681,7 +3681,7 @@ int64_t Utilities::Memory::Internal::IndirectGetInt64(const void* memoryPtr)
     return IndirectGetInt64(memoryAddress);
 }
 
-int64_t Utilities::Memory::Internal::IndirectGetInt64(const uintptr_t& memoryAddress)
+int64_t Utilities::Memory::Internal::IndirectGetInt64(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3702,7 +3702,7 @@ bool Utilities::Memory::Internal::IndirectSetInt64(const void* memoryPtr, int64_
     return IndirectSetInt64(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::IndirectSetInt64(const uintptr_t& memoryAddress, int64_t newValue)
+bool Utilities::Memory::Internal::IndirectSetInt64(uintptr_t memoryAddress, int64_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3738,7 +3738,7 @@ bool Utilities::Memory::Internal::IndirectPatchInt64(const void* memoryPtr, int6
     return IndirectPatchInt64(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchInt64(const uintptr_t& memoryAddress, int64_t from, int64_t to)
+bool Utilities::Memory::Internal::IndirectPatchInt64(uintptr_t memoryAddress, int64_t from, int64_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3779,7 +3779,7 @@ float Utilities::Memory::Internal::GetFloat(const void* memoryPtr)
     return GetFloat(memoryAddress);
 }
 
-float Utilities::Memory::Internal::GetFloat(const uintptr_t& memoryAddress)
+float Utilities::Memory::Internal::GetFloat(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3795,7 +3795,7 @@ bool Utilities::Memory::Internal::SetFloat(const void* memoryPtr, float newValue
     return SetFloat(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::SetFloat(const uintptr_t& memoryAddress, float newValue)
+bool Utilities::Memory::Internal::SetFloat(uintptr_t memoryAddress, float newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3826,7 +3826,7 @@ bool Utilities::Memory::Internal::PatchFloat(const void* memoryPtr, float from, 
     return PatchFloat(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::PatchFloat(const uintptr_t& memoryAddress, float from, float to)
+bool Utilities::Memory::Internal::PatchFloat(uintptr_t memoryAddress, float from, float to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3859,7 +3859,7 @@ float Utilities::Memory::Internal::IndirectGetFloat(const void* memoryPtr)
     return IndirectGetFloat(memoryAddress);
 }
 
-float Utilities::Memory::Internal::IndirectGetFloat(const uintptr_t& memoryAddress)
+float Utilities::Memory::Internal::IndirectGetFloat(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3880,7 +3880,7 @@ bool Utilities::Memory::Internal::IndirectSetFloat(const void* memoryPtr, float 
     return IndirectSetFloat(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::IndirectSetFloat(const uintptr_t& memoryAddress, float newValue)
+bool Utilities::Memory::Internal::IndirectSetFloat(uintptr_t memoryAddress, float newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3916,7 +3916,7 @@ bool Utilities::Memory::Internal::IndirectPatchFloat(const void* memoryPtr, floa
     return IndirectPatchFloat(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchFloat(const uintptr_t& memoryAddress, float from, float to)
+bool Utilities::Memory::Internal::IndirectPatchFloat(uintptr_t memoryAddress, float from, float to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3957,7 +3957,7 @@ double Utilities::Memory::Internal::GetDouble(const void* memoryPtr)
     return GetDouble(memoryAddress);
 }
 
-double Utilities::Memory::Internal::GetDouble(const uintptr_t& memoryAddress)
+double Utilities::Memory::Internal::GetDouble(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -3973,7 +3973,7 @@ bool Utilities::Memory::Internal::SetDouble(const void* memoryPtr, double newVal
     return SetDouble(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::SetDouble(const uintptr_t& memoryAddress, double newValue)
+bool Utilities::Memory::Internal::SetDouble(uintptr_t memoryAddress, double newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4004,7 +4004,7 @@ bool Utilities::Memory::Internal::PatchDouble(const void* memoryPtr, double from
     return PatchDouble(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::PatchDouble(const uintptr_t& memoryAddress, double from, double to)
+bool Utilities::Memory::Internal::PatchDouble(uintptr_t memoryAddress, double from, double to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4037,7 +4037,7 @@ double Utilities::Memory::Internal::IndirectGetDouble(const void* memoryPtr)
     return IndirectGetDouble(memoryAddress);
 }
 
-double Utilities::Memory::Internal::IndirectGetDouble(const uintptr_t& memoryAddress)
+double Utilities::Memory::Internal::IndirectGetDouble(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4058,7 +4058,7 @@ bool Utilities::Memory::Internal::IndirectSetDouble(const void* memoryPtr, doubl
     return IndirectSetDouble(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::IndirectSetDouble(const uintptr_t& memoryAddress, double newValue)
+bool Utilities::Memory::Internal::IndirectSetDouble(uintptr_t memoryAddress, double newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4094,7 +4094,7 @@ bool Utilities::Memory::Internal::IndirectPatchDouble(const void* memoryPtr, dou
     return IndirectPatchDouble(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchDouble(const uintptr_t& memoryAddress, double from, double to)
+bool Utilities::Memory::Internal::IndirectPatchDouble(uintptr_t memoryAddress, double from, double to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4141,7 +4141,7 @@ std::string Utilities::Memory::Internal::GetString(const void* memoryPtr, size_t
     return GetString(memoryAddress, maxLength);
 }
 
-std::string Utilities::Memory::Internal::GetString(const uintptr_t& memoryAddress)
+std::string Utilities::Memory::Internal::GetString(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4152,7 +4152,7 @@ std::string Utilities::Memory::Internal::GetString(const uintptr_t& memoryAddres
     return std::string(strPtr);
 }
 
-std::string Utilities::Memory::Internal::GetString(const uintptr_t& memoryAddress, size_t maxLength)
+std::string Utilities::Memory::Internal::GetString(uintptr_t memoryAddress, size_t maxLength)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4169,7 +4169,7 @@ bool Utilities::Memory::Internal::SetString(const void* memoryPtr, const std::st
     return SetString(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::SetString(const uintptr_t& memoryAddress, const std::string& newValue)
+bool Utilities::Memory::Internal::SetString(uintptr_t memoryAddress, const std::string& newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4200,7 +4200,7 @@ bool Utilities::Memory::Internal::PatchString(const void* memoryPtr, const std::
     return PatchString(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::PatchString(const uintptr_t& memoryAddress, const std::string& from, const std::string& to)
+bool Utilities::Memory::Internal::PatchString(uintptr_t memoryAddress, const std::string& from, const std::string& to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4243,7 +4243,7 @@ std::string Utilities::Memory::Internal::IndirectGetString(const void* memoryPtr
     return IndirectGetString(memoryAddress, maxLength);
 }
 
-std::string Utilities::Memory::Internal::IndirectGetString(const uintptr_t& memoryAddress)
+std::string Utilities::Memory::Internal::IndirectGetString(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4259,7 +4259,7 @@ std::string Utilities::Memory::Internal::IndirectGetString(const uintptr_t& memo
     return std::string(strPtr);
 }
 
-std::string Utilities::Memory::Internal::IndirectGetString(const uintptr_t& memoryAddress, size_t maxLength)
+std::string Utilities::Memory::Internal::IndirectGetString(uintptr_t memoryAddress, size_t maxLength)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4281,7 +4281,7 @@ bool Utilities::Memory::Internal::IndirectSetString(const void* memoryPtr, const
     return IndirectSetString(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::IndirectSetString(const uintptr_t& memoryAddress, const std::string& newValue)
+bool Utilities::Memory::Internal::IndirectSetString(uintptr_t memoryAddress, const std::string& newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4317,7 +4317,7 @@ bool Utilities::Memory::Internal::IndirectPatchString(const void* memoryPtr, con
     return IndirectPatchString(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchString(const uintptr_t& memoryAddress, const std::string& from, const std::string& to)
+bool Utilities::Memory::Internal::IndirectPatchString(uintptr_t memoryAddress, const std::string& from, const std::string& to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4365,7 +4365,7 @@ std::wstring Utilities::Memory::Internal::GetWString(const void* memoryPtr, size
     return GetWString(memoryAddress, maxLength);
 }
 
-std::wstring Utilities::Memory::Internal::GetWString(const uintptr_t& memoryAddress)
+std::wstring Utilities::Memory::Internal::GetWString(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4376,7 +4376,7 @@ std::wstring Utilities::Memory::Internal::GetWString(const uintptr_t& memoryAddr
     return std::wstring(wStrPtr);
 }
 
-std::wstring Utilities::Memory::Internal::GetWString(const uintptr_t& memoryAddress, size_t maxLength)
+std::wstring Utilities::Memory::Internal::GetWString(uintptr_t memoryAddress, size_t maxLength)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4393,7 +4393,7 @@ bool Utilities::Memory::Internal::SetWString(const void* memoryPtr, const std::w
     return SetWString(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::SetWString(const uintptr_t& memoryAddress, const std::wstring& newValue)
+bool Utilities::Memory::Internal::SetWString(uintptr_t memoryAddress, const std::wstring& newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4424,7 +4424,7 @@ bool Utilities::Memory::Internal::PatchWString(const void* memoryPtr, const std:
     return PatchWString(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::PatchWString(const uintptr_t& memoryAddress, const std::wstring& from, const std::wstring& to)
+bool Utilities::Memory::Internal::PatchWString(uintptr_t memoryAddress, const std::wstring& from, const std::wstring& to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4464,7 +4464,7 @@ std::wstring Utilities::Memory::Internal::IndirectGetWString(const void* memoryP
     return IndirectGetWString(memoryAddress, maxLength);
 }
 
-std::wstring Utilities::Memory::Internal::IndirectGetWString(const uintptr_t& memoryAddress)
+std::wstring Utilities::Memory::Internal::IndirectGetWString(uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4480,7 +4480,7 @@ std::wstring Utilities::Memory::Internal::IndirectGetWString(const uintptr_t& me
     return std::wstring(wStrPtr);
 }
 
-std::wstring Utilities::Memory::Internal::IndirectGetWString(const uintptr_t& memoryAddress, size_t maxLength)
+std::wstring Utilities::Memory::Internal::IndirectGetWString(uintptr_t memoryAddress, size_t maxLength)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4502,7 +4502,7 @@ bool Utilities::Memory::Internal::IndirectSetWString(const void* memoryPtr, cons
     return IndirectSetWString(memoryAddress, newValue);
 }
 
-bool Utilities::Memory::Internal::IndirectSetWString(const uintptr_t& memoryAddress, const std::wstring& newValue)
+bool Utilities::Memory::Internal::IndirectSetWString(uintptr_t memoryAddress, const std::wstring& newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4538,7 +4538,7 @@ bool Utilities::Memory::Internal::IndirectPatchWString(const void* memoryPtr, co
     return IndirectPatchWString(memoryAddress, from, to);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchWString(const uintptr_t& memoryAddress, const std::wstring& from, const std::wstring& to)
+bool Utilities::Memory::Internal::IndirectPatchWString(uintptr_t memoryAddress, const std::wstring& from, const std::wstring& to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4580,7 +4580,7 @@ std::vector<uint8_t> Utilities::Memory::Internal::GetBytes(const void* memoryPtr
     return GetBytes(memoryAddress, byteCount);
 }
 
-std::vector<uint8_t> Utilities::Memory::Internal::GetBytes(const uintptr_t& memoryAddress, size_t byteCount)
+std::vector<uint8_t> Utilities::Memory::Internal::GetBytes(uintptr_t memoryAddress, size_t byteCount)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4598,7 +4598,7 @@ bool Utilities::Memory::Internal::SetBytes(const void* memoryPtr, const std::vec
     return SetBytes(memoryAddress, newBytes);
 }
 
-bool Utilities::Memory::Internal::SetBytes(const uintptr_t& memoryAddress, const std::vector<uint8_t>& newBytes)
+bool Utilities::Memory::Internal::SetBytes(uintptr_t memoryAddress, const std::vector<uint8_t>& newBytes)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false || newBytes.empty())
@@ -4628,7 +4628,7 @@ bool Utilities::Memory::Internal::PatchBytes(const void* memoryPtr, const std::v
     return PatchBytes(memoryAddress, fromBytes, toBytes);
 }
 
-bool Utilities::Memory::Internal::PatchBytes(const uintptr_t& memoryAddress, const std::vector<uint8_t>& fromBytes, const std::vector<uint8_t>& toBytes)
+bool Utilities::Memory::Internal::PatchBytes(uintptr_t memoryAddress, const std::vector<uint8_t>& fromBytes, const std::vector<uint8_t>& toBytes)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4669,7 +4669,7 @@ std::vector<uint8_t> Utilities::Memory::Internal::IndirectGetBytes(const void* m
     return IndirectGetBytes(memoryAddress, byteCount);
 }
 
-std::vector<uint8_t> Utilities::Memory::Internal::IndirectGetBytes(const uintptr_t& memoryAddress, size_t byteCount)
+std::vector<uint8_t> Utilities::Memory::Internal::IndirectGetBytes(uintptr_t memoryAddress, size_t byteCount)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4692,7 +4692,7 @@ bool Utilities::Memory::Internal::IndirectSetBytes(const void* memoryPtr, const 
     return IndirectSetBytes(memoryAddress, newBytes);
 }
 
-bool Utilities::Memory::Internal::IndirectSetBytes(const uintptr_t& memoryAddress, const std::vector<uint8_t>& newBytes)
+bool Utilities::Memory::Internal::IndirectSetBytes(uintptr_t memoryAddress, const std::vector<uint8_t>& newBytes)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4731,7 +4731,7 @@ bool Utilities::Memory::Internal::IndirectPatchBytes(const void* memoryPtr, cons
     return IndirectPatchBytes(memoryAddress, fromBytes, toBytes);
 }
 
-bool Utilities::Memory::Internal::IndirectPatchBytes(const uintptr_t& memoryAddress, const std::vector<uint8_t>& fromBytes, const std::vector<uint8_t>& toBytes)
+bool Utilities::Memory::Internal::IndirectPatchBytes(uintptr_t memoryAddress, const std::vector<uint8_t>& fromBytes, const std::vector<uint8_t>& toBytes)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(memoryAddress) == false)
@@ -4779,7 +4779,7 @@ bool Utilities::Memory::Internal::IndirectPatchBytes(const uintptr_t& memoryAddr
 // ========================================================
 // |                      #EXTERNAL                       |
 // ========================================================
-std::string Utilities::Memory::External::ReadRemoteString(const HANDLE& hProcess, const uintptr_t memoryAddress, size_t maxLength)
+std::string Utilities::Memory::External::ReadRemoteString(const HANDLE& hProcess, uintptr_t memoryAddress, size_t maxLength)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false || maxLength == 0)
@@ -4825,7 +4825,7 @@ std::string Utilities::Memory::External::ReadRemoteString(const HANDLE& hProcess
     return result; // May be exactly maxLength or shorter if we hit a boundary.
 }
 
-std::wstring Utilities::Memory::External::ReadRemoteWString(const HANDLE& hProcess, const uintptr_t memoryAddress, size_t maxLength /*= 256*/)
+std::wstring Utilities::Memory::External::ReadRemoteWString(const HANDLE& hProcess, uintptr_t memoryAddress, size_t maxLength /*= 256*/)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false || maxLength == 0)
@@ -4882,7 +4882,7 @@ std::wstring Utilities::Memory::External::ReadRemoteWString(const HANDLE& hProce
 
 
 
-bool Utilities::Memory::External::IsValidProcessHandle(const HANDLE& hProcess, const bool& requireQueryRights)
+bool Utilities::Memory::External::IsValidProcessHandle(const HANDLE& hProcess, bool requireQueryRights)
 {
     if (hProcess == nullptr || hProcess == INVALID_HANDLE_VALUE) // Handle must be non-null and not INVALID_HANDLE_VALUE. Return False if it's not.
         return false;
@@ -4933,7 +4933,7 @@ bool Utilities::Memory::External::IsValidPtr(const HANDLE& hProcess, const void*
     return true;
 }
 
-bool Utilities::Memory::External::IsValidAddress(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+bool Utilities::Memory::External::IsValidAddress(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     void* memoryPtr = reinterpret_cast<void*>(memoryAddress);
     return IsValidPtr(hProcess, memoryPtr);
@@ -4949,7 +4949,7 @@ void* Utilities::Memory::External::PtrAddOffset(const HANDLE& hProcess, const vo
     return PtrAddOffset(hProcess, memoryAddress, offset);
 }
 
-void* Utilities::Memory::External::PtrAddOffset(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t offset)
+void* Utilities::Memory::External::PtrAddOffset(const HANDLE& hProcess, uintptr_t memoryAddress, size_t offset)
 {
     /* Calculate the new address by adding the offset. */
     uintptr_t newMemoryAddress = AddressAddOffset(hProcess, memoryAddress, offset);
@@ -4967,7 +4967,7 @@ uintptr_t Utilities::Memory::External::AddressAddOffset(const HANDLE& hProcess, 
     return AddressAddOffset(hProcess, memoryAddress, offset);
 }
 
-uintptr_t Utilities::Memory::External::AddressAddOffset(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t offset)
+uintptr_t Utilities::Memory::External::AddressAddOffset(const HANDLE& hProcess, uintptr_t memoryAddress, size_t offset)
 {
     /* Calculate the new address by adding the offset. */
     uintptr_t newMemoryAddress = memoryAddress + offset;
@@ -4992,7 +4992,7 @@ void* Utilities::Memory::External::PtrDereference(const HANDLE& hProcess, const 
     return PtrDereference(hProcess, memoryAddress, offset);
 }
 
-void* Utilities::Memory::External::PtrDereference(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t offset)
+void* Utilities::Memory::External::PtrDereference(const HANDLE& hProcess, uintptr_t memoryAddress, size_t offset)
 {
     /* Get the dereferenced address. */
     uintptr_t newMemoryAddress = AddressDereference(hProcess, memoryAddress, offset);
@@ -5010,7 +5010,7 @@ uintptr_t Utilities::Memory::External::AddressDereference(const HANDLE& hProcess
     return AddressDereference(hProcess, memoryAddress, offset);
 }
 
-uintptr_t Utilities::Memory::External::AddressDereference(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t offset)
+uintptr_t Utilities::Memory::External::AddressDereference(const HANDLE& hProcess, uintptr_t memoryAddress, size_t offset)
 {
     /* Calculate the target address by adding the offset. */
     uintptr_t targetAddress = memoryAddress + offset;
@@ -5047,7 +5047,7 @@ void* Utilities::Memory::External::PtrFollowPointerChain(const HANDLE& hProcess,
     return reinterpret_cast<void*>(newMemoryAddress);
 }
 
-uintptr_t Utilities::Memory::External::AddressFollowPointerChain(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::vector<uintptr_t>& memoryOffsets)
+uintptr_t Utilities::Memory::External::AddressFollowPointerChain(const HANDLE& hProcess, uintptr_t memoryAddress, const std::vector<uintptr_t>& memoryOffsets)
 {
     uintptr_t newMemoryAddress = memoryAddress;
     size_t offsetsCount = memoryOffsets.size();
@@ -5085,7 +5085,7 @@ bool Utilities::Memory::External::GetBool(const HANDLE& hProcess, const void* me
     return GetBool(hProcess, memoryAddress);
 }
 
-bool Utilities::Memory::External::GetBool(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+bool Utilities::Memory::External::GetBool(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5108,7 +5108,7 @@ bool Utilities::Memory::External::SetBool(const HANDLE& hProcess, const void* me
     return SetBool(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::SetBool(const HANDLE& hProcess, const uintptr_t& memoryAddress, bool newValue)
+bool Utilities::Memory::External::SetBool(const HANDLE& hProcess, uintptr_t memoryAddress, bool newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5140,7 +5140,7 @@ bool Utilities::Memory::External::PatchBool(const HANDLE& hProcess, const void* 
     return PatchBool(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::PatchBool(const HANDLE& hProcess, const uintptr_t& memoryAddress, bool from, bool to)
+bool Utilities::Memory::External::PatchBool(const HANDLE& hProcess, uintptr_t memoryAddress, bool from, bool to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5182,7 +5182,7 @@ bool Utilities::Memory::External::IndirectGetBool(const HANDLE& hProcess, const 
     return IndirectGetBool(hProcess, memoryAddress);
 }
 
-bool Utilities::Memory::External::IndirectGetBool(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+bool Utilities::Memory::External::IndirectGetBool(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5216,7 +5216,7 @@ bool Utilities::Memory::External::IndirectSetBool(const HANDLE& hProcess, const 
     return IndirectSetBool(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::IndirectSetBool(const HANDLE& hProcess, const uintptr_t& memoryAddress, bool newValue)
+bool Utilities::Memory::External::IndirectSetBool(const HANDLE& hProcess, uintptr_t memoryAddress, bool newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5259,7 +5259,7 @@ bool Utilities::Memory::External::IndirectPatchBool(const HANDLE& hProcess, cons
     return IndirectPatchBool(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::IndirectPatchBool(const HANDLE& hProcess, const uintptr_t& memoryAddress, bool from, bool to)
+bool Utilities::Memory::External::IndirectPatchBool(const HANDLE& hProcess, uintptr_t memoryAddress, bool from, bool to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5313,7 +5313,7 @@ int8_t Utilities::Memory::External::GetInt8(const HANDLE& hProcess, const void* 
     return GetInt8(hProcess, memoryAddress);
 }
 
-int8_t Utilities::Memory::External::GetInt8(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+int8_t Utilities::Memory::External::GetInt8(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5336,7 +5336,7 @@ bool Utilities::Memory::External::SetInt8(const HANDLE& hProcess, const void* me
     return SetInt8(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::SetInt8(const HANDLE& hProcess, const uintptr_t& memoryAddress, int8_t newValue)
+bool Utilities::Memory::External::SetInt8(const HANDLE& hProcess, uintptr_t memoryAddress, int8_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5368,7 +5368,7 @@ bool Utilities::Memory::External::PatchInt8(const HANDLE& hProcess, const void* 
     return PatchInt8(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::PatchInt8(const HANDLE& hProcess, const uintptr_t& memoryAddress, int8_t from, int8_t to)
+bool Utilities::Memory::External::PatchInt8(const HANDLE& hProcess, uintptr_t memoryAddress, int8_t from, int8_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5410,7 +5410,7 @@ int8_t Utilities::Memory::External::IndirectGetInt8(const HANDLE& hProcess, cons
     return IndirectGetInt8(hProcess, memoryAddress);
 }
 
-int8_t Utilities::Memory::External::IndirectGetInt8(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+int8_t Utilities::Memory::External::IndirectGetInt8(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5443,7 +5443,7 @@ bool Utilities::Memory::External::IndirectSetInt8(const HANDLE& hProcess, const 
     return IndirectSetInt8(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::IndirectSetInt8(const HANDLE& hProcess, const uintptr_t& memoryAddress, int8_t newValue)
+bool Utilities::Memory::External::IndirectSetInt8(const HANDLE& hProcess, uintptr_t memoryAddress, int8_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5486,7 +5486,7 @@ bool Utilities::Memory::External::IndirectPatchInt8(const HANDLE& hProcess, cons
     return IndirectPatchInt8(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::IndirectPatchInt8(const HANDLE& hProcess, const uintptr_t& memoryAddress, int8_t from, int8_t to)
+bool Utilities::Memory::External::IndirectPatchInt8(const HANDLE& hProcess, uintptr_t memoryAddress, int8_t from, int8_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5541,7 +5541,7 @@ int16_t Utilities::Memory::External::GetInt16(const HANDLE& hProcess, const void
     return GetInt16(hProcess, memoryAddress);
 }
 
-int16_t Utilities::Memory::External::GetInt16(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+int16_t Utilities::Memory::External::GetInt16(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5564,7 +5564,7 @@ bool Utilities::Memory::External::SetInt16(const HANDLE& hProcess, const void* m
     return SetInt16(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::SetInt16(const HANDLE& hProcess, const uintptr_t& memoryAddress, int16_t newValue)
+bool Utilities::Memory::External::SetInt16(const HANDLE& hProcess, uintptr_t memoryAddress, int16_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5596,7 +5596,7 @@ bool Utilities::Memory::External::PatchInt16(const HANDLE& hProcess, const void*
     return PatchInt16(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::PatchInt16(const HANDLE& hProcess, const uintptr_t& memoryAddress, int16_t from, int16_t to)
+bool Utilities::Memory::External::PatchInt16(const HANDLE& hProcess, uintptr_t memoryAddress, int16_t from, int16_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5638,7 +5638,7 @@ int16_t Utilities::Memory::External::IndirectGetInt16(const HANDLE& hProcess, co
     return IndirectGetInt16(hProcess, memoryAddress);
 }
 
-int16_t Utilities::Memory::External::IndirectGetInt16(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+int16_t Utilities::Memory::External::IndirectGetInt16(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5671,7 +5671,7 @@ bool Utilities::Memory::External::IndirectSetInt16(const HANDLE& hProcess, const
     return IndirectSetInt16(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::IndirectSetInt16(const HANDLE& hProcess, const uintptr_t& memoryAddress, int16_t newValue)
+bool Utilities::Memory::External::IndirectSetInt16(const HANDLE& hProcess, uintptr_t memoryAddress, int16_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5714,7 +5714,7 @@ bool Utilities::Memory::External::IndirectPatchInt16(const HANDLE& hProcess, con
     return IndirectPatchInt16(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::IndirectPatchInt16(const HANDLE& hProcess, const uintptr_t& memoryAddress, int16_t from, int16_t to)
+bool Utilities::Memory::External::IndirectPatchInt16(const HANDLE& hProcess, uintptr_t memoryAddress, int16_t from, int16_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5769,7 +5769,7 @@ int32_t Utilities::Memory::External::GetInt32(const HANDLE& hProcess, const void
     return GetInt32(hProcess, memoryAddress);
 }
 
-int32_t Utilities::Memory::External::GetInt32(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+int32_t Utilities::Memory::External::GetInt32(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5792,7 +5792,7 @@ bool Utilities::Memory::External::SetInt32(const HANDLE& hProcess, const void* m
     return SetInt32(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::SetInt32(const HANDLE& hProcess, const uintptr_t& memoryAddress, int32_t newValue)
+bool Utilities::Memory::External::SetInt32(const HANDLE& hProcess, uintptr_t memoryAddress, int32_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5824,7 +5824,7 @@ bool Utilities::Memory::External::PatchInt32(const HANDLE& hProcess, const void*
     return PatchInt32(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::PatchInt32(const HANDLE& hProcess, const uintptr_t& memoryAddress, int32_t from, int32_t to)
+bool Utilities::Memory::External::PatchInt32(const HANDLE& hProcess, uintptr_t memoryAddress, int32_t from, int32_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5866,7 +5866,7 @@ int32_t Utilities::Memory::External::IndirectGetInt32(const HANDLE& hProcess, co
     return IndirectGetInt32(hProcess, memoryAddress);
 }
 
-int32_t Utilities::Memory::External::IndirectGetInt32(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+int32_t Utilities::Memory::External::IndirectGetInt32(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5900,7 +5900,7 @@ bool Utilities::Memory::External::IndirectSetInt32(const HANDLE& hProcess, const
     return IndirectSetInt32(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::IndirectSetInt32(const HANDLE& hProcess, const uintptr_t& memoryAddress, int32_t newValue)
+bool Utilities::Memory::External::IndirectSetInt32(const HANDLE& hProcess, uintptr_t memoryAddress, int32_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5943,7 +5943,7 @@ bool Utilities::Memory::External::IndirectPatchInt32(const HANDLE& hProcess, con
     return IndirectPatchInt32(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::IndirectPatchInt32(const HANDLE& hProcess, const uintptr_t& memoryAddress, int32_t from, int32_t to)
+bool Utilities::Memory::External::IndirectPatchInt32(const HANDLE& hProcess, uintptr_t memoryAddress, int32_t from, int32_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -5998,7 +5998,7 @@ int64_t Utilities::Memory::External::GetInt64(const HANDLE& hProcess, const void
     return GetInt64(hProcess, memoryAddress);
 }
 
-int64_t Utilities::Memory::External::GetInt64(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+int64_t Utilities::Memory::External::GetInt64(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6021,7 +6021,7 @@ bool Utilities::Memory::External::SetInt64(const HANDLE& hProcess, const void* m
     return SetInt64(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::SetInt64(const HANDLE& hProcess, const uintptr_t& memoryAddress, int64_t newValue)
+bool Utilities::Memory::External::SetInt64(const HANDLE& hProcess, uintptr_t memoryAddress, int64_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6053,7 +6053,7 @@ bool Utilities::Memory::External::PatchInt64(const HANDLE& hProcess, const void*
     return PatchInt64(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::PatchInt64(const HANDLE& hProcess, const uintptr_t& memoryAddress, int64_t from, int64_t to)
+bool Utilities::Memory::External::PatchInt64(const HANDLE& hProcess, uintptr_t memoryAddress, int64_t from, int64_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6095,7 +6095,7 @@ int64_t Utilities::Memory::External::IndirectGetInt64(const HANDLE& hProcess, co
     return IndirectGetInt64(hProcess, memoryAddress);
 }
 
-int64_t Utilities::Memory::External::IndirectGetInt64(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+int64_t Utilities::Memory::External::IndirectGetInt64(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6129,7 +6129,7 @@ bool Utilities::Memory::External::IndirectSetInt64(const HANDLE& hProcess, const
     return IndirectSetInt64(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::IndirectSetInt64(const HANDLE& hProcess, const uintptr_t& memoryAddress, int64_t newValue)
+bool Utilities::Memory::External::IndirectSetInt64(const HANDLE& hProcess, uintptr_t memoryAddress, int64_t newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6172,7 +6172,7 @@ bool Utilities::Memory::External::IndirectPatchInt64(const HANDLE& hProcess, con
     return IndirectPatchInt64(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::IndirectPatchInt64(const HANDLE& hProcess, const uintptr_t& memoryAddress, int64_t from, int64_t to)
+bool Utilities::Memory::External::IndirectPatchInt64(const HANDLE& hProcess, uintptr_t memoryAddress, int64_t from, int64_t to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6227,7 +6227,7 @@ float Utilities::Memory::External::GetFloat(const HANDLE& hProcess, const void* 
     return GetFloat(hProcess, memoryAddress);
 }
 
-float Utilities::Memory::External::GetFloat(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+float Utilities::Memory::External::GetFloat(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6250,7 +6250,7 @@ bool Utilities::Memory::External::SetFloat(const HANDLE& hProcess, const void* m
     return SetFloat(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::SetFloat(const HANDLE& hProcess, const uintptr_t& memoryAddress, float newValue)
+bool Utilities::Memory::External::SetFloat(const HANDLE& hProcess, uintptr_t memoryAddress, float newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6282,7 +6282,7 @@ bool Utilities::Memory::External::PatchFloat(const HANDLE& hProcess, const void*
     return PatchFloat(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::PatchFloat(const HANDLE& hProcess, const uintptr_t& memoryAddress, float from, float to)
+bool Utilities::Memory::External::PatchFloat(const HANDLE& hProcess, uintptr_t memoryAddress, float from, float to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6324,7 +6324,7 @@ float Utilities::Memory::External::IndirectGetFloat(const HANDLE& hProcess, cons
     return IndirectGetFloat(hProcess, memoryAddress);
 }
 
-float Utilities::Memory::External::IndirectGetFloat(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+float Utilities::Memory::External::IndirectGetFloat(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6358,7 +6358,7 @@ bool Utilities::Memory::External::IndirectSetFloat(const HANDLE& hProcess, const
     return IndirectSetFloat(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::IndirectSetFloat(const HANDLE& hProcess, const uintptr_t& memoryAddress, float newValue)
+bool Utilities::Memory::External::IndirectSetFloat(const HANDLE& hProcess, uintptr_t memoryAddress, float newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6401,7 +6401,7 @@ bool Utilities::Memory::External::IndirectPatchFloat(const HANDLE& hProcess, con
     return IndirectPatchFloat(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::IndirectPatchFloat(const HANDLE& hProcess, const uintptr_t& memoryAddress, float from, float to)
+bool Utilities::Memory::External::IndirectPatchFloat(const HANDLE& hProcess, uintptr_t memoryAddress, float from, float to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6456,7 +6456,7 @@ double Utilities::Memory::External::GetDouble(const HANDLE& hProcess, const void
     return GetDouble(hProcess, memoryAddress);
 }
 
-double Utilities::Memory::External::GetDouble(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+double Utilities::Memory::External::GetDouble(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6479,7 +6479,7 @@ bool Utilities::Memory::External::SetDouble(const HANDLE& hProcess, const void* 
     return SetDouble(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::SetDouble(const HANDLE& hProcess, const uintptr_t& memoryAddress, double newValue)
+bool Utilities::Memory::External::SetDouble(const HANDLE& hProcess, uintptr_t memoryAddress, double newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6511,7 +6511,7 @@ bool Utilities::Memory::External::PatchDouble(const HANDLE& hProcess, const void
     return PatchDouble(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::PatchDouble(const HANDLE& hProcess, const uintptr_t& memoryAddress, double from, double to)
+bool Utilities::Memory::External::PatchDouble(const HANDLE& hProcess, uintptr_t memoryAddress, double from, double to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6553,7 +6553,7 @@ double Utilities::Memory::External::IndirectGetDouble(const HANDLE& hProcess, co
     return IndirectGetDouble(hProcess, memoryAddress);
 }
 
-double Utilities::Memory::External::IndirectGetDouble(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+double Utilities::Memory::External::IndirectGetDouble(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6587,7 +6587,7 @@ bool Utilities::Memory::External::IndirectSetDouble(const HANDLE& hProcess, cons
     return IndirectSetDouble(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::IndirectSetDouble(const HANDLE& hProcess, const uintptr_t& memoryAddress, double newValue)
+bool Utilities::Memory::External::IndirectSetDouble(const HANDLE& hProcess, uintptr_t memoryAddress, double newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6630,7 +6630,7 @@ bool Utilities::Memory::External::IndirectPatchDouble(const HANDLE& hProcess, co
     return IndirectPatchDouble(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::IndirectPatchDouble(const HANDLE& hProcess, const uintptr_t& memoryAddress, double from, double to)
+bool Utilities::Memory::External::IndirectPatchDouble(const HANDLE& hProcess, uintptr_t memoryAddress, double from, double to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6691,13 +6691,13 @@ std::string Utilities::Memory::External::GetString(const HANDLE& hProcess, const
     return GetString(hProcess, memoryAddress, maxLength);
 }
 
-std::string Utilities::Memory::External::GetString(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+std::string Utilities::Memory::External::GetString(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid and read a NUL-terminated string. */
     return ReadRemoteString(hProcess, memoryAddress);
 }
 
-std::string Utilities::Memory::External::GetString(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t maxLength)
+std::string Utilities::Memory::External::GetString(const HANDLE& hProcess, uintptr_t memoryAddress, size_t maxLength)
 {
     /* Verify that the address is valid and read up to maxLength (or until NUL). */
     return ReadRemoteString(hProcess, memoryAddress, maxLength);
@@ -6709,7 +6709,7 @@ bool Utilities::Memory::External::SetString(const HANDLE& hProcess, const void* 
     return SetString(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::SetString(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::string& newValue)
+bool Utilities::Memory::External::SetString(const HANDLE& hProcess, uintptr_t memoryAddress, const std::string& newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6741,7 +6741,7 @@ bool Utilities::Memory::External::PatchString(const HANDLE& hProcess, const void
     return PatchString(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::PatchString(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::string& from, const std::string& to)
+bool Utilities::Memory::External::PatchString(const HANDLE& hProcess, uintptr_t memoryAddress, const std::string& from, const std::string& to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6789,7 +6789,7 @@ std::string Utilities::Memory::External::IndirectGetString(const HANDLE& hProces
     return IndirectGetString(hProcess, memoryAddress, maxLength);
 }
 
-std::string Utilities::Memory::External::IndirectGetString(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+std::string Utilities::Memory::External::IndirectGetString(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6810,7 +6810,7 @@ std::string Utilities::Memory::External::IndirectGetString(const HANDLE& hProces
     return ReadRemoteString(hProcess, dataAddress);
 }
 
-std::string Utilities::Memory::External::IndirectGetString(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t maxLength)
+std::string Utilities::Memory::External::IndirectGetString(const HANDLE& hProcess, uintptr_t memoryAddress, size_t maxLength)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6837,7 +6837,7 @@ bool Utilities::Memory::External::IndirectSetString(const HANDLE& hProcess, cons
     return IndirectSetString(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::IndirectSetString(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::string& newValue)
+bool Utilities::Memory::External::IndirectSetString(const HANDLE& hProcess, uintptr_t memoryAddress, const std::string& newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6877,7 +6877,7 @@ bool Utilities::Memory::External::IndirectPatchString(const HANDLE& hProcess, co
     return IndirectPatchString(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::IndirectPatchString(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::string& from, const std::string& to)
+bool Utilities::Memory::External::IndirectPatchString(const HANDLE& hProcess, uintptr_t memoryAddress, const std::string& from, const std::string& to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6938,13 +6938,13 @@ std::wstring Utilities::Memory::External::GetWString(const HANDLE& hProcess, con
     return GetWString(hProcess, memoryAddress, maxLength);
 }
 
-std::wstring Utilities::Memory::External::GetWString(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+std::wstring Utilities::Memory::External::GetWString(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid and read a NUL-terminated string. */
     return ReadRemoteWString(hProcess, memoryAddress);
 }
 
-std::wstring Utilities::Memory::External::GetWString(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t maxLength)
+std::wstring Utilities::Memory::External::GetWString(const HANDLE& hProcess, uintptr_t memoryAddress, size_t maxLength)
 {
     /* Verify that the address is valid and read up to maxLength (or until NUL). */
     return ReadRemoteWString(hProcess, memoryAddress, maxLength);
@@ -6956,7 +6956,7 @@ bool Utilities::Memory::External::SetWString(const HANDLE& hProcess, const void*
     return SetWString(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::SetWString(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::wstring& newValue)
+bool Utilities::Memory::External::SetWString(const HANDLE& hProcess, uintptr_t memoryAddress, const std::wstring& newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -6988,7 +6988,7 @@ bool Utilities::Memory::External::PatchWString(const HANDLE& hProcess, const voi
     return PatchWString(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::PatchWString(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::wstring& from, const std::wstring& to)
+bool Utilities::Memory::External::PatchWString(const HANDLE& hProcess, uintptr_t memoryAddress, const std::wstring& from, const std::wstring& to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -7037,7 +7037,7 @@ std::wstring Utilities::Memory::External::IndirectGetWString(const HANDLE& hProc
     return IndirectGetWString(hProcess, memoryAddress, maxLength);
 }
 
-std::wstring Utilities::Memory::External::IndirectGetWString(const HANDLE& hProcess, const uintptr_t& memoryAddress)
+std::wstring Utilities::Memory::External::IndirectGetWString(const HANDLE& hProcess, uintptr_t memoryAddress)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -7058,7 +7058,7 @@ std::wstring Utilities::Memory::External::IndirectGetWString(const HANDLE& hProc
     return ReadRemoteWString(hProcess, dataAddress);
 }
 
-std::wstring Utilities::Memory::External::IndirectGetWString(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t maxLength)
+std::wstring Utilities::Memory::External::IndirectGetWString(const HANDLE& hProcess, uintptr_t memoryAddress, size_t maxLength)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -7085,7 +7085,7 @@ bool Utilities::Memory::External::IndirectSetWString(const HANDLE& hProcess, con
     return IndirectSetWString(hProcess, memoryAddress, newValue);
 }
 
-bool Utilities::Memory::External::IndirectSetWString(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::wstring& newValue)
+bool Utilities::Memory::External::IndirectSetWString(const HANDLE& hProcess, uintptr_t memoryAddress, const std::wstring& newValue)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -7125,7 +7125,7 @@ bool Utilities::Memory::External::IndirectPatchWString(const HANDLE& hProcess, c
     return IndirectPatchWString(hProcess, memoryAddress, from, to);
 }
 
-bool Utilities::Memory::External::IndirectPatchWString(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::wstring& from, const std::wstring& to)
+bool Utilities::Memory::External::IndirectPatchWString(const HANDLE& hProcess, uintptr_t memoryAddress, const std::wstring& from, const std::wstring& to)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false)
@@ -7181,7 +7181,7 @@ std::vector<uint8_t> Utilities::Memory::External::GetBytes(const HANDLE& hProces
     return GetBytes(hProcess, memoryAddress, byteCount);
 }
 
-std::vector<uint8_t> Utilities::Memory::External::GetBytes(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t byteCount)
+std::vector<uint8_t> Utilities::Memory::External::GetBytes(const HANDLE& hProcess, uintptr_t memoryAddress, size_t byteCount)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false || byteCount == 0)
@@ -7205,7 +7205,7 @@ bool Utilities::Memory::External::SetBytes(const HANDLE& hProcess, const void* m
     return SetBytes(hProcess, memoryAddress, newBytes);
 }
 
-bool Utilities::Memory::External::SetBytes(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::vector<uint8_t>& newBytes)
+bool Utilities::Memory::External::SetBytes(const HANDLE& hProcess, uintptr_t memoryAddress, const std::vector<uint8_t>& newBytes)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false || newBytes.empty())
@@ -7236,7 +7236,7 @@ bool Utilities::Memory::External::PatchBytes(const HANDLE& hProcess, const void*
     return PatchBytes(hProcess, memoryAddress, fromBytes, toBytes);
 }
 
-bool Utilities::Memory::External::PatchBytes(const HANDLE& hProcess, const uintptr_t& memoryAddress,
+bool Utilities::Memory::External::PatchBytes(const HANDLE& hProcess, uintptr_t memoryAddress,
     const std::vector<uint8_t>& fromBytes, const std::vector<uint8_t>& toBytes)
 {
     /* Verify that the address is valid. */
@@ -7282,7 +7282,7 @@ std::vector<uint8_t> Utilities::Memory::External::IndirectGetBytes(const HANDLE&
     return IndirectGetBytes(hProcess, memoryAddress, byteCount);
 }
 
-std::vector<uint8_t> Utilities::Memory::External::IndirectGetBytes(const HANDLE& hProcess, const uintptr_t& memoryAddress, size_t byteCount)
+std::vector<uint8_t> Utilities::Memory::External::IndirectGetBytes(const HANDLE& hProcess, uintptr_t memoryAddress, size_t byteCount)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false || byteCount == 0)
@@ -7317,7 +7317,7 @@ bool Utilities::Memory::External::IndirectSetBytes(const HANDLE& hProcess, const
     return IndirectSetBytes(hProcess, memoryAddress, newBytes);
 }
 
-bool Utilities::Memory::External::IndirectSetBytes(const HANDLE& hProcess, const uintptr_t& memoryAddress, const std::vector<uint8_t>& newBytes)
+bool Utilities::Memory::External::IndirectSetBytes(const HANDLE& hProcess, uintptr_t memoryAddress, const std::vector<uint8_t>& newBytes)
 {
     /* Verify that the address is valid. */
     if (IsValidAddress(hProcess, memoryAddress) == false || newBytes.empty())
@@ -7360,7 +7360,7 @@ bool Utilities::Memory::External::IndirectPatchBytes(const HANDLE& hProcess, con
     return IndirectPatchBytes(hProcess, memoryAddress, fromBytes, toBytes);
 }
 
-bool Utilities::Memory::External::IndirectPatchBytes(const HANDLE& hProcess, const uintptr_t& memoryAddress,
+bool Utilities::Memory::External::IndirectPatchBytes(const HANDLE& hProcess, uintptr_t memoryAddress,
     const std::vector<uint8_t>& fromBytes, const std::vector<uint8_t>& toBytes)
 {
     /* Verify that the address is valid. */

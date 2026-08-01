@@ -106,188 +106,10 @@ void OpenWindow3::CleanupDevice(const HWND& hWnd)
     }
 }
 
-void OpenWindow3::SetTargetWindow(const HWND& hWindow)
-{
-    hTargetWindow = hWindow;
-    SetForegroundWindow(hTargetWindow);
-    GetWindowThreadProcessId(hTargetWindow, &dTargetPID);
-    bTargetSet = true;
-}
-
-BOOL CALLBACK OpenWindow3::EnumWind(HWND hWindow, LPARAM lParam)
-{
-    DWORD procID;
-    GetWindowThreadProcessId(hWindow, &procID);
-
-    if (GetCurrentProcessId() != procID)
-    {
-        return TRUE;
-    }
-
-    if (IsWindowValid(hWindow) == false)
-    {
-        return TRUE;
-    }
-
-    SetTargetWindow(hWindow);
-    return FALSE;
-}
-
-void OpenWindow3::GetWindow()
-{
-    EnumWindows(EnumWind, 0);
-}
-
-void OpenWindow3::MoveWindow(const HWND& hWindow, const bool& forceInvalidSize)
-{
-    if (hTargetWindow == nullptr)
-    {
-        return;
-    }
-
-    RECT rect;
-    GetWindowRect(hTargetWindow, &rect);
-
-    /*
-        When the graphics driver (NVIDIA/AMD) or Windows detects that our overlay window exactly matches
-        the screen or target window dimensions, it may promote it to "Direct Flip" or "Independent Flip" mode.
-
-        This bypasses the Desktop Window Manager (DWM) composition to optimize performance, which
-        breaks our transparent alpha channel and causes the background to render as solid black.
-
-        To prevent this, we add +1 pixel to the window dimensions. This intentionally breaks the
-        exact-size heuristic, forcing DWM to handle the composition and keeping our background transparent.
-    */
-    int lWindowWidth = forceInvalidSize ? 0 : rect.right - rect.left + 1;
-    int lWindowHeight = forceInvalidSize ? 0 : rect.bottom - rect.top + 1;
-
-    SetWindowPos(hWindow, nullptr, rect.left, rect.top, lWindowWidth, lWindowHeight, SWP_SHOWWINDOW);
-}
-
-bool OpenWindow3::IsWindowFocus(const HWND& hWindow)
-{
-    char lpCurrentWindowUsedClass[125];
-    char lpCurrentWindowClass[125];
-    char lpOverlayWindowClass[125];
-
-    const HWND hCurrentWindowUsed = GetForegroundWindow();
-
-    if (GetClassNameA(hCurrentWindowUsed, lpCurrentWindowUsedClass, sizeof(lpCurrentWindowUsedClass)) == 0)
-    {
-        return false;
-    }
-
-    if (GetClassNameA(hTargetWindow, lpCurrentWindowClass, sizeof(lpCurrentWindowClass)) == 0)
-    {
-        return false;
-    }
-
-    if (GetClassNameA(hWindow, lpOverlayWindowClass, sizeof(lpOverlayWindowClass)) == 0)
-    {
-        return false;
-    }
-
-    if ((strcmp(lpCurrentWindowUsedClass, lpCurrentWindowClass) != 0) && (strcmp(lpCurrentWindowUsedClass, lpOverlayWindowClass) != 0))
-    {
-        SetWindowLongW(hWindow, GWL_EXSTYLE, WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW);
-        return false;
-    }
-
-    return true;
-}
-
-bool OpenWindow3::IsWindowValid(const HWND& hWindow)
-{
-    if ((IsWindowVisible(hWindow) == 0) || (IsIconic(hWindow) != 0) || (IsWindowCloaked(hWindow) == true))
-    {
-        return false;
-    }
-
-    RECT rect;
-    GetClientRect(hWindow, &rect);
-
-    DWORD styles = static_cast<DWORD>(GetWindowLongPtrW(hWindow, GWL_STYLE));
-    DWORD exStyles = static_cast<DWORD>(GetWindowLongPtrW(hWindow, GWL_EXSTYLE));
-
-    if (exStyles & WS_EX_TOOLWINDOW)
-    {
-        return false;
-    }
-
-    if (styles & WS_CHILD)
-    {
-        return false;
-    }
-
-    if ((rect.bottom == 0) || (rect.right == 0))
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool OpenWindow3::IsWindowCloaked(const HWND& hWindow)
-{
-    DWORD cloaked = 0;
-    HRESULT hr = DwmGetWindowAttribute(hWindow, DWMWA_CLOAKED, &cloaked, sizeof(cloaked));
-
-    if (SUCCEEDED(hr) && (cloaked != 0))
-    {
-        return true;
-    }
-
-    return false;
-}
-
-bool OpenWindow3::IsWindowAlive()
-{
-    if (hTargetWindow == nullptr)
-    {
-        return false;
-    }
-
-    if (IsWindow(hTargetWindow) == 0)
-    {
-        return false;
-    }
-
-    DWORD dCurrentPID;
-    GetWindowThreadProcessId(hTargetWindow, &dCurrentPID);
-
-    if (dCurrentPID != dTargetPID)
-    {
-        return false;
-    }
-
-    return true;
-}
 
 
 
-
-void OpenWindow3::InitializeTextures()
-{
-    CoInitialize(NULL);
-
-    std::vector<uint8_t> pixels;
-    int32_t width = 0;
-    int32_t height = 0;
-
-    if (Utilities::Resources::LoadPNG(Actor_Green, &pixels, &width, &height))
-    {
-        CreateTexture("Actor_Green", pixels, width, height);
-        pixels.clear();
-    }
-
-    if (Utilities::Resources::LoadPNG(Actor_Red, &pixels, &width, &height))
-    {
-        CreateTexture("Actor_Red", pixels, width, height);
-        pixels.clear();
-    }
-}
-
-bool OpenWindow3::CreateTexture(const std::string& textureName, const std::vector<uint8_t>& pixels, const int32_t& width, const int32_t& height)
+bool OpenWindow3::CreateTexture(const std::string& textureName, const std::vector<uint8_t>& pixels, int32_t width, int32_t height)
 {
     if (ImGui::Texture2D::Exists(textureName))
         return true;
@@ -375,20 +197,27 @@ void OpenWindow3::Create()
 
     const int monitorHeight = info.rcMonitor.bottom - info.rcMonitor.top;
 
+    ImFontConfig cfg;
+    ImFontConfig* pCfg = nullptr;
+
     if (monitorHeight > 1080)
     {
         const float fScale = 2.0f;
-        ImFontConfig cfg;
         cfg.SizePixels = 13.0f * fScale;
-        io.Fonts->AddFontDefault(&cfg);
+        pCfg = &cfg;
     }
+
+    Features::Menu::fontBitmap = io.Fonts->AddFontDefault(pCfg);
+    Features::Menu::fontVector = io.Fonts->AddFontDefaultVector(pCfg);
+
+    io.FontDefault = Features::Menu::useVectorFont ? Features::Menu::fontVector : Features::Menu::fontBitmap;
 
     io.IniFilename = nullptr;
 
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    InitializeTextures();
+    InitializeTextures(OpenWindow3::CreateTexture);
 
     bInit = true;
 

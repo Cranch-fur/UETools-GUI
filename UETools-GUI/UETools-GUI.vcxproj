@@ -159,6 +159,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Math.cpp" />
     <ClCompile Include="Unreal.cpp" />
+    <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ConfigInstance.h" />
@@ -171,9 +172,29 @@
     <ClInclude Include="GUI.h" />
     <ClInclude Include="Math.h" />
     <ClInclude Include="Unreal.h" />
+    <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="UETools-GUI.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\Textures\Actor_AtmosphericFog.png" />
+    <Image Include="..\Textures\Actor_Base.png" />
+    <Image Include="..\Textures\Actor_Camera.png" />
+    <Image Include="..\Textures\Actor_Decal.png" />
+    <Image Include="..\Textures\Actor_DefaultPawn.png" />
+    <Image Include="..\Textures\Actor_DirectionalLight.png" />
+    <Image Include="..\Textures\Actor_ExponentialHeightFog.png" />
+    <Image Include="..\Textures\Actor_Pawn.png" />
+    <Image Include="..\Textures\Actor_PointLight.png" />
+    <Image Include="..\Textures\Actor_RectLight.png" />
+    <Image Include="..\Textures\Actor_SkyLight.png" />
+    <Image Include="..\Textures\Actor_SpotLight.png" />
+    <Image Include="..\Textures\Actor_TargetPoint.png" />
+    <Image Include="..\Textures\Actor_TextRender.png" />
+    <Image Include="..\Textures\Friendly.png" />
+    <Image Include="..\Textures\Hostile.png" />
+    <Image Include="..\Textures\Placeholder.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

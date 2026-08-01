@@ -10,7 +10,10 @@
 
 class FileInstance
 {
-public:
+protected:
+    std::wstring _filePath;
+
+
     FileInstance(const std::string& filePath);
     FileInstance(const std::wstring& filePath);
 
@@ -28,10 +31,7 @@ public:
     const bool Clear();
     const bool Destroy();
 
-private:
     const std::wstring GetAbsolutePath();
     const bool EnsureDirectoryExists();
-
-    std::wstring _filePath;
 };
 
