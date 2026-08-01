@@ -31,7 +31,7 @@ Build Configuration: Release
 
 While in the title, press Insert (INS) to toggle the menu.
 > [!CAUTION]
-> Windows 11 users may encounter a black screen issue immediately after injecting UETools-GUI. While this issue is not addressed within the project itself, if you experience it, please follow these steps:
+> Windows 11 users may encounter a black screen issue with DirectX 11 rendering API immediately after injecting UETools-GUI. While this issue is not addressed within the project itself, if you experience it, please follow these steps:
 > 1) Navigate to the title’s installation directory, then open the following path: `{Title internal name}\Binaries\Win64`.
 > 2) Locate the game executable and open its Properties (Right-click → Properties).
 > 3) Go to the Compatibility tab and enable "Disable fullscreen optimizations" feature.
@@ -50,11 +50,11 @@ While in the title, press Insert (INS) to toggle the menu.
 # Showcase
 https://github.com/user-attachments/assets/3bff3c81-3b28-40f1-ba3d-39d9f9793769
 
-<img width="2560" height="1440" alt="UE4.22.3_SamuraiJackBattleThroughTime" src="https://github.com/user-attachments/assets/065fad97-5a15-4ca3-91c6-11db6069e007" />
+<img width="2560" height="1440" alt="UE4.22.3_SamuraiJackBattleThroughTime" src="https://github.com/user-attachments/assets/ebd71b08-2d90-400e-b851-01fe321b6831" />
 
-<img width="2560" height="1440" alt="UE4.27.2_LiesOfPDEMO" src="https://github.com/user-attachments/assets/2d963b6a-e200-486f-9f64-7105ab328e00" />
+<img width="2560" height="1440" alt="UE4.27.2_LiesOfPDEMO" src="https://github.com/user-attachments/assets/58ce5ce0-46f0-4478-8245-993db60dea47" />
 
-<img width="2560" height="1440" alt="UE5.5.4_MilitsionerPlaytest" src="https://github.com/user-attachments/assets/5adc3ea3-7819-4791-9797-bd7f7cf063ba" />
+<img width="2560" height="1440" alt="UE5.4.4_ProjectBorealisPrologue" src="https://github.com/user-attachments/assets/d21873e6-b262-4afa-a107-e5f273e1aff0" />
 
 
 
