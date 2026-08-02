@@ -4,7 +4,7 @@
 //
 #define APP_VERSION_MAJOR               6
 #define APP_VERSION_MINOR               0
-#define APP_VERSION_PATCH               4
+#define APP_VERSION_PATCH               5
 #define APP_VERSION_BUILD               0
 
 #define APP_VERSION_INTERNAL_HELPER(x) #x
