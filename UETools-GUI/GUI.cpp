@@ -5581,11 +5581,11 @@ void Templates::Menus::Debug::Sub_Actors()
 
 			ImGui::NewLine();
 
+			ImGui::BigText("Atmosphere");
 			/*
 				ASkyAtmosphere isn't present in older versions of the Engine (e.g. 4.19.0).
 				Comment out or remove related code.
 			*/
-			ImGui::BigText("Atmosphere");
 			if (ImGui::IconButton(Window::texturesCollection.T_Actor_SkyAtmosphere, "Sky Atmosphere"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ASkyAtmosphere::StaticClass());
@@ -8001,8 +8001,8 @@ void Templates::Menus::World::Draw()
 						if (isValid)
 						{
 							/*
-								SetShouldBeLoaded() isn't present in older versions of the Engine (e.g. 4.19.0). For both buttons use following code:
-								GUI::PlayActionSound(false);
+								SetShouldBeLoaded() isn't present in older versions of the Engine (e.g. 4.19.0).
+								Comment out or remove related code.
 							*/
 							if (ImGui::Button("Enable##ShouldBeLoaded"))
 							{
@@ -8033,8 +8033,8 @@ void Templates::Menus::World::Draw()
 						if (isValid)
 						{
 							/*
-								SetShouldBeVisible() isn't present in older versions of the Engine (e.g. 4.19.0). For both buttons use following code:
-								GUI::PlayActionSound(false);
+								SetShouldBeVisible() isn't present in older versions of the Engine (e.g. 4.19.0).
+								Comment out or remove related code.
 							*/
 							if (ImGui::Button("Enable##ShouldBeVisible"))
 							{

@@ -4,7 +4,7 @@
 //
 #define APP_VERSION_MAJOR               6
 #define APP_VERSION_MINOR               0
-#define APP_VERSION_PATCH               7
+#define APP_VERSION_PATCH               8
 #define APP_VERSION_BUILD               0
 
 #define APP_VERSION_INTERNAL_HELPER(x) #x
@@ -31,6 +31,7 @@
 #define Actor_Decal                     116
 #define Actor_TextRender                117
 #define Actor_TargetPoint               118
+/* Don't forget to set _APS_NEXT_RESOURCE_VALUE to ID of latest import + 1. */
 
 // Next default values for new objects
 // 

@@ -136,6 +136,7 @@
 	#define SOFT_PATH
 
 	Enables everything related to soft path (e.g. Actor Summon & Level Sequence).
+	Isn't compatible with older versions of the Engine (e.g. 4.19.0) as important functions weren't exposed to Blueprints yet.
 */
 
 /*

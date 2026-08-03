@@ -76,6 +76,7 @@ public:
 
     struct TextureCollection
     {
+        /* Texture must be defined in resource.h & imported in UETools-GUI.rc. */
         TextureMetaData T_Placeholder =                { Placeholder, "Placeholder" };
         TextureMetaData T_Friendly =                   { Friendly, "Friendly" };
         TextureMetaData T_Hostile =                    { Hostile, "Hostile" };
