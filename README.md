@@ -24,19 +24,19 @@ Build Configuration: Release
 2. Generate a Dumper-7 SDK for the target title. Pre-compiled Dumper-7 can be found in [Releases](https://github.com/Cranch-fur/UETools-GUI/releases).
 > [!TIP]
 > Dynamic Link Libraries (DLLs) can be loaded into a target process using tools such as [Cheat Engine](https://www.cheatengine.org/) and [System Informer](https://systeminformer.sourceforge.io/downloads) (formerly Process Hacker). Always make sure your actions comply with the game's EULA and all applicable laws.
-3. Replace the contents of `..\SDKs\Dumper7` with the contents of newly generated, title-specific "CppSDK".
+3. Replace the contents of `..\SDKs\Dumper7` with the contents of the newly generated, title-specific "CppSDK".
 4. Build `UETools-GUI.dll` and load it into the target title process.
 > [!TIP]
-> When targeting Unreal Engine 5 based titles, it's recommended to uncomment `#define UE5` in `definitions.h`. In many cases that action alone would be enough to adapt entirity of solution for newer engine.
+> When targeting Unreal Engine 5 based titles, it's recommended to uncomment `#define UE5` in `definitions.h`. In many cases that action alone would be enough to adapt entirety of solution for newer engine.
 
 While in the title, press Insert (INS) to toggle the menu.
 > [!CAUTION]
-> Windows 11 users may encounter a black screen issue with DirectX 11 rendering API immediately after injecting UETools-GUI. While this issue is not addressed within the project itself, if you experience it, please follow these steps:
+> Windows 11 users may encounter a black screen issue with the DirectX 11 rendering API immediately after injecting UETools-GUI. While this issue is not addressed within the project itself, if you experience it, please follow these steps:
 > 1) Navigate to the title’s installation directory, then open the following path: `{Title internal name}\Binaries\Win64`.
 > 2) Locate the game executable and open its Properties (Right-click → Properties).
-> 3) Go to the Compatibility tab and enable "Disable fullscreen optimizations" feature.
+> 3) Go to the Compatibility tab and enable the "Disable fullscreen optimizations" feature.
 >
-> Alternatively, `#define INACTIVE_ZERO_SIZE` in `definitions.h` can be uncommented, although it comes with set of compromises.
+> Alternatively, `#define INACTIVE_ZERO_SIZE` in `definitions.h` can be uncommented, although it comes with a set of compromises.
 
 # Great First Experience Games
 ## [Lies of P (Unreal Engine 4.27.2)](https://store.steampowered.com/app/1627720)
