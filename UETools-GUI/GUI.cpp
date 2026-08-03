@@ -2540,7 +2540,7 @@ bool Features::ActorTrace::Trace()
 		Features::ActorTrace::traceEndLocation = hitResult.Location;
 
 #ifdef UE5
-		/* UE 5.3.2 and older: hitResult.HitObjectHandle.Actor.Get() */
+		/* UE 5.3.2 and older: hitResult.HitObjectHandle.Actor.Get(); */
 		SDK::UObject* hitObject = hitResult.HitObjectHandle.ReferenceObject.Get();
 		if (hitObject)
 		{
@@ -6867,6 +6867,7 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 						ImGui::SliderFloatEditable("##MaxOpacity", &exponentialHeightFogComponent->FogMaxOpacity, 0.0f, 1.0f);
 
 						ImGui::Text("Start Distance");
+						/* For some titles variable name can start with lowercase: exponentialHeightFogComponent->startDistance */
 						ImGui::SliderFloatEditable("##StartDist", &exponentialHeightFogComponent->StartDistance, 0.0f, 100000.0f);
 
 						ImGui::NewLine();
@@ -7060,6 +7061,7 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 								std::wstring content = Utilities::String::ToWString(textRenderContentBuffer);
 #ifdef UE5
 								SDK::FText text = SDK::UKismetTextLibrary::Conv_StringToText(SDK::FString(content.c_str()));
+								/* UE 5.3.2 and older: textRenderComponent->K2_SetText(text); */
 								textRenderComponent->SetText(text);
 #else
 								textRenderComponent->SetText(SDK::FString(content.c_str()));
@@ -8247,6 +8249,7 @@ void Templates::Menus::World::Draw()
 				ImGui::NewLine();
 
 				ImGui::Text("Time Dilation");
+				/* For some titles variable name can start with lowercase: worldSettings->timeDilation */
 				double timeDilation = worldSettings->TimeDilation;
 				double minTimeDilation = worldSettings->MinGlobalTimeDilation;
 				double maxTimeDilation = worldSettings->MaxGlobalTimeDilation;

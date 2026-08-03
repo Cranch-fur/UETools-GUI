@@ -1661,41 +1661,54 @@ bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, const std::wstring&
 #endif
 
 
-SDK::AActor* Unreal::Actor::Summon(const SDK::TSubclassOf<SDK::AActor>& actorClass, const Unreal::Transform& transform)
+SDK::AActor* Unreal::Actor::BeginSummon(const SDK::TSubclassOf<SDK::AActor>& actorClass, const Unreal::Transform& transform)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
 		return nullptr;
 
-	static SDK::FTransform spawnTransform;
+	SDK::FTransform spawnTransform;
 	spawnTransform.Translation = transform.location;
 	spawnTransform.Rotation = transform.Quat();
 	spawnTransform.Scale3D = transform.scale;
+
 #ifdef UE5
-	SDK::AActor* actorReference = SDK::UGameplayStatics::BeginDeferredActorSpawnFromClass(world, actorClass, spawnTransform, SDK::ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr, SDK::ESpawnActorScaleMethod::SelectDefaultAtRuntime);
+	/* Older Unreal Engine 5 versions use same call as #else (UE4) scenario. */
+	return SDK::UGameplayStatics::BeginDeferredActorSpawnFromClass(world, actorClass, spawnTransform, SDK::ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr, SDK::ESpawnActorScaleMethod::SelectDefaultAtRuntime);
 #else
-	SDK::AActor* actorReference = SDK::UGameplayStatics::BeginDeferredActorSpawnFromClass(world, actorClass, spawnTransform, SDK::ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr);
+	return SDK::UGameplayStatics::BeginDeferredActorSpawnFromClass(world, actorClass, spawnTransform, SDK::ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr);
 #endif
+}
+
+SDK::AActor* Unreal::Actor::FinishSummon(SDK::AActor* actorReference, const Unreal::Transform& transform)
+{
 	if (actorReference == nullptr)
 		return nullptr;
 
-#ifdef UE5
-	SDK::UGameplayStatics::FinishSpawningActor(actorReference, spawnTransform, SDK::ESpawnActorScaleMethod::SelectDefaultAtRuntime);
-#else
-	SDK::UGameplayStatics::FinishSpawningActor(actorReference, spawnTransform);
-#endif
+	SDK::FTransform spawnTransform;
+	spawnTransform.Translation = transform.location;
+	spawnTransform.Rotation = transform.Quat();
+	spawnTransform.Scale3D = transform.scale;
 
-	return actorReference;
+#ifdef UE5
+	/* Older Unreal Engine 5 versions use same call as #else (UE4) scenario. */
+	return SDK::UGameplayStatics::FinishSpawningActor(actorReference, spawnTransform, SDK::ESpawnActorScaleMethod::SelectDefaultAtRuntime);
+#else
+	return SDK::UGameplayStatics::FinishSpawningActor(actorReference, spawnTransform);
+#endif
+}
+
+
+SDK::AActor* Unreal::Actor::Summon(const SDK::TSubclassOf<SDK::AActor>& actorClass, const Unreal::Transform& transform)
+{
+	SDK::AActor* actorReference = Actor::BeginSummon(actorClass, transform);
+	return actorReference ? Actor::FinishSummon(actorReference, transform) : nullptr;
 }
 
 SDK::AActor* Unreal::Actor::Summon(const SDK::TSubclassOf<SDK::AActor>& actorClass)
 {
-	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-	if (playerController == nullptr)
-		return Unreal::Actor::Summon(actorClass, Unreal::Transform());
-
-	Unreal::Transform transform = Unreal::PlayerController::GetTransform(playerController);
-	return Unreal::Actor::Summon(actorClass, transform);
+	Unreal::Transform transform = PlayerController::GetTransform(0);
+	return Actor::Summon(actorClass, transform);
 }
 
 #ifdef SOFT_PATH
@@ -1929,19 +1942,7 @@ SDK::AStaticMeshActor* Unreal::StaticMeshActor::Summon(SDK::UStaticMesh* staticM
 	if (staticMeshReference == nullptr)
 		return nullptr;
 
-	SDK::UWorld* world = World::Get();
-	if (world == nullptr)
-		return nullptr;
-
-	static SDK::FTransform spawnTransform;
-	spawnTransform.Translation = transform.location;
-	spawnTransform.Rotation = transform.Quat();
-	spawnTransform.Scale3D = transform.scale;
-#ifdef UE5
-	SDK::AActor* actorReference = SDK::UGameplayStatics::BeginDeferredActorSpawnFromClass(world, SDK::AStaticMeshActor::StaticClass(), spawnTransform, SDK::ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr, SDK::ESpawnActorScaleMethod::SelectDefaultAtRuntime);
-#else
-	SDK::AActor* actorReference = SDK::UGameplayStatics::BeginDeferredActorSpawnFromClass(world, SDK::AStaticMeshActor::StaticClass(), spawnTransform, SDK::ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr);
-#endif
+	SDK::AActor* actorReference = Unreal::Actor::BeginSummon(SDK::AStaticMeshActor::StaticClass(), transform);
 	if (actorReference == nullptr)
 		return nullptr;
 
@@ -1952,12 +1953,7 @@ SDK::AStaticMeshActor* Unreal::StaticMeshActor::Summon(SDK::UStaticMesh* staticM
 	Unreal::Actor::SetMobility(staticMeshActorReference, SDK::EComponentMobility::Movable);
 	staticMeshActorReference->StaticMeshComponent->SetStaticMesh(staticMeshReference);
 
-#ifdef UE5
-	SDK::UGameplayStatics::FinishSpawningActor(staticMeshActorReference, spawnTransform, SDK::ESpawnActorScaleMethod::SelectDefaultAtRuntime);
-#else
-	SDK::UGameplayStatics::FinishSpawningActor(staticMeshActorReference, spawnTransform);
-#endif
-
+	Unreal::Actor::FinishSummon(staticMeshActorReference, transform);
 	return staticMeshActorReference;
 }
 
@@ -1991,19 +1987,7 @@ SDK::ASkeletalMeshActor* Unreal::SkeletalMeshActor::Summon(SDK::USkeletalMesh* s
 	if (skeletalMeshReference == nullptr)
 		return nullptr;
 
-	SDK::UWorld* world = World::Get();
-	if (world == nullptr)
-		return nullptr;
-
-	static SDK::FTransform spawnTransform;
-	spawnTransform.Translation = transform.location;
-	spawnTransform.Rotation = transform.Quat();
-	spawnTransform.Scale3D = transform.scale;
-#ifdef UE5
-	SDK::AActor* actorReference = SDK::UGameplayStatics::BeginDeferredActorSpawnFromClass(world, SDK::ASkeletalMeshActor::StaticClass(), spawnTransform, SDK::ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr, SDK::ESpawnActorScaleMethod::SelectDefaultAtRuntime);
-#else
-	SDK::AActor* actorReference = SDK::UGameplayStatics::BeginDeferredActorSpawnFromClass(world, SDK::ASkeletalMeshActor::StaticClass(), spawnTransform, SDK::ESpawnActorCollisionHandlingMethod::AlwaysSpawn, nullptr);
-#endif
+	SDK::AActor* actorReference = Unreal::Actor::BeginSummon(SDK::ASkeletalMeshActor::StaticClass(), transform);
 	if (actorReference == nullptr)
 		return nullptr;
 
@@ -2018,12 +2002,7 @@ SDK::ASkeletalMeshActor* Unreal::SkeletalMeshActor::Summon(SDK::USkeletalMesh* s
 	skeletalMeshActorReference->SkeletalMeshComponent->SetSkeletalMesh(skeletalMeshReference, true);
 #endif
 
-#ifdef UE5
-	SDK::UGameplayStatics::FinishSpawningActor(skeletalMeshActorReference, spawnTransform, SDK::ESpawnActorScaleMethod::SelectDefaultAtRuntime);
-#else
-	SDK::UGameplayStatics::FinishSpawningActor(skeletalMeshActorReference, spawnTransform);
-#endif
-
+	Unreal::Actor::FinishSummon(skeletalMeshActorReference, transform);
 	return skeletalMeshActorReference;
 }
 

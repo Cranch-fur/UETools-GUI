@@ -865,6 +865,9 @@ namespace Unreal
 #endif
 
 
+		static SDK::AActor* BeginSummon(const SDK::TSubclassOf<SDK::AActor>& actorClass, const Unreal::Transform& transform);
+		static SDK::AActor* FinishSummon(SDK::AActor* actorReference, const Unreal::Transform& transform);
+
 		static SDK::AActor* Summon(const SDK::TSubclassOf<SDK::AActor>& actorClass, const Unreal::Transform& transform);
 		static SDK::AActor* Summon(const SDK::TSubclassOf<SDK::AActor>& actorClass);
 
