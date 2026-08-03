@@ -50,6 +50,8 @@ While in the title, press Insert (INS) to toggle the menu.
 # Showcase
 https://github.com/user-attachments/assets/3bff3c81-3b28-40f1-ba3d-39d9f9793769
 
+<img width="2560" height="1440" alt="UE4.19.0_SpyroReignitedTrilogy" src="https://github.com/user-attachments/assets/69932fff-dab2-4d18-b191-0829e0df8a79" />
+
 <img width="2560" height="1440" alt="UE4.22.3_SamuraiJackBattleThroughTime" src="https://github.com/user-attachments/assets/ebd71b08-2d90-400e-b851-01fe321b6831" />
 
 <img width="2560" height="1440" alt="UE4.27.2_LiesOfPDEMO" src="https://github.com/user-attachments/assets/58ce5ce0-46f0-4478-8245-993db60dea47" />
