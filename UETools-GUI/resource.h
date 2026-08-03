@@ -3,8 +3,8 @@
 // Used by UETools-GUI.rc
 //
 #define APP_VERSION_MAJOR               6
-#define APP_VERSION_MINOR               0
-#define APP_VERSION_PATCH               8
+#define APP_VERSION_MINOR               1
+#define APP_VERSION_PATCH               0
 #define APP_VERSION_BUILD               0
 
 #define APP_VERSION_INTERNAL_HELPER(x) #x

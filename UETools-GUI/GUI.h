@@ -893,7 +893,7 @@ namespace Features
 
 		static inline float startTime = 0.0f;
 		static inline float playRate = 1.0f;
-		static inline int32_t loopCount = 1;
+		static inline int32_t loopCount = 0;
 	};
 #endif
 
@@ -911,11 +911,13 @@ namespace Features
 		static void Jump();
 
 
-		static inline float launchVelocity[3] = { 0.0f, 0.0f, 1325.0f };
+		static inline double launchVelocityX = 0.0f;
+		static inline double launchVelocityY = 0.0f;
+		static inline double launchVelocityZ = 1325.0f;
 		static void Launch();
 
 
-		static inline double dashStrength = 3375.0;
+		static inline double dashStrength = 3375.0f;
 		static void Dash();
 	};
 

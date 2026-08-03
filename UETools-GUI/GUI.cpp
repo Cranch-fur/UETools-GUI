@@ -2374,7 +2374,10 @@ void Features::CharacterMovement::Jump()
 
 void Features::CharacterMovement::Launch()
 {
-	SDK::FVector launchVelocity = { Features::CharacterMovement::launchVelocity[0], Features::CharacterMovement::launchVelocity[1], Features::CharacterMovement::launchVelocity[2] };
+	SDK::FVector launchVelocity = SDK::FVector();
+	launchVelocity.X = Features::CharacterMovement::launchVelocityX;
+	launchVelocity.Y = Features::CharacterMovement::launchVelocityY;
+	launchVelocity.Z = Features::CharacterMovement::launchVelocityZ;
 
 	bool wasSuccessfull = Unreal::Character::Launch(0, launchVelocity);
 	GUI::PlayActionSound(wasSuccessfull);
@@ -5873,14 +5876,14 @@ void Templates::Menus::Debug::Sub_Actors()
 		static const std::string distanceHint = std::format("Determines maximum distance from Player in metres.\n\n1m = {:.0f}units", Math::Metre_ToUnit(1.0f));
 		ImGui::QuestionMarkHint(distanceHint.c_str());
 
-		ImGui::KeyBindingInput("Update & Re-Filter Actors List:", &Inputs::Keybindings::debug_ActorsListUpdate);
+		ImGui::KeyBindingInput("Update & Re-Filter Actors List Key Binding:", &Inputs::Keybindings::debug_ActorsListUpdate);
 		ImGui::SameLine();
 		ImGui::QuestionMarkHint("Can be found useful when tracking/drawing while filtering Actors In Distance, allowing to update dataset w/o opening the menu.");
 
-		ImGui::KeyBindingInput("Toggle Actors Tracking:        ", &Inputs::Keybindings::debug_ActorsListTracking);
+		ImGui::KeyBindingInput("Toggle Actors Tracking Key Binding:        ", &Inputs::Keybindings::debug_ActorsListTracking);
 
 #ifdef COLLISION_VISUALIZER
-		ImGui::KeyBindingInput("Toggle Collision Draw:         ", &Inputs::Keybindings::debug_ActorsListCollisionDraw);
+		ImGui::KeyBindingInput("Toggle Collision Draw Key Binding:         ", &Inputs::Keybindings::debug_ActorsListCollisionDraw);
 #endif
 
 		ImGui::NewLine();
@@ -8167,7 +8170,7 @@ void Templates::Menus::World::Draw()
 				ImGui::NewLine();
 
 				ImGui::Text("Loop Count");
-				ImGui::SliderIntEditable("##PlayLevelSequence##LoopCount", &Features::PlayLevelSequence::loopCount, 1, 100);
+				ImGui::SliderIntEditable("##PlayLevelSequence##LoopCount", &Features::PlayLevelSequence::loopCount, 0, 20);
 
 				ImGui::NewLine();
 
@@ -8791,74 +8794,105 @@ void Templates::Menus::Character::Draw()
 
 			ImGui::CategorySeparator();
 
-			if (ImGui::Button("Jump"))
+			ImGui::TitleText("Actions");
+			if (ImGui::TreeNode("Details##Actions"))
 			{
-				Features::CharacterMovement::Jump();
+				if (ImGui::Button("Jump"))
+				{
+					Features::CharacterMovement::Jump();
+				}
+				ImGui::KeyBindingInput("Key Binding:##Jump", &Inputs::Keybindings::characterMovement_Jump);
+
+				ImGui::NewLine();
+
+				ImGui::Text("Jump Velocity");
+				ImGui::SliderFloatEditable("##JumpVelocity", &movementComponent->JumpZVelocity, 1.0f, 1000.0f);
+
+				ImGui::NewLine();
+
+				ImGui::Text("Maximum Cumulative Jumps");
+				ImGui::SliderIntEditable("##JumpMaxCount", &character->JumpMaxCount, 0, 20);
+
+				ImGui::CategorySeparator();
+
+				if (ImGui::Button("Launch"))
+				{
+					Features::CharacterMovement::Launch();
+				}
+				ImGui::KeyBindingInput("Key Binding:##Launch", &Inputs::Keybindings::characterMovement_Launch);
+
+				ImGui::NewLine();
+
+				ImGui::Text("Launch Velocity X");
+				ImGui::SliderDoubleEditable("##LaunchVelocityX", &Features::CharacterMovement::launchVelocityX, -5000.0f, 5000.0f);
+
+				ImGui::NewLine();
+
+				ImGui::Text("Launch Velocity Y");
+				ImGui::SliderDoubleEditable("##LaunchVelocityY", &Features::CharacterMovement::launchVelocityY, -5000.0f, 5000.0f);
+
+				ImGui::NewLine();
+
+				ImGui::Text("Launch Velocity Z");
+				ImGui::SliderDoubleEditable("##LaunchVelocityZ", &Features::CharacterMovement::launchVelocityZ, -5000.0f, 5000.0f);
+
+				ImGui::CategorySeparator();
+
+				if (ImGui::Button("Dash"))
+				{
+					Features::CharacterMovement::Dash();
+				}
+				ImGui::KeyBindingInput("Key Binding:##Dash", &Inputs::Keybindings::characterMovement_Dash);
+
+				ImGui::NewLine();
+
+				ImGui::Text("Dash Strength");
+				ImGui::SliderDoubleEditable("##DashStrength", &Features::CharacterMovement::dashStrength, -5000.0f, 5000.0f);
+
+				ImGui::TreePop();
 			}
-			ImGui::InputInt("Jump Limit", &character->JumpMaxCount, 1, 1);
-			ImGui::InputFloat("Jump Height", &movementComponent->JumpZVelocity, 0.1f, 1.0f);
-			ImGui::KeyBindingInput("Jump Key Binding:##Jump", &Inputs::Keybindings::characterMovement_Jump);
-
-			ImGui::NewLine();
-
-			if (ImGui::Button("Launch"))
-			{
-				Features::CharacterMovement::Launch();
-			}
-			ImGui::InputFloat3("Launch Velocity", Features::CharacterMovement::launchVelocity);
-			ImGui::KeyBindingInput("Launch Key Binding:##Launch", &Inputs::Keybindings::characterMovement_Launch);
-
-			ImGui::NewLine();
-
-			if (ImGui::Button("Dash"))
-			{
-				Features::CharacterMovement::Dash();
-			}
-			ImGui::InputDouble("Dash Strength", &Features::CharacterMovement::dashStrength, 0.1f, 1.0f);
-			ImGui::KeyBindingInput("Dash Key Binding:##Dash", &Inputs::Keybindings::characterMovement_Dash);
 
 			ImGui::CategorySeparator();
 
 			SDK::APlayerCameraManager* cameraManager = playerController->PlayerCameraManager;
-			ImGui::TitleText("Camera");
+			ImGui::TitleText("Camera Fade");
 			ImGui::BeginDisabled(cameraManager == nullptr);
-			if (ImGui::TreeNode("Details##Camera"))
+			if (ImGui::TreeNode("Details##CameraFade"))
 			{
 				if (cameraManager)
 				{
 					/* 0 corresponds for default vertical size. */
 					static const ImVec2 buttonSize = { 204.0f, 0.0f };
 
-					if (ImGui::Button("Start Fade", buttonSize))
+					if (ImGui::Button("Start##CameraFade", buttonSize))
 					{
 						Features::Camera::StartFade();
 					}
 					ImGui::SameLine();
-					if (ImGui::Button("Stop Fade", buttonSize))
+					if (ImGui::Button("Stop##CameraFade", buttonSize))
 					{
 						Features::Camera::StopFade();
 					}
 
-					if (ImGui::InputFloat("Fade From Alpha", &Features::Camera::fadeFromAlpha, 0.01f, 0.1f))
-					{
-						if (Features::Camera::fadeFromAlpha < 0.0f)
-							Features::Camera::fadeFromAlpha = 0.0f;
+					ImGui::NewLine();
 
-						if (Features::Camera::fadeFromAlpha > 1.0f)
-							Features::Camera::fadeFromAlpha = 1.0f;
-					}
+					ImGui::Text("From Alpha");
+					ImGui::SliderFloatEditable("##CameraFade##FromAlpha", &Features::Camera::fadeFromAlpha, 0.0f, 1.0f);
 
-					if (ImGui::InputFloat("Fade To Alpha", &Features::Camera::fadeToAlpha, 0.01f, 0.1f))
-					{
-						if (Features::Camera::fadeToAlpha < 0.0f)
-							Features::Camera::fadeToAlpha = 0.0f;
+					ImGui::NewLine();
 
-						if (Features::Camera::fadeToAlpha > 1.0f)
-							Features::Camera::fadeToAlpha = 1.0f;
-					}
+					ImGui::Text("To Alpha");
+					ImGui::SliderFloatEditable("##CameraFade##ToAlpha", &Features::Camera::fadeToAlpha, 0.0f, 1.0f);
 
-					ImGui::InputFloat("Fade Duration", &Features::Camera::fadeDuration, 0.1f, 1.0f);
-					ImGui::ColorPicker4("Fade Color", Features::Camera::fadeColor);
+					ImGui::NewLine();
+
+					ImGui::Text("Duration");
+					ImGui::SliderFloatEditable("##CameraFade##Duration", &Features::Camera::fadeDuration, 0.0f, 60.0f);
+
+					ImGui::NewLine();
+
+					ImGui::Text("Color");
+					ImGui::ColorPicker4("##CameraFade##Color", Features::Camera::fadeColor);
 
 					ImGui::NewLine();
 
@@ -8868,7 +8902,7 @@ void Templates::Menus::Character::Draw()
 					ImGui::NewLine();
 
 					ImGui::KeyBindingInput("Start Fade Key Binding:", &Inputs::Keybindings::characterCamera_StartFade);
-					ImGui::KeyBindingInput("Stop Fade Key Binding:", &Inputs::Keybindings::characterCamera_StopFade);
+					ImGui::KeyBindingInput("Stop Fade Key Binding: ", &Inputs::Keybindings::characterCamera_StopFade);
 				}
 				else
 					ImGui::Text("Camera Manager Doesn't Exist!");
