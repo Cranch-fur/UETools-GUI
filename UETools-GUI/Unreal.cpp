@@ -20,7 +20,7 @@ bool Unreal::Console::Construct(bool ignorePresence)
 	if (GameViewportClient == nullptr)
 		return false;
 
-	if (ignorePresence == false && GameViewportClient->ViewportConsole) // If presence shouldn't be ignored, we're looking up if Console already exist.
+	if (ignorePresence == false && GameViewportClient->ViewportConsole) // If presence shouldn't be ignored, check if the Console already exists.
 		return false;
 
 	/*
@@ -266,17 +266,26 @@ bool Unreal::Level::CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset,
 		return false;
 
 	SDK::FMovieSceneSequencePlaybackSettings sequencePlaybackSettings;
-	sequencePlaybackSettings.bAutoPlay = true;
 	sequencePlaybackSettings.StartTime = startTime;
 	sequencePlaybackSettings.PlayRate = playRate;
 
+	/*
+		FMovieSceneSequenceLoopCount isn't present in older versions of the Engine (e.g. 4.19.0). Use following code:
+		sequencePlaybackSettings.LoopCount = loopCount;
+	*/
 	SDK::FMovieSceneSequenceLoopCount sequenceLoopCount{ loopCount };
 	sequencePlaybackSettings.LoopCount = sequenceLoopCount;
 
 	SDK::ALevelSequenceActor* levelSequenceActor;
-	SDK::ULevelSequencePlayer::CreateLevelSequencePlayer(world, levelSequenceAsset, sequencePlaybackSettings, &levelSequenceActor);
+	SDK::ULevelSequencePlayer* levelSequencePlayer = SDK::ULevelSequencePlayer::CreateLevelSequencePlayer(world, levelSequenceAsset, sequencePlaybackSettings, &levelSequenceActor);
 
-	return levelSequenceActor;
+	if (levelSequencePlayer != nullptr)
+	{
+		levelSequencePlayer->Play();
+		return true;
+	}
+
+	return false;
 }
 
 bool Unreal::Level::CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSequenceAsset, float startTime, float playRate, int32_t loopCount)
@@ -294,7 +303,7 @@ bool Unreal::Level::CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSeq
 #ifdef SOFT_PATH
 bool Unreal::Level::CreateLevelSequence(const std::wstring& levelSequencePath, float startTime, float playRate, int32_t loopCount)
 {
-	SDK::UObject* objectReference = Object::SoftLoadObject(levelSequencePath);
+	SDK::UObject* objectReference = Object::SoftLoad(levelSequencePath);
 	bool success = false;
 
 	if (objectReference && objectReference->IsA(SDK::ULevelSequence::StaticClass()))
@@ -529,7 +538,7 @@ bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, SDK::UAnimMon
 #ifdef SOFT_PATH
 bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, const std::wstring& animationMontagePath, float startAt, float playRate, bool stopAllMontages)
 {
-	SDK::UObject* objectReference = Object::SoftLoadObject(animationMontagePath);
+	SDK::UObject* objectReference = Object::SoftLoad(animationMontagePath);
 	bool success = false;
 
 	if (objectReference && objectReference->IsA(SDK::UAnimMontage::StaticClass()))
@@ -564,7 +573,7 @@ bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, SDK::UAnimationAsset
 #ifdef SOFT_PATH
 bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, const std::wstring& animationPath, bool looping)
 {
-	SDK::UObject* objectReference = Object::SoftLoadObject(animationPath);
+	SDK::UObject* objectReference = Object::SoftLoad(animationPath);
 	bool success = false;
 
 	if (objectReference && objectReference->IsA(SDK::UAnimationAsset::StaticClass()))
@@ -654,7 +663,7 @@ bool Unreal::CheatManager::SoftSummon(SDK::UCheatManager* cheatManagerReference,
 		return false;
 
 	/* Ensure Soft Path is valid and Actor is loaded in to game memory, so we could spawn it later on. */
-	SDK::UClass* actorClass = Unreal::Object::SoftLoadClass(actorPath);
+	SDK::UClass* actorClass = Unreal::Class::SoftLoad(actorPath);
 	bool success = false;
 
 	if (actorClass)
@@ -1145,6 +1154,10 @@ Unreal::Actor::E_ActorKind Unreal::Actor::GetActorKind(SDK::AActor* actorReferen
 		if (actorReference->IsA(SDK::ASpotLight::StaticClass()))
 			return E_ActorKind::SpotLight;
 
+		/*
+			ARectLight isn't present in older versions of the Engine (e.g. 4.19.0).
+			Comment out or remove related code.
+		*/
 		if (actorReference->IsA(SDK::ARectLight::StaticClass()))
 			return E_ActorKind::RectLight;
 
@@ -1157,6 +1170,10 @@ Unreal::Actor::E_ActorKind Unreal::Actor::GetActorKind(SDK::AActor* actorReferen
 		if (actorReference->IsA(SDK::ASkyLight::StaticClass()))
 			return E_ActorKind::SkyLight;
 
+		/*
+			ASkyAtmosphere isn't present in older versions of the Engine (e.g. 4.19.0).
+			Comment out or remove related code.
+		*/
 		if (actorReference->IsA(SDK::ASkyAtmosphere::StaticClass()))
 			return E_ActorKind::SkyAtmosphere;
 
@@ -1564,6 +1581,11 @@ bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, SDK::UMaterialInter
 	for (SDK::UActorComponent* component : foundComponents)
 	{
 		SDK::UPrimitiveComponent* primitiveComponent = static_cast<SDK::UPrimitiveComponent*>(component);
+
+		/*
+			CreateDynamicMaterialInstance() accepted less arguments in older versions of the Engine (e.g. 4.19.0). Use following code:
+			primitiveComponent->CreateDynamicMaterialInstance(materialSlot, materialInterfaceReference);
+		*/
 		primitiveComponent->CreateDynamicMaterialInstance(materialSlot, materialInterfaceReference, SDK::FName());
 	}
 }
@@ -1580,8 +1602,13 @@ bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, SDK::UMaterialInter
 	for (SDK::UActorComponent* component : foundComponents)
 	{
 		SDK::UPrimitiveComponent* primitiveComponent = static_cast<SDK::UPrimitiveComponent*>(component);
+
 		for (int8_t i = 0; i < 16; i++)
 		{
+			/*
+				CreateDynamicMaterialInstance() accepted less arguments in older versions of the Engine (e.g. 4.19.0). Use following code:
+				primitiveComponent->CreateDynamicMaterialInstance(i, materialInterfaceReference);
+			*/
 			primitiveComponent->CreateDynamicMaterialInstance(i, materialInterfaceReference, SDK::FName());
 		}
 	}
@@ -1595,7 +1622,7 @@ bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, const std::wstring&
 	if (actorReference == nullptr)
 		return false;
 
-	SDK::UObject* objectReference = Object::SoftLoadObject(materialInterfacePath);
+	SDK::UObject* objectReference = Object::SoftLoad(materialInterfacePath);
 	bool success = false;
 
 	if (objectReference && objectReference->IsA(SDK::UMaterialInstance::StaticClass()))
@@ -1616,7 +1643,7 @@ bool Unreal::Actor::SetMaterial(SDK::AActor* actorReference, const std::wstring&
 	if (actorReference == nullptr)
 		return false;
 
-	SDK::UObject* objectReference = Object::SoftLoadObject(materialInterfacePath);
+	SDK::UObject* objectReference = Object::SoftLoad(materialInterfacePath);
 	bool success = false;
 
 	if (objectReference && objectReference->IsA(SDK::UMaterialInstance::StaticClass()))
@@ -1674,7 +1701,7 @@ SDK::AActor* Unreal::Actor::Summon(const SDK::TSubclassOf<SDK::AActor>& actorCla
 #ifdef SOFT_PATH
 SDK::AActor* Unreal::Actor::SoftSummon(const std::wstring& actorPath, const Unreal::Transform& transform)
 {
-	SDK::UClass* actorClass = Object::SoftLoadClass(actorPath);
+	SDK::UClass* actorClass = Unreal::Class::SoftLoad(actorPath);
 	SDK::AActor* actor = nullptr;
 
 	if (actorClass)
@@ -1937,7 +1964,7 @@ SDK::AStaticMeshActor* Unreal::StaticMeshActor::Summon(SDK::UStaticMesh* staticM
 #ifdef SOFT_PATH
 SDK::AStaticMeshActor* Unreal::StaticMeshActor::SoftSummon(const std::wstring& staticMeshPath, const Unreal::Transform& transform)
 {
-	SDK::UObject* objectReference = Object::SoftLoadObject(staticMeshPath);
+	SDK::UObject* objectReference = Object::SoftLoad(staticMeshPath);
 	SDK::AStaticMeshActor* staticMeshActor = nullptr;
 
 	if (objectReference && objectReference->IsA(SDK::UStaticMesh::StaticClass()))
@@ -2003,7 +2030,7 @@ SDK::ASkeletalMeshActor* Unreal::SkeletalMeshActor::Summon(SDK::USkeletalMesh* s
 #ifdef SOFT_PATH
 SDK::ASkeletalMeshActor* Unreal::SkeletalMeshActor::SoftSummon(const std::wstring& skeletalMeshPath, const Unreal::Transform& transform)
 {
-	SDK::UObject* objectReference = Object::SoftLoadObject(skeletalMeshPath);
+	SDK::UObject* objectReference = Object::SoftLoad(skeletalMeshPath);
 	SDK::ASkeletalMeshActor* skeletalMeshActor = nullptr;
 
 	if (objectReference && objectReference->IsA(SDK::USkeletalMesh::StaticClass()))
@@ -2178,7 +2205,7 @@ SDK::UUserWidget* Unreal::UserWidget::Construct(const SDK::TSubclassOf<SDK::UUse
 #ifdef SOFT_PATH
 SDK::UUserWidget* Unreal::UserWidget::SoftConstruct(const std::wstring& widgetPath)
 {
-	SDK::UClass* widgetClass = Object::SoftLoadClass(widgetPath);
+	SDK::UClass* widgetClass = Unreal::Class::SoftLoad(widgetPath);
 	SDK::UUserWidget* widget = nullptr;
 
 	if (widgetClass)
@@ -2501,54 +2528,7 @@ std::vector<Unreal::Object::DataStructure> Unreal::Object::FilterByClassAndObjec
 
 
 #ifdef SOFT_PATH
-SDK::UClass* Unreal::Object::SoftLoadClass(const std::wstring& objectPath)
-{
-	/*
-		UKismetSystemLibrary::Conv_SoftClassPathToSoftClassRef isn't present in older versions of the Engine (e.g. 4.22.3). Replace function code with following:
-
-		SDK::UObject* loadedObject = SoftLoadObject(objectPath);
-
-		if (loadedObject && loadedObject->IsA(SDK::UClass::StaticClass()))
-		{
-			return static_cast<SDK::UClass*>(loadedObject);
-		}
-
-		return nullptr;
-	*/
-
-	SDK::UWorld* world = World::Get();
-	if (world == nullptr)
-		return nullptr;
-
-	SDK::FSoftClassPath softClassPath = SDK::UKismetSystemLibrary::MakeSoftClassPath(SDK::FString(objectPath.c_str()));
-	SDK::TSoftClassPtr<SDK::UClass> softClassPtr = SDK::UKismetSystemLibrary::Conv_SoftClassPathToSoftClassRef(softClassPath);
-	SDK::UClass* objectClass = SDK::UKismetSystemLibrary::Conv_SoftClassReferenceToClass(softClassPtr);
-
-	if (objectClass)
-		return objectClass;
-	else
-	{
-		Unreal::LevelStreaming::LoadLevelInstance(objectPath);
-
-		/*
-			LoadLevelInstance() take some time to load asset in to a memory;
-			Since we can't know when asset will be loaded, we use hardcoded Sleep() assuming it will be enough.
-		*/
-		int8_t maximumIntervals = 10; // Sleep(10) * 10 = 100ms.
-		for (int8_t waitInterval = 0; (objectClass == nullptr && waitInterval < maximumIntervals); ++waitInterval)
-		{
-			Sleep(10);
-			objectClass = SDK::UKismetSystemLibrary::Conv_SoftClassReferenceToClass(softClassPtr);
-		}
-
-		if (objectClass)
-			return objectClass;
-	}
-
-	return nullptr;
-}
-
-SDK::UObject* Unreal::Object::SoftLoadObject(const std::wstring& objectPath)
+SDK::UObject* Unreal::Object::SoftLoad(const std::wstring& objectPath)
 {
 	SDK::UWorld* world = World::Get();
 	if (world == nullptr)
@@ -2796,6 +2776,21 @@ Unreal::Class::Hierarchy Unreal::Class::GetClassHierarchy(SDK::UObject* objectRe
 
 	return outHierarchy;
 }
+
+
+#ifdef SOFT_PATH
+SDK::UClass* Unreal::Class::SoftLoad(const std::wstring& objectPath)
+{
+	SDK::UObject* loadedObject = Unreal::Object::SoftLoad(objectPath);
+
+	if (loadedObject && loadedObject->IsA(SDK::UClass::StaticClass()))
+	{
+		return static_cast<SDK::UClass*>(loadedObject);
+	}
+
+	return nullptr;
+}
+#endif
 
 
 

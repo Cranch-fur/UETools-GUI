@@ -2,6 +2,7 @@
 #include "SDK\Engine_classes.hpp"
 #include "SDK\UMG_classes.hpp"
 #include "SDK\LevelSequence_classes.hpp"
+#include "SDK\MovieScene_classes.hpp"
 
 #include "definitions.h"
 #include "Math.h"
@@ -40,8 +41,6 @@ namespace Unreal
 
 
 
-
-
 	class Console
 	{
 	public:
@@ -60,14 +59,14 @@ namespace Unreal
 
 		/*
 		* @brief Constructs a Console and assigns it to the active Game Viewport Client.
-		* @param ignorePresence - If set to 'True', a new Console will always be created, even if one already exist.
+		* @param ignorePresence - If set to 'True', a new Console will always be created, even if one already exists.
 		* @return 'True' if the Console was successfully created and assigned; 'False' otherwise.
 		*/
 		static bool Construct(bool ignorePresence = false);
 
 
 		/*
-		* @brief Outputs a message in to the Console. Multiple overloads for convenience, including Unreal Engine data types.
+		* @brief Outputs a message to the Console. Provides multiple overloads for convenience, including Unreal Engine data types.
 		* @param std::wstring
 		* @param std::string
 		* @param int32_t
@@ -99,8 +98,15 @@ namespace Unreal
 		static bool Clear();
 
 
+		/*
+		* @brief Executes a specified console command within the current World.
+		* @param command - The console command string to execute.
+		* @return 'True' if the command was executed successfully; 'False' if the World is unavailable.
+		*/
 		static bool ExecuteConsoleCommand(const std::wstring& command);
 	};
+
+
 
 
 	class InputSettings
@@ -128,6 +134,8 @@ namespace Unreal
 	};
 
 
+
+
 	class UserInterfaceSettings
 	{
 	public:
@@ -145,9 +153,21 @@ namespace Unreal
 		static SDK::UUserInterfaceSettings* Get();
 
 
+		/*
+		* @brief Retrieves the current application UI scale.
+		* @param outScale - Pointer to a float where the retrieved scale value will be stored.
+		* @return 'True' if the scale was successfully retrieved; 'False' otherwise.
+		*/
 		static bool GetApplicationScale(float* outScale);
+		/*
+		* @brief Sets a new application UI scale.
+		* @param scale - The new scale value to apply (defaults to 1.0f).
+		* @return 'True' if the scale was successfully set; 'False' otherwise.
+		*/
 		static bool SetApplicationScale(float scale = 1.0f);
 	};
+
+
 
 
 	class GameViewportClient
@@ -168,6 +188,8 @@ namespace Unreal
 		*/
 		static SDK::UGameViewportClient* Get();
 	};
+
+
 
 
 	class Engine
@@ -203,8 +225,6 @@ namespace Unreal
 
 
 
-
-
 	class OnlineSession
 	{
 	public:
@@ -213,6 +233,8 @@ namespace Unreal
 			SDK::UOnlineSession* reference;
 		};
 	};
+
+
 
 
 	class GameInstance
@@ -237,8 +259,6 @@ namespace Unreal
 
 
 
-
-
 	class GameSession
 	{
 	public:
@@ -254,6 +274,8 @@ namespace Unreal
 			std::string sessionName;
 		};
 	};
+
+
 
 
 	class GameMode
@@ -289,8 +311,6 @@ namespace Unreal
 
 
 
-
-
 	class GameState
 	{
 	public:
@@ -309,6 +329,8 @@ namespace Unreal
 	};
 
 
+
+
 	class NetDriver
 	{
 	public:
@@ -319,6 +341,8 @@ namespace Unreal
 	};
 
 
+
+
 	class DemoNetDriver
 	{
 	public:
@@ -327,8 +351,6 @@ namespace Unreal
 			SDK::UNetDriver* reference;
 		};
 	};
-
-
 
 
 
@@ -348,6 +370,8 @@ namespace Unreal
 	};
 
 
+
+
 	class Level
 	{
 	public:
@@ -361,6 +385,14 @@ namespace Unreal
 		};
 
 
+		/*
+		* @brief Creates and plays a Level Sequence player in the current World.
+		* @param levelSequenceAsset - Pointer to the Level Sequence asset to play.
+		* @param startTime - The time in seconds at which to start playing.
+		* @param playRate - The playback speed multiplier.
+		* @param loopCount - Number of times to loop the sequence (-1 for infinite loops).
+		* @return 'True' if the sequence player was successfully created; 'False' otherwise.
+		*/
 		static bool CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset, float startTime, float playRate, int32_t loopCount);
 		static bool CreateLevelSequence_ThreadSafe(SDK::ULevelSequence* levelSequenceAsset, float startTime, float playRate, int32_t loopCount);
 #ifdef SOFT_PATH
@@ -368,6 +400,8 @@ namespace Unreal
 		static bool CreateLevelSequence_ThreadSafe(const std::wstring& levelSequencePath, float startTime, float playRate, int32_t loopCount);
 #endif
 	};
+
+
 
 
 	class LevelStreaming
@@ -388,6 +422,13 @@ namespace Unreal
 		static std::vector<SDK::ULevelStreaming*> GetAll();
 
 
+		/*
+		* @brief Filters a collection of Level Streamings based on their level path.
+		* @param levelStreamingsCollection - The collection of Level Streamings to filter.
+		* @param filter - The string used to match against the level paths.
+		* @param caseSensitive - Determines if the matching should be case-sensitive.
+		* @return A vector containing the filtered Level Streamings that match the criteria.
+		*/
 		static std::vector<LevelStreaming::DataStructure> FilterByLevelPath(const std::vector<LevelStreaming::DataStructure>& levelStreamingsCollection, const std::string& filter, bool caseSensitive);
 
 
@@ -395,6 +436,8 @@ namespace Unreal
 		static bool LoadLevelInstance(const std::wstring& objectPath, const SDK::FVector& locationOffset = { 0.0f, 0.0f, 0.0f }, const SDK::FRotator& rotationOffset = { 0.0f, 0.0f, 0.0f }, bool useInstancedName = false);
 #endif
 	};
+
+
 
 
 	class World
@@ -440,8 +483,6 @@ namespace Unreal
 
 
 
-
-
 	class Player
 	{
 	public:
@@ -450,6 +491,8 @@ namespace Unreal
 			SDK::UPlayer* reference;
 		};
 	};
+
+
 
 
 	class Pawn
@@ -491,6 +534,8 @@ namespace Unreal
 	};
 
 
+
+
 	class CameraManager
 	{
 	public:
@@ -501,6 +546,8 @@ namespace Unreal
 			Transform transform;
 		};
 	};
+
+
 
 
 	class CheatManager
@@ -528,8 +575,8 @@ namespace Unreal
 
 
 		/*
-		* @brief Calls Summon() function in provided Cheat Manager.
-		* Function exist as a workaround and is not recommended to be used
+		* @brief Calls the Summon() function in the provided Cheat Manager.
+		* This function exists as a workaround and is not recommended for use
 		* unless Actor::Summon() fails for one reason or another.
 		* @param cheatManagerReference - Reference to an valid Cheat Manager instance.
 		* @param actorClass - Class of the Actor to be summoned.
@@ -566,6 +613,8 @@ namespace Unreal
 		static bool SoftSummon(const std::wstring& actorPath);
 #endif
 	};
+
+
 
 
 	class PlayerController
@@ -609,6 +658,8 @@ namespace Unreal
 	};
 
 
+
+
 	class Character
 	{
 	public:
@@ -641,8 +692,6 @@ namespace Unreal
 		static bool Ghost(SDK::ACharacter* characterReference);
 		static bool Ghost(int32_t playerIndex);
 	};
-
-
 
 
 
@@ -690,6 +739,8 @@ namespace Unreal
 	};
 
 
+
+
 	class Actor
 	{
 	public:
@@ -711,6 +762,11 @@ namespace Unreal
 			Decal,
 			TextRender
 		};
+		/*
+		* @brief Determines the specific category/kind of the provided Actor based on its class type.
+		* @param actorReference - Pointer to the Actor to analyze.
+		* @return The corresponding E_ActorKind enum value; returns 'General' if no specific category matches or if the pointer is null.
+		*/
 		static E_ActorKind GetActorKind(SDK::AActor* actorReference);
 
 
@@ -855,8 +911,6 @@ namespace Unreal
 
 
 
-
-
 	class StaticMeshActor
 	{
 	public:
@@ -872,8 +926,6 @@ namespace Unreal
 		static SDK::AStaticMeshActor* SoftSummon(const std::wstring& staticMeshPath, const Unreal::Transform& transform);
 #endif
 	};
-
-
 
 
 
@@ -897,8 +949,6 @@ namespace Unreal
 
 
 
-
-
 	class PanelWidget
 	{
 	public:
@@ -907,8 +957,6 @@ namespace Unreal
 			SDK::UPanelWidget* reference;
 		};
 	};
-
-
 
 
 
@@ -966,8 +1014,6 @@ namespace Unreal
 
 
 
-
-
 	class Object
 	{
 	public:
@@ -1020,10 +1066,11 @@ namespace Unreal
 
 #ifdef SOFT_PATH
 		/*
-		* @brief Loads Object Class in to the game memory.
+		* @brief Asynchronously loads an Object into game memory (if not already present) using its soft path.
+		* @param objectPath - The soft object path of the asset.
+		* @return A pointer to the loaded UObject, or 'nullptr' if the load fails.
 		*/
-		static SDK::UClass* SoftLoadClass(const std::wstring& objectPath);
-		static SDK::UObject* SoftLoadObject(const std::wstring& objectPath);
+		static SDK::UObject* SoftLoad(const std::wstring& objectPath);
 #endif
 
 
@@ -1048,8 +1095,6 @@ namespace Unreal
 
 
 
-
-
 	class Class
 	{
 	public:
@@ -1061,9 +1106,17 @@ namespace Unreal
 
 
 		static Hierarchy GetClassHierarchy(SDK::UObject* objectReference);
+
+
+#ifdef SOFT_PATH
+		/*
+		* @brief Asynchronously loads a Class into game memory (if not already present) using its soft path.
+		* @param objectPath - The soft object path of the class asset.
+		* @return A pointer to the loaded UClass, or 'nullptr' if the load fails or the object is not a class.
+		*/
+		static SDK::UClass* SoftLoad(const std::wstring& objectPath);
+#endif
 	};
-
-
 
 
 
@@ -1162,8 +1215,6 @@ namespace Unreal
 
 		static std::vector<Function::DataStructure> FilterByName(const std::vector<Function::DataStructure>& functionsCollection, const std::string& filter, bool caseSensitive);
 	};
-
-
 
 
 

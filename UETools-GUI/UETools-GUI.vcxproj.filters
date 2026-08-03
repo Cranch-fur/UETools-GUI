@@ -90,6 +90,9 @@
     <ClCompile Include="Window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\SDKs\Dumper7\SDK\MovieScene_functions.cpp">
+      <Filter>Dumper7</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GUI.h">

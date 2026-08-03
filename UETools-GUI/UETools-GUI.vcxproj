@@ -141,6 +141,7 @@
     <ClCompile Include="..\SDKs\Dumper7\SDK\CoreUObject_functions.cpp" />
     <ClCompile Include="..\SDKs\Dumper7\SDK\Engine_functions.cpp" />
     <ClCompile Include="..\SDKs\Dumper7\SDK\LevelSequence_functions.cpp" />
+    <ClCompile Include="..\SDKs\Dumper7\SDK\MovieScene_functions.cpp" />
     <ClCompile Include="..\SDKs\Dumper7\SDK\UMG_functions.cpp" />
     <ClCompile Include="..\SDKs\ImGui\imgui.cpp" />
     <ClCompile Include="..\SDKs\ImGui\imgui_demo.cpp" />

@@ -1895,6 +1895,10 @@ void Features::Debug::Update()
 			Features::Debug::playerController.pawn.isPawnControlled = pawn->IsPawnControlled();
 			Features::Debug::playerController.pawn.isPlayerControlled = pawn->IsPlayerControlled();
 			Features::Debug::playerController.pawn.isLocallyControlled = pawn->IsLocallyControlled();
+			/*
+				IsPawnControlled() isn't present in older versions of the Engine (e.g. 4.19.0). Use following code:
+				Features::Debug::playerController.pawn.isPawnControlled = false;
+			*/
 			Features::Debug::playerController.pawn.isBotControlled = pawn->IsBotControlled();
 		}
 
@@ -5553,6 +5557,10 @@ void Templates::Menus::Debug::Sub_Actors()
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
+			/*
+				ARectLight isn't present in older versions of the Engine (e.g. 4.19.0).
+				Comment out or remove related code.
+			*/
 			if (ImGui::IconButton(Window::texturesCollection.T_Actor_RectLight, "Rect Light"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ARectLight::StaticClass());
@@ -5573,6 +5581,10 @@ void Templates::Menus::Debug::Sub_Actors()
 
 			ImGui::NewLine();
 
+			/*
+				ASkyAtmosphere isn't present in older versions of the Engine (e.g. 4.19.0).
+				Comment out or remove related code.
+			*/
 			ImGui::BigText("Atmosphere");
 			if (ImGui::IconButton(Window::texturesCollection.T_Actor_SkyAtmosphere, "Sky Atmosphere"))
 			{
@@ -6392,7 +6404,7 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 
 					/*
 						bCastDeepShadow isn't member of LightComponent in older versions of the Engine (e.g. 4.22.3).
-						Comment out following section of the code.
+						Comment out or remove related code.
 					*/
 					ImGui::TextBoolColored("Cast Deep Shadow:", lightComponent->bCastDeepShadow);
 					if (ImGui::Button("Enable##CastDeepShadow"))
@@ -6411,6 +6423,10 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 
 					ImGui::NewLine();
 
+					/*
+						bCastRaytracedShadow isn't member of LightComponent in older versions of the Engine (e.g. 4.19.0).
+						Comment out or remove related code.
+					*/
 					ImGui::TextBoolColored("Cast Raytraced Shadow:", lightComponent->bCastRaytracedShadow);
 					if (ImGui::Button("Enable##CastRaytracedShadow"))
 					{
@@ -6503,6 +6519,10 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 						RefreshLightComponent(lightComponent);
 					}
 
+					/*
+						ULocalLightComponent isn't present in older versions of the Engine (e.g. 4.19.0).
+						Comment out or remove related code.
+					*/
 					if (lightComponent->IsA(SDK::ULocalLightComponent::StaticClass()))
 					{
 						SDK::ULocalLightComponent* localLightComponent = static_cast<SDK::ULocalLightComponent*>(lightComponent);
@@ -6567,6 +6587,10 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 						}
 					}
 
+					/*
+						ARectLight isn't present in older versions of the Engine (e.g. 4.19.0).
+						Comment out or remove related code.
+					*/
 					if (actor.kind == Unreal::Actor::E_ActorKind::RectLight)
 					{
 						SDK::ARectLight* rectLight = static_cast<SDK::ARectLight*>(light);
@@ -6626,6 +6650,10 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 
 							ImGui::NewLine();
 
+							/*
+								LightSourceSoftAngle isn't member of UDirectionalLightComponent in older versions of the Engine (e.g. 4.19.0).
+								Comment out or remove related code.
+							*/
 							ImGui::Text("Light Source Soft Angle");
 							ImGui::SliderFloatEditable("##LightSourceSoftAngle", &directionalLightComponent->LightSourceSoftAngle, 0.0f, 90.0f);
 							if (ImGui::IsItemDeactivatedAfterEdit())
@@ -6765,6 +6793,10 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 			}
 			break;
 
+		/*
+			ASkyAtmosphere isn't present in older versions of the Engine (e.g. 4.19.0).
+			Comment out or remove related code.
+		*/
 		case Unreal::Actor::E_ActorKind::SkyAtmosphere:
 			if (SDK::ASkyAtmosphere* skyAtmosphere = static_cast<SDK::ASkyAtmosphere*>(actor.reference))
 			{
@@ -7598,7 +7630,7 @@ void Templates::Menus::Debug::Sub_Objects()
 					for (std::wstring& objectPath : objectPathCollection) // <-- Reference!
 					{
 						std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(objectPath);
-						if (SDK::UObject* objectReference = Unreal::Object::SoftLoadObject(normalizedPath))
+						if (SDK::UObject* objectReference = Unreal::Object::SoftLoad(normalizedPath))
 						{
 							SDK::UClass* objectClass = objectReference->Class;
 
@@ -7966,6 +7998,10 @@ void Templates::Menus::World::Draw()
 						ImGui::TextBoolColored("Should Be Loaded:", shouldBeLoaded);
 						if (isValid)
 						{
+							/*
+								SetShouldBeLoaded() isn't present in older versions of the Engine (e.g. 4.19.0). For both buttons use following code:
+								GUI::PlayActionSound(false);
+							*/
 							if (ImGui::Button("Enable##ShouldBeLoaded"))
 							{
 								if (levelStreaming.reference != nullptr)
@@ -7994,6 +8030,10 @@ void Templates::Menus::World::Draw()
 						ImGui::TextBoolColored("Should Be Visible:", shouldBeVisible);
 						if (isValid)
 						{
+							/*
+								SetShouldBeVisible() isn't present in older versions of the Engine (e.g. 4.19.0). For both buttons use following code:
+								GUI::PlayActionSound(false);
+							*/
 							if (ImGui::Button("Enable##ShouldBeVisible"))
 							{
 								if (levelStreaming.reference != nullptr)
