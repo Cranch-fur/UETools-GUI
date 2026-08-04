@@ -1391,6 +1391,8 @@ void GUI::InitOnTitleInitialized(const HMODULE& applicationModule)
 
 void GUI::Draw()
 {
+	ImGui::GetStyle().Alpha = Features::Menu::opacity;
+
 	if (GetIsMenuActive())
 	{
 		if (ImGui::BeginMainMenuBar())
@@ -1462,6 +1464,9 @@ void GUI::Draw()
 			ImGui::EndMainMenuBar();
 		}
 	}
+
+	/* Restore full opacity. */
+	ImGui::GetStyle().Alpha = 1.0f;
 
 	Features::ActorTrace::Draw_ThreadSafe();
 
@@ -1556,6 +1561,7 @@ void Features::Config::Load()
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_enableSound", &Features::Menu::enableSound);
 	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_useVectorFont", &Features::Menu::useVectorFont);
+	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_opacity", &Features::Menu::opacity);
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_Debug_autoUpdate", &Features::Debug::autoUpdate);
 	ReadFeatureFromConfig(&featuresConfig, "Features_Debug_autoUpdateDelay", &Features::Debug::autoUpdateDelay);
@@ -1689,6 +1695,7 @@ void Features::Config::Save()
 
 	featuresConfig.SetKey("Features_Menu_enableSound", Features::Menu::enableSound);
 	featuresConfig.SetKey("Features_Menu_useVectorFont", Features::Menu::useVectorFont);
+	featuresConfig.SetKey("Features_Menu_opacity", Features::Menu::opacity);
 
 	featuresConfig.SetKey("Features_Debug_autoUpdate", Features::Debug::autoUpdate);
 	featuresConfig.SetKey("Features_Debug_autoUpdateDelay", Features::Debug::autoUpdateDelay);
@@ -8309,7 +8316,8 @@ void Templates::Menus::World::Draw()
 
 			ImGui::NewLine();
 
-			ImGui::InputFloat("Kill Volume Z", &worldSettings->KillZ, 10.0f, 100.0f);
+			ImGui::Text("Kill Volume Z");
+			ImGui::InputFloat("##KillVolumeZ", &worldSettings->KillZ, 10.0f, 100.0f);
 		}
 		else
 		{
@@ -9107,6 +9115,14 @@ void Templates::Menus::Settings::Draw()
 			ImGuiIO& io = ImGui::GetIO();
 			io.FontDefault = Features::Menu::useVectorFont ? Features::Menu::fontVector : Features::Menu::fontBitmap;
 
+			Features::Config::Save();
+		}
+
+		ImGui::NewLine();
+
+		ImGui::Text("Menu Opacity");
+		if (ImGui::SliderFloat("##MenuOpacity", &Features::Menu::opacity, 0.2f, 1.0f))
+		{
 			Features::Config::Save();
 		}
 

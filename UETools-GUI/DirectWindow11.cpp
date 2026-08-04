@@ -74,12 +74,17 @@ bool DirectWindow11::CreateRenderTargetView()
     return true;
 }
 
-bool DirectWindow11::CreateDevice(const HWND& hWnd, const bool& HDR)
+bool DirectWindow11::CreateDevice(HWND hWnd)
 {
     DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
     swapChainDesc.BufferDesc.Width = 0;
     swapChainDesc.BufferDesc.Height = 0;
-    swapChainDesc.BufferDesc.Format = HDR ? DXGI_FORMAT_R10G10B10A2_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM;
+
+#ifdef API_HDR
+    swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+#else
+    swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+#endif
 
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.SampleDesc.Quality = 0;

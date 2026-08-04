@@ -107,7 +107,7 @@ private:
     static bool CreateRenderTargetView();
 
     /* Initializes a Direct3D device, device context, and swap chain for the given window. */
-    static bool CreateDevice(const HWND& hWnd, const bool& HDR = false);
+    static bool CreateDevice(HWND hWnd);
 
     /* Releases all Direct3D resources. */
     static void CleanupDevice();

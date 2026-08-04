@@ -49,6 +49,8 @@
 	#error "Build Error: Multiple Graphics APIs selected! Please define ONLY ONE API."
 #endif
 
+//#define API_HDR
+
 /*
 	#define INACTIVE_ZERO_SIZE
 

@@ -47,7 +47,7 @@ LRESULT WINAPI OpenWindow3::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
 
 
 
-bool OpenWindow3::CreateDevice(const HWND& hWnd)
+bool OpenWindow3::CreateDevice(HWND hWnd)
 {
     hDC = GetDC(hWnd);
     if (hDC == nullptr)
@@ -60,8 +60,17 @@ bool OpenWindow3::CreateDevice(const HWND& hWnd)
     pfd.nVersion = 1;
     pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
     pfd.iPixelType = PFD_TYPE_RGBA;
+
     pfd.cColorBits = 32;
+#ifdef API_HDR
+    pfd.cRedBits = 10;
+    pfd.cGreenBits = 10;
+    pfd.cBlueBits = 10;
+    pfd.cAlphaBits = 2;
+#else
     pfd.cAlphaBits = 8;
+#endif
+
     pfd.cDepthBits = 24;
     pfd.cStencilBits = 8;
     pfd.iLayerType = PFD_MAIN_PLANE;
@@ -91,7 +100,7 @@ bool OpenWindow3::CreateDevice(const HWND& hWnd)
     return true;
 }
 
-void OpenWindow3::CleanupDevice(const HWND& hWnd)
+void OpenWindow3::CleanupDevice(HWND hWnd)
 {
     if (hRC != nullptr)
     {

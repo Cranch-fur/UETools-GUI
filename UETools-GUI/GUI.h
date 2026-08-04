@@ -521,6 +521,8 @@ namespace Features
 		static inline ImFont* fontBitmap = nullptr;
 		static inline ImFont* fontVector = nullptr;
 		static inline bool useVectorFont = true;
+
+		static inline float opacity = 1.0f;
 	};
 
 

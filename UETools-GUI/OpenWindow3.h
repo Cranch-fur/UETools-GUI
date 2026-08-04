@@ -64,10 +64,10 @@ public:
 
 private:
     /* Initializes an OpenGL device context for the given window. */
-    static bool CreateDevice(const HWND& hWnd);
+    static bool CreateDevice(HWND hWnd);
 
     /* Releases all OpenGL resources. */
-    static void CleanupDevice(const HWND& hWnd);
+    static void CleanupDevice(HWND hWnd);
 
 
 public:
