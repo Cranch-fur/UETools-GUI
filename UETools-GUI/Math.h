@@ -13,12 +13,23 @@ class Math
 {
 public:
 	static SDK::FVector Vector_Add(const SDK::FVector& A, const SDK::FVector& B);
+	static SDK::FVector Vector_Add(const SDK::FVector& A, float B);
+
+	static SDK::FVector Vector_Subtract(const SDK::FVector& A, const SDK::FVector& B);
+	static SDK::FVector Vector_Subtract(const SDK::FVector& A, float B);
+
+	static SDK::FVector Vector_Multiply(const SDK::FVector& A, const SDK::FVector& B);
 	static SDK::FVector Vector_Multiply(const SDK::FVector& A, float B);
+
+	static SDK::FVector Vector_Divide(const SDK::FVector& A, const SDK::FVector& B);
+	static SDK::FVector Vector_Divide(const SDK::FVector& A, float B);
+
 	static SDK::FVector Vector_Normal(const SDK::FVector& vector, float tolerance = 1.0E-8F); // sqrt(1e-8) = 1e-4 = 0.0001f.
-	static SDK::FVector Vector_Rotate(const SDK::FVector& vector, const SDK::FQuat& quat);
-	static float Vector_Distance(const SDK::FVector& A, const SDK::FVector& B);
 	static float Vector_Dot(const SDK::FVector& A, const SDK::FVector& B);
 	static SDK::FVector Vector_Cross(const SDK::FVector& A, const SDK::FVector& B);
+
+	static SDK::FVector Vector_Rotate(const SDK::FVector& vector, const SDK::FQuat& quat);
+	static float Vector_Distance(const SDK::FVector& A, const SDK::FVector& B);
 	static SDK::FVector Vector_LocalToWorld(const Unreal::Transform& unrealTransform, const SDK::FVector& vector);
 
 
@@ -31,6 +42,13 @@ public:
 
 	static Unreal::Transform F_ToUnrealTransform(const SDK::FTransform& fTransform);
 	static SDK::FTransform Unreal_ToFTransform(const Unreal::Transform& unrealTransform);
+
+
+	static SDK::FVector2D GetScreenSize();
+
+
+	static bool ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& screenSize, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation);
+	static bool ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation);
 
 
 	static uint32_t ColorFloat4_ToU32(float color[4]);

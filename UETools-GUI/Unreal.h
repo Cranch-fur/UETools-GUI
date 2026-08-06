@@ -536,7 +536,7 @@ namespace Unreal
 
 
 
-	class CameraManager
+	class PlayerCameraManager
 	{
 	public:
 		struct DataStructure : DataStructureBase
@@ -545,6 +545,11 @@ namespace Unreal
 
 			Transform transform;
 		};
+
+
+		static bool GetFOV(SDK::APlayerCameraManager* playerCameraManagerReference, float* outFOV);
+		static bool GetAspectRatio(SDK::APlayerCameraManager* playerCameraManagerReference, float* outAspectRatio);
+		static bool GetConstrainAspectRatio(SDK::APlayerCameraManager* playerCameraManagerReference, bool* outConstrainAspectRatio);
 	};
 
 
@@ -628,7 +633,7 @@ namespace Unreal
 
 			Pawn::DataStructure pawn;
 
-			CameraManager::DataStructure cameraManager;
+			PlayerCameraManager::DataStructure cameraManager;
 
 			CheatManager::DataStructure cheatManager;
 		};
@@ -655,6 +660,9 @@ namespace Unreal
 
 		static bool SetViewTarget(SDK::AActor* actorReference, SDK::EViewTargetBlendFunction blendFunction, float blendTime, float blendExponent);
 		static bool SetViewTarget(SDK::AActor* actorReference);
+
+
+		static bool ProjectWorldToScreen(SDK::APlayerController* playerControllerReference, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation);
 	};
 
 

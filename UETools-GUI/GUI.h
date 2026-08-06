@@ -1221,19 +1221,24 @@ namespace Inputs
 #ifdef COLLISION_VISUALIZER
 class DebugDraw
 {
+private:
+	static inline std::unordered_map<SDK::FKConvexElem*, std::vector<int32_t>> convexIndicesCache;
+
 public:
-	static void DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, const uint32_t& drawColor, float drawThickness);
-	static void DrawVolume(SDK::AVolume* volume, const uint32_t& drawColor, float drawThickness);
+	static void DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal::Transform& componentTransform, uint32_t drawColor, float drawThickness);
 
-	static void DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, const uint32_t& drawColor, float drawThickness);
-	static void DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, const uint32_t& drawColor, float drawThickness);
+	static void DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, uint32_t drawColor, float drawThickness);
+	static void DrawVolume(SDK::AVolume* volume, uint32_t drawColor, float drawThickness);
 
-	static void DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets, const uint32_t& drawColor, float drawThickness);
+	static void DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, uint32_t drawColor, float drawThickness);
+	static void DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, uint32_t drawColor, float drawThickness);
 
-	static void DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, const uint32_t& drawColor, float drawThickness);
-	static void DrawSphereComponent(SDK::USphereComponent* sphereComponent, const uint32_t& drawColor, float drawThickness);
-	static void DrawBoxComponent(SDK::UBoxComponent* boxComponent, const uint32_t& drawColor, float drawThickness);
-	static void DrawSplineComponent(SDK::USplineComponent* splineComponent, const uint32_t& drawColor, float drawThickness);
+	static void DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets, uint32_t drawColor, float drawThickness);
+
+	static void DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, uint32_t drawColor, float drawThickness);
+	static void DrawSphereComponent(SDK::USphereComponent* sphereComponent, uint32_t drawColor, float drawThickness);
+	static void DrawBoxComponent(SDK::UBoxComponent* boxComponent, uint32_t drawColor, float drawThickness);
+	static void DrawSplineComponent(SDK::USplineComponent* splineComponent, uint32_t drawColor, float drawThickness);
 };
 #endif
 

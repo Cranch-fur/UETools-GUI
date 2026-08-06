@@ -16,6 +16,48 @@ SDK::FVector Math::Vector_Add(const SDK::FVector& A, const SDK::FVector& B)
     };
 }
 
+SDK::FVector Math::Vector_Add(const SDK::FVector& A, float B)
+{
+    return SDK::FVector
+    {
+        A.X + B,
+        A.Y + B,
+        A.Y + B
+    };
+}
+
+
+SDK::FVector Math::Vector_Subtract(const SDK::FVector& A, const SDK::FVector& B)
+{
+    return SDK::FVector
+    {
+        A.X - B.X,
+        A.Y - B.Y,
+        A.Z - B.Z
+    };
+}
+
+SDK::FVector Math::Vector_Subtract(const SDK::FVector& A, float B)
+{
+    return SDK::FVector
+    {
+        A.X - B,
+        A.Y - B,
+        A.Y - B
+    };
+}
+
+
+SDK::FVector Math::Vector_Multiply(const SDK::FVector& A, const SDK::FVector& B)
+{
+    return SDK::FVector
+    {
+        A.X * B.X,
+        A.Y * B.Y,
+        A.Z * B.Z
+    };
+}
+
 SDK::FVector Math::Vector_Multiply(const SDK::FVector& A, float B)
 {
     return SDK::FVector
@@ -26,6 +68,28 @@ SDK::FVector Math::Vector_Multiply(const SDK::FVector& A, float B)
     };
 }
 
+
+SDK::FVector Math::Vector_Divide(const SDK::FVector& A, const SDK::FVector& B)
+{
+    return SDK::FVector
+    {
+        A.X / B.X,
+        A.Y / B.Y,
+        A.Z / B.Z
+    };
+}
+
+SDK::FVector Math::Vector_Divide(const SDK::FVector& A, float B)
+{
+    return SDK::FVector
+    {
+        A.X / B,
+        A.Y / B,
+        A.Z / B
+    };
+}
+
+
 SDK::FVector Math::Vector_Normal(const SDK::FVector& vector, float tolerance)
 {
     float vectorLengthSquared = (vector.X * vector.X) + (vector.Y * vector.Y) + (vector.Z * vector.Z);
@@ -35,6 +99,22 @@ SDK::FVector Math::Vector_Normal(const SDK::FVector& vector, float tolerance)
     float vectorLengthInverted = 1.0f / sqrt(vectorLengthSquared);
     return vector * vectorLengthInverted;
 }
+
+float Math::Vector_Dot(const SDK::FVector& A, const SDK::FVector& B)
+{
+    return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+}
+
+SDK::FVector Math::Vector_Cross(const SDK::FVector& A, const SDK::FVector& B)
+{
+    SDK::FVector outVector;
+    outVector.X = (A.Y * B.Z) - (A.Z * B.Y);
+    outVector.Y = (A.Z * B.X) - (A.X * B.Z);
+    outVector.Z = (A.X * B.Y) - (A.Y * B.X);
+
+    return outVector;
+}
+
 
 SDK::FVector Math::Vector_Rotate(const SDK::FVector& vector, const SDK::FQuat& quat)
 {
@@ -63,17 +143,19 @@ float Math::Vector_Distance(const SDK::FVector& A, const SDK::FVector& B)
     return std::sqrtf((X_Distance * X_Distance) + (Y_Distance * Y_Distance) + (Z_Distance * Z_Distance));
 }
 
-float Math::Vector_Dot(const SDK::FVector& A, const SDK::FVector& B)
+SDK::FVector Math::Vector_LocalToWorld(const Unreal::Transform& unrealTransform, const SDK::FVector& vector)
 {
-    return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
-}
+    SDK::FVector locationScaled;
+    locationScaled.X = vector.X * unrealTransform.scale.X;
+    locationScaled.Y = vector.Y * unrealTransform.scale.Y;
+    locationScaled.Z = vector.Z * unrealTransform.scale.Z;
 
-SDK::FVector Math::Vector_Cross(const SDK::FVector& A, const SDK::FVector& B)
-{
+    SDK::FVector rotatedVector = Vector_Rotate(locationScaled, unrealTransform.Quat());
+
     SDK::FVector outVector;
-    outVector.X = (A.Y * B.Z) - (A.Z * B.Y);
-    outVector.Y = (A.Z * B.X) - (A.X * B.Z);
-    outVector.Z = (A.X * B.Y) - (A.Y * B.X);
+    outVector.X = rotatedVector.X + unrealTransform.location.X;
+    outVector.Y = rotatedVector.Y + unrealTransform.location.Y;
+    outVector.Z = rotatedVector.Z + unrealTransform.location.Z;
 
     return outVector;
 }
@@ -206,23 +288,6 @@ SDK::FVector Math::Rotator_UpVector(const SDK::FRotator& rotator)
 
 
 
-SDK::FVector Math::Vector_LocalToWorld(const Unreal::Transform& unrealTransform, const SDK::FVector& vector)
-{
-    SDK::FVector locationScaled;
-    locationScaled.X = vector.X * unrealTransform.scale.X;
-    locationScaled.Y = vector.Y * unrealTransform.scale.Y;
-    locationScaled.Z = vector.Z * unrealTransform.scale.Z;
-
-    SDK::FVector rotatedVector = Vector_Rotate(locationScaled, unrealTransform.Quat());
-    
-    SDK::FVector outVector;
-    outVector.X = rotatedVector.X + unrealTransform.location.X;
-    outVector.Y = rotatedVector.Y + unrealTransform.location.Y;
-    outVector.Z = rotatedVector.Z + unrealTransform.location.Z;
-
-    return outVector;
-}
-
 Unreal::Transform Math::F_ToUnrealTransform(const SDK::FTransform& fTransform)
 {
     Unreal::Transform unrealTransform;
@@ -241,6 +306,62 @@ SDK::FTransform Math::Unreal_ToFTransform(const Unreal::Transform& unrealTransfo
     fTransform.Scale3D = unrealTransform.scale;
 
     return fTransform;
+}
+
+
+
+
+SDK::FVector2D Math::GetScreenSize()
+{
+    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+    return SDK::FVector2D(screenWidth, screenHeight);
+}
+
+
+
+
+bool Math::ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& screenSize, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
+{
+    if (outScreenLocation == nullptr)
+        return false;
+
+    /* Get camera axis vectors. */
+    SDK::FVector vAxisX = Math::Rotator_ForwardVector(cameraRotation);
+    SDK::FVector vAxisY = Math::Rotator_RightVector(cameraRotation);
+    SDK::FVector vAxisZ = Math::Rotator_UpVector(cameraRotation);
+
+    /* Calculate delta vector from camera to target. */
+    SDK::FVector vDelta = Math::Vector_Subtract(worldLocation, cameraLocation);
+
+    /* Transform delta into camera space using Dot Product. */
+    SDK::FVector vTransformed;
+    vTransformed.X = Math::Vector_Dot(vDelta, vAxisX);
+    vTransformed.Y = Math::Vector_Dot(vDelta, vAxisY);
+    vTransformed.Z = Math::Vector_Dot(vDelta, vAxisZ);
+
+    /* If X is less than or equal to 0, the target is behind the camera. */
+    if (vTransformed.X <= 0.01f)
+        return false;
+
+    float screenCenterX = screenSize.X / 2.0f;
+    float screenCenterY = screenSize.Y / 2.0f;
+
+    /* Convert FOV to radians and calculate projection math. */
+    float fovRadians = fieldOfView * Math::PI / 360.0f;
+    float screenFOV = screenCenterX / std::tanf(fovRadians);
+
+    /* Project to screen coordinates. */
+    outScreenLocation->X = screenCenterX + vTransformed.Y * (screenFOV / vTransformed.X);
+    outScreenLocation->Y = screenCenterY - vTransformed.Z * (screenFOV / vTransformed.X);
+
+    return true;
+}
+
+bool Math::ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
+{
+    return ProjectWorldToScreen(cameraLocation, cameraRotation, fieldOfView, Math::GetScreenSize(), worldLocation, outScreenLocation);
 }
 
 

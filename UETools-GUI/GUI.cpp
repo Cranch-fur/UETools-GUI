@@ -2590,8 +2590,8 @@ void Features::ActorTrace::Draw()
 
 			/* UGameplayStatics::ProjectWorldToScreen() verify Player Controller reference within its code. */
 			SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-			bool startPositionProjected = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, Features::ActorTrace::traceStartLocation, &screenStartPosition, false);
-			bool endPositionProjected = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, Features::ActorTrace::traceEndLocation, &screenEndPosition, false);
+			bool startPositionProjected = Unreal::PlayerController::ProjectWorldToScreen(playerController, Features::ActorTrace::traceStartLocation, &screenStartPosition);
+			bool endPositionProjected = Unreal::PlayerController::ProjectWorldToScreen(playerController, Features::ActorTrace::traceEndLocation, &screenEndPosition);
 
 			/* Inverse Normalize RGBA values set by color picker. */
 			ImU32 color = ImGui::ColorConvertFloat4ToU32(ImVec4(Features::ActorTrace::traceColor[0], Features::ActorTrace::traceColor[1], Features::ActorTrace::traceColor[2], Features::ActorTrace::traceColor[3]));
@@ -2699,7 +2699,7 @@ void Features::ActorsTracker::Draw()
 			for (Unreal::Actor::DataStructure& actor : Features::ActorsList::filteredActors) // <-- Reference!
 			{
 				SDK::FVector2D screenPosition;
-				if (SDK::UGameplayStatics::ProjectWorldToScreen(playerController, actor.transform.location, &screenPosition, false))
+				if (Unreal::PlayerController::ProjectWorldToScreen(playerController, actor.transform.location, &screenPosition))
 				{
 					bool isValid = Unreal::Actor::IsValid(actor.reference);
 
@@ -3023,7 +3023,22 @@ bool Features::FreeCamera::Enable()
 		Unreal::Transform playerCameraTransform = Unreal::Actor::GetTransform(playerCameraManager);
 
 		Features::FreeCamera::cameraReference->SetActorEnableCollision(false);
-		Features::FreeCamera::cameraReference->FOVAngle = 83.0f;
+
+		float playerCameraFOV = 83.0f;
+		Unreal::PlayerCameraManager::GetFOV(playerCameraManager, &playerCameraFOV);
+		Features::FreeCamera::cameraReference->FOVAngle = playerCameraFOV;
+
+		float playerCameraAspectRatio;
+		if (Unreal::PlayerCameraManager::GetAspectRatio(playerCameraManager, &playerCameraAspectRatio))
+		{
+			Features::FreeCamera::cameraReference->AspectRatio = playerCameraAspectRatio;
+		}
+
+		bool playerCameraConstrainAspectRatio;
+		if (Unreal::PlayerCameraManager::GetConstrainAspectRatio(playerCameraManager, &playerCameraConstrainAspectRatio))
+		{
+			Features::FreeCamera::cameraReference->bConstrainAspectRatio = playerCameraConstrainAspectRatio;
+		}
 
 		Unreal::Actor::TeleportTo(Features::FreeCamera::cameraReference, playerCameraTransform.location, playerCameraTransform.rotation);
 	}
@@ -3376,12 +3391,11 @@ void BackgroundTasks::KeybindingsHandler::Worker()
 
 						if (mouseControlExpected)
 						{
-							int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-							int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+							SDK::FVector2D screenSize = Math::GetScreenSize();
 
 							POINT screenCenter;
-							screenCenter.x = screenWidth / 2;
-							screenCenter.y = screenHeight / 2;
+							screenCenter.x = screenSize.X / 2;
+							screenCenter.y = screenSize.Y / 2;
 
 							if (wasMouseControlActive == false)
 							{
@@ -3923,9 +3937,9 @@ void Inputs::Config::Save()
 // |        #DebugDraw			|
 // ==============================
 #ifdef COLLISION_VISUALIZER
-void DebugDraw::DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, const uint32_t& drawColor, const float drawThickness)
+void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal::Transform& componentTransform, uint32_t drawColor, float drawThickness)
 {
-	if (bodySetup == nullptr)
+	if (convexElement == nullptr)
 		return;
 
 	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
@@ -3936,56 +3950,159 @@ void DebugDraw::DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transfor
 	if (drawList == nullptr)
 		return;
 
-	for (SDK::FKConvexElem& convexElement : bodySetup->AggGeom.ConvexElems)
+	SDK::TArray<SDK::FVector>& vertexData = convexElement->VertexData;
+	size_t vertexCount = vertexData.Num();
+
+	if (vertexCount == 0)
+		return;
+
+	/* Check if indices for this element are already computed and cached. */
+	if (convexIndicesCache.find(convexElement) == convexIndicesCache.end())
 	{
-		const SDK::TArray<SDK::FVector>& vertexData = convexElement.VertexData;
-		const size_t vertexDataLength = vertexData.Num();
-		if (vertexDataLength == 0)
-			continue;
+		std::vector<int32_t> indices;
 
-		const SDK::TArray<int32_t>& indexData = convexElement.IndexData;
-		const size_t indexDataLength = indexData.Num();
-		if (indexDataLength < 3 || indexDataLength % 3 != 0)
-			continue;
+		/*
+			IndexData isn't present in older versions of the Engine (e.g. 4.22.3). Use following code:
+			SDK::TArray<int32_t> indexData;
+		*/
+		SDK::TArray<int32_t>& indexData = convexElement->IndexData;
+		size_t indexCount = indexData.Num();
 
-		for (int32_t i = 0; i + 2 < indexDataLength; i += 3)
+		/* If Engine provides valid indices, copy them to our cache. */
+		if (indexCount > 3 && indexCount % 3 == 0)
 		{
-			int32_t A_Index = indexData[i];
-			int32_t B_Index = indexData[i + 1];
-			int32_t C_Index = indexData[i + 2];
-
-			if (A_Index < 0 || A_Index >= vertexDataLength ||
-				B_Index < 0 || B_Index >= vertexDataLength ||
-				C_Index < 0 || C_Index >= vertexDataLength)
-				continue;
-
-			if (A_Index == B_Index || B_Index == C_Index || C_Index == A_Index)
-				continue;
-
-			SDK::FVector A_Local = vertexData[A_Index];
-			SDK::FVector B_Local = vertexData[B_Index];
-			SDK::FVector C_Local = vertexData[C_Index];
-
-			SDK::FVector A_World = Math::Vector_LocalToWorld(componentTransform, A_Local);
-			SDK::FVector B_World = Math::Vector_LocalToWorld(componentTransform, B_Local);
-			SDK::FVector C_World = Math::Vector_LocalToWorld(componentTransform, C_Local);
-
-			SDK::FVector2D A_Screen, B_Screen, C_Screen;
-			bool A_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, A_World, &A_Screen, false);
-			bool B_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, B_World, &B_Screen, false);
-			bool C_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, C_World, &C_Screen, false);
-
-			if (A_Project && B_Project && C_Project)
+			indices.reserve(indexCount);
+			for (int32_t i = 0; i < indexCount; ++i)
 			{
-				drawList->AddLine(ImVec2(A_Screen.X, A_Screen.Y), ImVec2(B_Screen.X, B_Screen.Y), drawColor, drawThickness);
-				drawList->AddLine(ImVec2(B_Screen.X, B_Screen.Y), ImVec2(C_Screen.X, C_Screen.Y), drawColor, drawThickness);
-				drawList->AddLine(ImVec2(C_Screen.X, C_Screen.Y), ImVec2(A_Screen.X, A_Screen.Y), drawColor, drawThickness);
+				indices.push_back(indexData[i]);
 			}
+		}
+		else if (vertexCount >= 4)
+		{
+			for (size_t A = 0; A < vertexCount; ++A)
+			{
+				for (size_t B = A + 1; B < vertexCount; ++B)
+				{
+					for (size_t C = B + 1; C < vertexCount; ++C)
+					{
+						SDK::FVector vA = vertexData[A];
+						SDK::FVector vB = vertexData[B];
+						SDK::FVector vC = vertexData[C];
+
+						/* Calculate edge vectors. */
+						SDK::FVector edge1 = Math::Vector_Subtract(vB, vA);
+						SDK::FVector edge2 = Math::Vector_Subtract(vC, vA);
+
+						/* Compute cross product to get the normal of the plane. */
+						SDK::FVector normal = Math::Vector_Cross(edge1, edge2);
+
+						/* Skip if points are collinear (normal is zero). */
+						if (normal.X == 0.0f && normal.Y == 0.0f && normal.Z == 0.0f)
+							continue;
+
+						bool hasPositive = false;
+						bool hasNegative = false;
+
+						/* Check which side of the plane (A, B, C) the remaining vertices lie on. */
+						for (size_t testIndex = 0; testIndex < vertexCount; ++testIndex)
+						{
+							/* Skip the vertices that form the plane itself. */
+							if (testIndex == A || testIndex == B || testIndex == C)
+								continue;
+
+							SDK::FVector currentPoint = vertexData[testIndex];
+							SDK::FVector toPoint = Math::Vector_Subtract(currentPoint, vA);
+
+							/* Compute dot product using custom Math function. */
+							float dot = Math::Vector_Dot(normal, toPoint);
+
+							/* Use a small tolerance for floating-point inaccuracies. */
+							if (dot > 0.01f)
+							{
+								hasPositive = true;
+							}
+							else if (dot < -0.01f)
+							{
+								hasNegative = true;
+							}
+
+							/* If points exist on both sides, this is an internal triangle. */
+							if (hasPositive == true && hasNegative == true)
+							{
+								break;
+							}
+						}
+
+						/* If all other vertices are strictly on one side, we found an external face. */
+						if (hasPositive == false || hasNegative == false)
+						{
+							indices.push_back(static_cast<int32_t>(A));
+							indices.push_back(static_cast<int32_t>(B));
+							indices.push_back(static_cast<int32_t>(C));
+						}
+					}
+				}
+			}
+		}
+
+		convexIndicesCache.emplace(convexElement, indices);
+	}
+
+	std::vector<int32_t>& indicesToDraw = convexIndicesCache[convexElement];
+	size_t indexCount = indicesToDraw.size();
+
+	if (indexCount < 3 || indexCount % 3 != 0)
+		return;
+
+	for (size_t i = 0; i + 2 < indexCount; i += 3)
+	{
+		int32_t A_Index = indicesToDraw[i];
+		int32_t B_Index = indicesToDraw[i + 1];
+		int32_t C_Index = indicesToDraw[i + 2];
+
+		if (A_Index < 0 || A_Index >= vertexCount ||
+			B_Index < 0 || B_Index >= vertexCount ||
+			C_Index < 0 || C_Index >= vertexCount)
+			continue;
+
+		if (A_Index == B_Index || B_Index == C_Index || C_Index == A_Index)
+			continue;
+
+		SDK::FVector A_Local = vertexData[A_Index];
+		SDK::FVector B_Local = vertexData[B_Index];
+		SDK::FVector C_Local = vertexData[C_Index];
+
+		SDK::FVector A_World = Math::Vector_LocalToWorld(componentTransform, A_Local);
+		SDK::FVector B_World = Math::Vector_LocalToWorld(componentTransform, B_Local);
+		SDK::FVector C_World = Math::Vector_LocalToWorld(componentTransform, C_Local);
+
+		SDK::FVector2D A_Screen, B_Screen, C_Screen;
+		bool A_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, A_World, &A_Screen);
+		bool B_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, B_World, &B_Screen);
+		bool C_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, C_World, &C_Screen);
+
+		if (A_Project && B_Project && C_Project)
+		{
+			drawList->AddLine(ImVec2(A_Screen.X, A_Screen.Y), ImVec2(B_Screen.X, B_Screen.Y), drawColor, drawThickness);
+			drawList->AddLine(ImVec2(B_Screen.X, B_Screen.Y), ImVec2(C_Screen.X, C_Screen.Y), drawColor, drawThickness);
+			drawList->AddLine(ImVec2(C_Screen.X, C_Screen.Y), ImVec2(A_Screen.X, A_Screen.Y), drawColor, drawThickness);
 		}
 	}
 }
 
-void DebugDraw::DrawVolume(SDK::AVolume* volume, const uint32_t& drawColor, const float drawThickness)
+
+void DebugDraw::DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, uint32_t drawColor, const float drawThickness)
+{
+	if (bodySetup == nullptr)
+		return;
+
+	for (SDK::FKConvexElem& convexElement : bodySetup->AggGeom.ConvexElems)
+	{
+		DrawConvexElement(&convexElement, componentTransform, drawColor, drawThickness);
+	}
+}
+
+void DebugDraw::DrawVolume(SDK::AVolume* volume, uint32_t drawColor, const float drawThickness)
 {
 	if (volume == nullptr)
 		return;
@@ -4006,7 +4123,7 @@ void DebugDraw::DrawVolume(SDK::AVolume* volume, const uint32_t& drawColor, cons
 
 
 
-void DebugDraw::DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, const uint32_t& drawColor, const float drawThickness)
+void DebugDraw::DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, uint32_t drawColor, const float drawThickness)
 {
 	if (staticMeshComponent == nullptr)
 		return;
@@ -4024,7 +4141,7 @@ void DebugDraw::DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshCom
 	DrawBodySetup(bodySetup, componentTransform, drawColor, drawThickness);
 }
 
-void DebugDraw::DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, const uint32_t& drawColor, const float drawThickness)
+void DebugDraw::DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, uint32_t drawColor, const float drawThickness)
 {
 	if (instancedStaticMeshComponent == nullptr)
 		return;
@@ -4045,7 +4162,7 @@ void DebugDraw::DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshCompon
 
 
 
-void DebugDraw::DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets, const uint32_t& drawColor, const float drawThickness)
+void DebugDraw::DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets, uint32_t drawColor, const float drawThickness)
 {
 	if (skeletalMeshComponent == nullptr)
 		return;
@@ -4108,7 +4225,7 @@ void DebugDraw::DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalM
 		SDK::FVector socket_World = skeletalMeshComponent->GetSocketLocation(socketName);
 
 		SDK::FVector2D socket_Screen;
-		if (SDK::UGameplayStatics::ProjectWorldToScreen(playerController, socket_World, &socket_Screen, false))
+		if (Unreal::PlayerController::ProjectWorldToScreen(playerController, socket_World, &socket_Screen))
 		{
 			drawList->AddCircleFilled(ImVec2(socket_Screen.X, socket_Screen.Y), drawThickness * 2, drawColor);
 		}
@@ -4118,7 +4235,7 @@ void DebugDraw::DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalM
 
 
 
-void DebugDraw::DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, const uint32_t& drawColor, const float drawThickness)
+void DebugDraw::DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, uint32_t drawColor, const float drawThickness)
 {
 	if (capsuleComponent == nullptr)
 		return;
@@ -4152,8 +4269,8 @@ void DebugDraw::DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, c
 
 	/* Project tips to optionally use for hemisphere polylines. */
 	SDK::FVector2D capsuleTopTip_Screen, capsuleBottomTip_Screen;
-	bool capsuleTopTip_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, capsuleTopTip, &capsuleTopTip_Screen, false);
-	bool capsuleBottomTip_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, capsuleBottomTip, &capsuleBottomTip_Screen, false);
+	bool capsuleTopTip_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, capsuleTopTip, &capsuleTopTip_Screen);
+	bool capsuleBottomTip_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, capsuleBottomTip, &capsuleBottomTip_Screen);
 
 	static int32_t capsuleSegments = 24;
 	static int32_t hemisphereSegments = 6; // Number of segments from tip to seam to approximate the spherical rounding.
@@ -4181,10 +4298,10 @@ void DebugDraw::DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, c
 		SDK::FVector ringB_Bottom = sphereBottomCenter + unitDirectionB * capsuleRadius;
 
 		SDK::FVector2D ringA_Top_Screen, ringB_Top_Screen, ringA_Bottom_Screen, ringB_Bottom_Screen;
-		bool ringA_Top_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, ringA_Top, &ringA_Top_Screen, false);
-		bool ringB_Top_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, ringB_Top, &ringB_Top_Screen, false);
-		bool ringA_Bottom_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, ringA_Bottom, &ringA_Bottom_Screen, false);
-		bool ringB_Bottom_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, ringB_Bottom, &ringB_Bottom_Screen, false);
+		bool ringA_Top_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, ringA_Top, &ringA_Top_Screen);
+		bool ringB_Top_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, ringB_Top, &ringB_Top_Screen);
+		bool ringA_Bottom_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, ringA_Bottom, &ringA_Bottom_Screen);
+		bool ringB_Bottom_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, ringB_Bottom, &ringB_Bottom_Screen);
 
 		/* Outlines the top seam ring. */
 		if (ringA_Top_Project && ringB_Top_Project)
@@ -4216,10 +4333,10 @@ void DebugDraw::DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, c
 			SDK::FVector pointB_Bottom = sphereBottomCenter + (unitDirectionA * sinf(phi1) - capsuleUpVector * cosf(phi1)) * capsuleRadius;
 
 			SDK::FVector2D PointA_Top_Screen, PointB_Top_Screen, PointA_Bottom_Screen, PointB_Bottom_Screen;
-			bool pointA_Top_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointA_Top, &PointA_Top_Screen, false);
-			bool pointB_Top_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointB_Top, &PointB_Top_Screen, false);
-			bool pointA_Bottom_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointA_Bottom, &PointA_Bottom_Screen, false);
-			bool pointB_Bottom_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointB_Bottom, &PointB_Bottom_Screen, false);
+			bool pointA_Top_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA_Top, &PointA_Top_Screen);
+			bool pointB_Top_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB_Top, &PointB_Top_Screen);
+			bool pointA_Bottom_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA_Bottom, &PointA_Bottom_Screen);
+			bool pointB_Bottom_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB_Bottom, &PointB_Bottom_Screen);
 
 			if (pointA_Top_Project && pointB_Top_Project)
 				drawList->AddLine(ImVec2(PointA_Top_Screen.X, PointA_Top_Screen.Y), ImVec2(PointB_Top_Screen.X, PointB_Top_Screen.Y), drawColor, drawThickness);
@@ -4231,7 +4348,7 @@ void DebugDraw::DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, c
 }
 
 
-void DebugDraw::DrawSphereComponent(SDK::USphereComponent* sphereComponent, const uint32_t& drawColor, const float drawThickness)
+void DebugDraw::DrawSphereComponent(SDK::USphereComponent* sphereComponent, uint32_t drawColor, const float drawThickness)
 {
 	if (sphereComponent == nullptr)
 		return;
@@ -4280,8 +4397,8 @@ void DebugDraw::DrawSphereComponent(SDK::USphereComponent* sphereComponent, cons
 
 			/* Project and draw segment if visible. */
 			SDK::FVector2D pointA_Screen, pointB_Screen;
-			bool pointA_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointA, &pointA_Screen, false);
-			bool pointB_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointB, &pointB_Screen, false);
+			bool pointA_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA, &pointA_Screen);
+			bool pointB_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB, &pointB_Screen);
 
 			if (pointA_Project && pointB_Project)
 				drawList->AddLine(ImVec2(pointA_Screen.X, pointA_Screen.Y), ImVec2(pointB_Screen.X, pointB_Screen.Y), drawColor, drawThickness);
@@ -4313,8 +4430,8 @@ void DebugDraw::DrawSphereComponent(SDK::USphereComponent* sphereComponent, cons
 
 			/* Project and draw segment if visible. */
 			SDK::FVector2D pointA_Screen, pointB_Screen;
-			bool pointA_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointA, &pointA_Screen, false);
-			bool pointB_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointB, &pointB_Screen, false);
+			bool pointA_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA, &pointA_Screen);
+			bool pointB_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB, &pointB_Screen);
 
 			if (pointA_Project && pointB_Project)
 				drawList->AddLine(ImVec2(pointA_Screen.X, pointA_Screen.Y), ImVec2(pointB_Screen.X, pointB_Screen.Y), drawColor, drawThickness);
@@ -4322,7 +4439,7 @@ void DebugDraw::DrawSphereComponent(SDK::USphereComponent* sphereComponent, cons
 	}
 }
 
-void DebugDraw::DrawBoxComponent(SDK::UBoxComponent* boxComponent, const uint32_t& drawColor, const float drawThickness)
+void DebugDraw::DrawBoxComponent(SDK::UBoxComponent* boxComponent, uint32_t drawColor, const float drawThickness)
 {
 	if (boxComponent == nullptr)
 		return;
@@ -4365,7 +4482,7 @@ void DebugDraw::DrawBoxComponent(SDK::UBoxComponent* boxComponent, const uint32_
 	SDK::FVector2D boxCorners_Screen[8];
 	bool boxCorners_Project[8];
 	for (int32_t i = 0; i < 8; ++i)
-		boxCorners_Project[i] = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, boxCorners_Location[i], &boxCorners_Screen[i], false);
+		boxCorners_Project[i] = Unreal::PlayerController::ProjectWorldToScreen(playerController, boxCorners_Location[i], &boxCorners_Screen[i]);
 
 	/* Box edges as index pairs (12 edges). */
 	static int32_t boxEdges[12][2] = {
@@ -4389,7 +4506,7 @@ void DebugDraw::DrawBoxComponent(SDK::UBoxComponent* boxComponent, const uint32_
 	}
 }
 
-void DebugDraw::DrawSplineComponent(SDK::USplineComponent* splineComponent, const uint32_t& drawColor, const float drawThickness)
+void DebugDraw::DrawSplineComponent(SDK::USplineComponent* splineComponent, uint32_t drawColor, const float drawThickness)
 {
 	if (splineComponent == nullptr)
 		return;
@@ -4434,8 +4551,8 @@ void DebugDraw::DrawSplineComponent(SDK::USplineComponent* splineComponent, cons
 
 			/* Project and draw the segment if visible. */
 			SDK::FVector2D pointA_Screen, pointB_Screen;
-			bool pointA_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointA, &pointA_Screen, false);
-			bool pointB_Project = SDK::UGameplayStatics::ProjectWorldToScreen(playerController, pointB, &pointB_Screen, false);
+			bool pointA_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA, &pointA_Screen);
+			bool pointB_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB, &pointB_Screen);
 
 			if (pointA_Project && pointB_Project)
 				drawList->AddLine(ImVec2(pointA_Screen.X, pointA_Screen.Y), ImVec2(pointB_Screen.X, pointB_Screen.Y), drawColor, drawThickness);
@@ -7979,7 +8096,8 @@ void Templates::Menus::World::Draw()
 				{
 					bool isValid = Unreal::Object::IsValid(levelStreaming.reference);
 
-					bool shouldBeLoaded, shouldBeVisible = false;
+					bool shouldBeLoaded = false;
+					bool shouldBeVisible = false;
 					if (isValid)
 					{
 						shouldBeLoaded = levelStreaming.reference->bShouldBeLoaded;

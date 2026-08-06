@@ -595,6 +595,47 @@ bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, const std::wstring& 
 
 
 
+bool Unreal::PlayerCameraManager::GetFOV(SDK::APlayerCameraManager* playerCameraManagerReference, float* outFOV)
+{
+	if (playerCameraManagerReference == nullptr)
+		return false;
+
+	if (outFOV == nullptr)
+		return false;
+
+	*outFOV = playerCameraManagerReference->CameraCache.POV.FOV;
+	return true;
+}
+
+bool Unreal::PlayerCameraManager::GetAspectRatio(SDK::APlayerCameraManager* playerCameraManagerReference, float* outAspectRatio)
+{
+	if (playerCameraManagerReference == nullptr)
+		return false;
+
+	if (outAspectRatio == nullptr)
+		return false;
+
+	*outAspectRatio = playerCameraManagerReference->CameraCache.POV.AspectRatio;
+	return true;
+}
+
+bool Unreal::PlayerCameraManager::GetConstrainAspectRatio(SDK::APlayerCameraManager* playerCameraManagerReference, bool* outConstrainAspectRatio)
+{
+	if (playerCameraManagerReference == nullptr)
+		return false;
+
+	if (outConstrainAspectRatio == nullptr)
+		return false;
+
+	*outConstrainAspectRatio = playerCameraManagerReference->CameraCache.POV.bConstrainAspectRatio;
+	return true;
+}
+
+
+
+
+
+
 SDK::UCheatManager* Unreal::CheatManager::Get()
 {
 	SDK::APlayerController* playerController = PlayerController::Get();
@@ -809,6 +850,28 @@ bool Unreal::PlayerController::SetViewTarget(SDK::AActor* actorReference, SDK::E
 bool Unreal::PlayerController::SetViewTarget(SDK::AActor* actorReference)
 {
 	return SetViewTarget(actorReference, SDK::EViewTargetBlendFunction::VTBlend_Linear, 0.0f, 0.0f);
+}
+
+
+bool Unreal::PlayerController::ProjectWorldToScreen(SDK::APlayerController* playerControllerReference, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
+{
+	if (outScreenLocation == nullptr)
+		return false;
+
+	if (playerControllerReference == nullptr)
+		return false;
+
+	if (playerControllerReference->PlayerCameraManager == nullptr)
+		return false;
+
+	SDK::APlayerCameraManager* playerCameraManager = playerControllerReference->PlayerCameraManager;
+
+	Unreal::Transform cameraTransform = Unreal::Actor::GetTransform(playerCameraManager);
+
+	float cameraFOV = 83.0f;
+	PlayerCameraManager::GetFOV(playerCameraManager, &cameraFOV);
+
+	return Math::ProjectWorldToScreen(cameraTransform.location, cameraTransform.rotation, cameraFOV, worldLocation, outScreenLocation);
 }
 
 
