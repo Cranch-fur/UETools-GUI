@@ -311,18 +311,7 @@ SDK::FTransform Math::Unreal_ToFTransform(const Unreal::Transform& unrealTransfo
 
 
 
-SDK::FVector2D Math::GetScreenSize()
-{
-    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-
-    return SDK::FVector2D(screenWidth, screenHeight);
-}
-
-
-
-
-bool Math::ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& screenSize, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
+bool Math::ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& viewportSize, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
 {
     if (outScreenLocation == nullptr)
         return false;
@@ -345,23 +334,27 @@ bool Math::ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::F
     if (vTransformed.X <= 0.01f)
         return false;
 
-    float screenCenterX = screenSize.X / 2.0f;
-    float screenCenterY = screenSize.Y / 2.0f;
+    SDK::FVector2D viewportCenter =
+    {
+        viewportSize.X / 2.0f,
+        viewportSize.Y / 2.0f
+    };
 
     /* Convert FOV to radians and calculate projection math. */
     float fovRadians = fieldOfView * Math::PI / 360.0f;
-    float screenFOV = screenCenterX / std::tanf(fovRadians);
+    float screenFOV = viewportCenter.X / std::tanf(fovRadians);
 
     /* Project to screen coordinates. */
-    outScreenLocation->X = screenCenterX + vTransformed.Y * (screenFOV / vTransformed.X);
-    outScreenLocation->Y = screenCenterY - vTransformed.Z * (screenFOV / vTransformed.X);
+    outScreenLocation->X = viewportCenter.X + vTransformed.Y * (screenFOV / vTransformed.X);
+    outScreenLocation->Y = viewportCenter.Y - vTransformed.Z * (screenFOV / vTransformed.X);
 
     return true;
 }
 
 bool Math::ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
 {
-    return ProjectWorldToScreen(cameraLocation, cameraRotation, fieldOfView, Math::GetScreenSize(), worldLocation, outScreenLocation);
+    POINT viewportSize = Utilities::Viewport::GetWindowSize();
+    return ProjectWorldToScreen(cameraLocation, cameraRotation, fieldOfView, { static_cast<float>(viewportSize.x), static_cast<float>(viewportSize.y) }, worldLocation, outScreenLocation);
 }
 
 

@@ -574,6 +574,30 @@ void Utilities::Console::Encoding437()
 
 
 
+POINT Utilities::Viewport::GetScreenSize()
+{
+    int32_t screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    int32_t screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+    return { screenWidth, screenHeight };
+}
+
+POINT Utilities::Viewport::GetWindowSize()
+{
+    HWND hwnd = GetActiveWindow();
+    if (hwnd)
+    {
+        RECT clientRect;
+        if (GetClientRect(hwnd, &clientRect))
+            return { clientRect.right - clientRect.left, clientRect.bottom - clientRect.top };
+    }
+
+    return GetScreenSize();
+}
+
+
+
+
 std::string Utilities::CommandLine::Get()
 {
     if (LPSTR cmdLine = GetCommandLineA())

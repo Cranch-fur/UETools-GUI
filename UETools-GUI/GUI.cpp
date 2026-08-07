@@ -3284,10 +3284,6 @@ void BackgroundTasks::KeybindingsHandler::Worker()
 					else
 					{
 						Features::ActorsList::Update();
-
-						if (Features::ActorsList::filterDistance == 0.0f)
-							Features::ActorsList::filterDistance = 20.0f;
-
 						Features::ActorsList::Filter();
 
 						Features::CollisionVisualizer::enabled = true;
@@ -3391,11 +3387,12 @@ void BackgroundTasks::KeybindingsHandler::Worker()
 
 						if (mouseControlExpected)
 						{
-							SDK::FVector2D screenSize = Math::GetScreenSize();
-
-							POINT screenCenter;
-							screenCenter.x = screenSize.X / 2;
-							screenCenter.y = screenSize.Y / 2;
+							POINT screenSize = Utilities::Viewport::GetScreenSize();
+							POINT screenCenter = 
+							{ 
+								screenSize.x / 2, 
+								screenSize.y / 2 
+							};
 
 							if (wasMouseControlActive == false)
 							{
@@ -3406,8 +3403,11 @@ void BackgroundTasks::KeybindingsHandler::Worker()
 								POINT currentMousePos;
 								if (GetCursorPos(&currentMousePos))
 								{
-									float mouseDeltaX = static_cast<float>(currentMousePos.x - screenCenter.x);
-									float mouseDeltaY = static_cast<float>(currentMousePos.y - screenCenter.y);
+									SDK::FVector2D mouseDelta =
+									{
+										static_cast<float>(currentMousePos.x - screenCenter.x),
+										static_cast<float>(currentMousePos.y - screenCenter.y)
+									};
 
 									/*
 										Some users have reported erratic mouse behavior
@@ -3416,19 +3416,19 @@ void BackgroundTasks::KeybindingsHandler::Worker()
 										While the exact cause of this inconsistency is unknown,
 										following code tries to resolve the issue.
 									*/
-									if (Features::FreeCamera::mouseControlLimitMaximumDelta && (std::abs(mouseDeltaX) > Features::FreeCamera::mouseControlMaximumDelta || std::abs(mouseDeltaY) > Features::FreeCamera::mouseControlMaximumDelta))
+									if (Features::FreeCamera::mouseControlLimitMaximumDelta && (std::abs(mouseDelta.X) > Features::FreeCamera::mouseControlMaximumDelta || std::abs(mouseDelta.Y) > Features::FreeCamera::mouseControlMaximumDelta))
 									{
 										SetCursorPos(screenCenter.x, screenCenter.y);
 									}
-									else if (mouseDeltaX != 0.0f || mouseDeltaY != 0.0f)
+									else if (mouseDelta.X != 0.0f || mouseDelta.Y != 0.0f)
 									{
 										/* X -> Yaw (horizontal). */
-										float horizontalStep = mouseDeltaX * Features::FreeCamera::mouseControlSensitivity;
+										float horizontalStep = mouseDelta.X * Features::FreeCamera::mouseControlSensitivity;
 										if (Features::FreeCamera::mouseControlXInverted)
 											horizontalStep *= -1.0f;
 
 										/* Y -> Pitch (vertical). */
-										float verticalStep = mouseDeltaY * Features::FreeCamera::mouseControlSensitivity;
+										float verticalStep = mouseDelta.Y * Features::FreeCamera::mouseControlSensitivity;
 										if (Features::FreeCamera::mouseControlYInverted)
 											verticalStep *= -1.0f;
 
@@ -3951,13 +3951,14 @@ void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal
 		return;
 
 	SDK::TArray<SDK::FVector>& vertexData = convexElement->VertexData;
-	size_t vertexCount = vertexData.Num();
+	int32_t vertexCount = vertexData.Num();
 
 	if (vertexCount == 0)
 		return;
 
 	/* Check if indices for this element are already computed and cached. */
-	if (convexIndicesCache.find(convexElement) == convexIndicesCache.end())
+	auto cacheIterator = convexIndicesCache.find(convexElement);
+	if (cacheIterator == convexIndicesCache.end())
 	{
 		std::vector<int32_t> indices;
 
@@ -3966,7 +3967,7 @@ void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal
 			SDK::TArray<int32_t> indexData;
 		*/
 		SDK::TArray<int32_t>& indexData = convexElement->IndexData;
-		size_t indexCount = indexData.Num();
+		int32_t indexCount = indexData.Num();
 
 		/* If Engine provides valid indices, copy them to our cache. */
 		if (indexCount > 3 && indexCount % 3 == 0)
@@ -3979,11 +3980,11 @@ void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal
 		}
 		else if (vertexCount >= 4)
 		{
-			for (size_t A = 0; A < vertexCount; ++A)
+			for (int32_t A = 0; A < vertexCount; ++A)
 			{
-				for (size_t B = A + 1; B < vertexCount; ++B)
+				for (int32_t B = A + 1; B < vertexCount; ++B)
 				{
-					for (size_t C = B + 1; C < vertexCount; ++C)
+					for (int32_t C = B + 1; C < vertexCount; ++C)
 					{
 						SDK::FVector vA = vertexData[A];
 						SDK::FVector vB = vertexData[B];
@@ -4004,7 +4005,7 @@ void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal
 						bool hasNegative = false;
 
 						/* Check which side of the plane (A, B, C) the remaining vertices lie on. */
-						for (size_t testIndex = 0; testIndex < vertexCount; ++testIndex)
+						for (int32_t testIndex = 0; testIndex < vertexCount; ++testIndex)
 						{
 							/* Skip the vertices that form the plane itself. */
 							if (testIndex == A || testIndex == B || testIndex == C)
@@ -4045,21 +4046,32 @@ void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal
 			}
 		}
 
-		convexIndicesCache.emplace(convexElement, indices);
+		/* Cache generated indices and reuse the iterator to skip redundant map lookups. */
+		cacheIterator = convexIndicesCache.emplace(convexElement, std::move(indices)).first;
 	}
 
-	std::vector<int32_t>& indicesToDraw = convexIndicesCache[convexElement];
+	std::vector<int32_t>& indicesToDraw = cacheIterator->second;
 	size_t indexCount = indicesToDraw.size();
 
 	if (indexCount < 3 || indexCount % 3 != 0)
 		return;
 
-	for (size_t i = 0; i + 2 < indexCount; i += 3)
+	/* Batch project all unique vertices to avoid converting identical shared points multiple times.*/
+	std::vector<SDK::FVector2D> projectedVertices(vertexCount);
+	std::vector<bool> isProjected(vertexCount);
+	for (size_t i = 0; i < vertexCount; ++i)
+	{
+		SDK::FVector worldPos = Math::Vector_LocalToWorld(componentTransform, vertexData[i]);
+		isProjected[i] = Unreal::PlayerController::ProjectWorldToScreen(playerController, worldPos, &projectedVertices[i]);
+	}
+
+	for (int32_t i = 0; i + 2 < indexCount; i += 3)
 	{
 		int32_t A_Index = indicesToDraw[i];
 		int32_t B_Index = indicesToDraw[i + 1];
 		int32_t C_Index = indicesToDraw[i + 2];
 
+		/* Ensure referenced triangle indices remain strictly within known boundaries. */
 		if (A_Index < 0 || A_Index >= vertexCount ||
 			B_Index < 0 || B_Index >= vertexCount ||
 			C_Index < 0 || C_Index >= vertexCount)
@@ -4072,20 +4084,16 @@ void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal
 		SDK::FVector B_Local = vertexData[B_Index];
 		SDK::FVector C_Local = vertexData[C_Index];
 
-		SDK::FVector A_World = Math::Vector_LocalToWorld(componentTransform, A_Local);
-		SDK::FVector B_World = Math::Vector_LocalToWorld(componentTransform, B_Local);
-		SDK::FVector C_World = Math::Vector_LocalToWorld(componentTransform, C_Local);
-
-		SDK::FVector2D A_Screen, B_Screen, C_Screen;
-		bool A_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, A_World, &A_Screen);
-		bool B_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, B_World, &B_Screen);
-		bool C_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, C_World, &C_Screen);
-
-		if (A_Project && B_Project && C_Project)
+		/* Utilize pre-calculated screen coordinates if all components are visible. */
+		if (isProjected[A_Index] && isProjected[B_Index] && isProjected[C_Index])
 		{
-			drawList->AddLine(ImVec2(A_Screen.X, A_Screen.Y), ImVec2(B_Screen.X, B_Screen.Y), drawColor, drawThickness);
-			drawList->AddLine(ImVec2(B_Screen.X, B_Screen.Y), ImVec2(C_Screen.X, C_Screen.Y), drawColor, drawThickness);
-			drawList->AddLine(ImVec2(C_Screen.X, C_Screen.Y), ImVec2(A_Screen.X, A_Screen.Y), drawColor, drawThickness);
+			ImVec2 A_Screen(projectedVertices[A_Index].X, projectedVertices[A_Index].Y);
+			ImVec2 B_Screen(projectedVertices[B_Index].X, projectedVertices[B_Index].Y);
+			ImVec2 C_Screen(projectedVertices[C_Index].X, projectedVertices[C_Index].Y);
+
+			drawList->AddLine(A_Screen, B_Screen, drawColor, drawThickness);
+			drawList->AddLine(B_Screen, C_Screen, drawColor, drawThickness);
+			drawList->AddLine(C_Screen, A_Screen, drawColor, drawThickness);
 		}
 	}
 }
@@ -5881,7 +5889,21 @@ void Templates::Menus::Debug::Sub_Actors()
 		}
 
 #ifdef COLLISION_VISUALIZER
+		bool isUnlimitedFilterDistance = Features::ActorsList::filterDistance == 0.0f;
+		if (isUnlimitedFilterDistance)
+		{
+			ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImGui::Color::Red);
+		}
 		ImGui::Checkbox("Draw Collision##Actors", &Features::CollisionVisualizer::enabled);
+		if (isUnlimitedFilterDistance)
+		{
+			ImGui::PopStyleColor();
+
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("This function is highly resource-intensive, so it's recommended to set a distance filter.");
+			}
+		}
 		ImGui::SameLine();
 		if (ImGui::Button("*##CollisionVisualizer"))
 		{

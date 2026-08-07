@@ -135,6 +135,16 @@ namespace Utilities
 
 
 
+	class Viewport
+	{
+	public:
+		static POINT GetScreenSize();
+		static POINT GetWindowSize();
+	};
+
+
+
+
 	class CommandLine
 	{
 	public:

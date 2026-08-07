@@ -44,10 +44,7 @@ public:
 	static SDK::FTransform Unreal_ToFTransform(const Unreal::Transform& unrealTransform);
 
 
-	static SDK::FVector2D GetScreenSize();
-
-
-	static bool ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& screenSize, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation);
+	static bool ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& viewportSize, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation);
 	static bool ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation);
 
 
