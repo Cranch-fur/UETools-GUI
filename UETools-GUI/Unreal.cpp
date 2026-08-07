@@ -276,6 +276,12 @@ bool Unreal::Level::CreateLevelSequence(SDK::ULevelSequence* levelSequenceAsset,
 	SDK::FMovieSceneSequenceLoopCount sequenceLoopCount{ loopCount };
 	sequencePlaybackSettings.LoopCount = sequenceLoopCount;
 
+	/*
+		CreateLevelSequencePlayer() accepted less arguments in older versions of the Engine (e.g. 4.16.3). Use following code:
+		SDK::ULevelSequencePlayer* levelSequencePlayer = SDK::ULevelSequencePlayer::CreateLevelSequencePlayer(world, levelSequenceAsset, sequencePlaybackSettings);
+
+		Don't forget to remove levelSequenceActor declaration.
+	*/
 	SDK::ALevelSequenceActor* levelSequenceActor;
 	SDK::ULevelSequencePlayer* levelSequencePlayer = SDK::ULevelSequencePlayer::CreateLevelSequencePlayer(world, levelSequenceAsset, sequencePlaybackSettings, &levelSequenceActor);
 
@@ -469,6 +475,11 @@ bool Unreal::World::RemoveLevelStreamingAtIndex(int32_t index)
 
 bool Unreal::World::RemoveLevelStreamingByName(SDK::UWorld* worldReference, const std::string& levelStreamingName)
 {
+	/*
+		GetWorldAssetPackageFName() isn't present in older versions of the Engine (e.g. 4.16.3). There's no workaround, replace function code with following:
+		return false;
+	*/
+
 	if (worldReference == nullptr)
 		return false;
 
@@ -532,6 +543,10 @@ bool Unreal::Pawn::PlayAnimationMontage(SDK::APawn* pawnReference, SDK::UAnimMon
 	if (animationInstance == nullptr)
 		return false;
 
+	/*
+		Montage_Play() accepted less arguments in older versions of the Engine (e.g. 4.16.3). Use following code:
+		animationInstance->Montage_Play(animationMontageAsset, playRate, SDK::EMontagePlayReturnType::MontageLength, startAt);
+	*/
 	animationInstance->Montage_Play(animationMontageAsset, playRate, SDK::EMontagePlayReturnType::MontageLength, startAt, stopAllMontages);
 }
 

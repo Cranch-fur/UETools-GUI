@@ -10,9 +10,8 @@
 
 class FileInstance
 {
-protected:
+public:
     std::wstring _filePath;
-
 
     FileInstance(const std::string& filePath);
     FileInstance(const std::wstring& filePath);
@@ -31,6 +30,7 @@ protected:
     const bool Clear();
     const bool Destroy();
 
+protected:
     const std::wstring GetAbsolutePath();
     const bool EnsureDirectoryExists();
 };

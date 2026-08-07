@@ -2182,6 +2182,10 @@ Unreal::UserWidget::DataStructure Features::WidgetsList::GetWidgetData(SDK::UUse
 
 	widgetData.cachedGeometry = widgetReference->GetCachedGeometry();
 	widgetData.absolutePosition = SDK::USlateBlueprintLibrary::LocalToAbsolute(widgetData.cachedGeometry, { 0.0f, 0.0f });
+	/*
+		GetAbsoluteSize() isn't present in older versions of the Engine (e.g. 4.16.3). Use following code:
+		widgetData.absoluteSize = SDK::USlateBlueprintLibrary::GetLocalSize(widgetData.cachedGeometry);
+	*/
 	widgetData.absoluteSize = SDK::USlateBlueprintLibrary::GetAbsoluteSize(widgetData.cachedGeometry);
 	widgetData.isRendered = widgetData.absoluteSize.IsZero() == false;
 
@@ -2915,6 +2919,10 @@ Unreal::LevelStreaming::DataStructure Features::LevelStreaming::GetLevelStreamin
 #ifdef UE5
 	std::string levelPath = levelStreamingReference->WorldAsset.ObjectID.AssetPath.AssetName.GetRawString();
 #else
+	/*
+		AssetPathName.GetRawString() isn't present in older versions of the Engine (e.g. 4.16.3). Use following code:
+		std::string levelPath = levelStreamingReference->WorldAsset.ObjectID.AssetLongPathname.ToString();
+	*/
 	std::string levelPath = levelStreamingReference->WorldAsset.ObjectID.AssetPathName.GetRawString();
 #endif
 
@@ -6700,6 +6708,10 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 								RefreshLightComponent(lightComponent);
 							}
 
+							/*
+								SoftSourceRadius isn't member of UPointLightComponent in older versions of the Engine (e.g. 4.16.3).
+								Comment out or remove related code.
+							*/
 							ImGui::NewLine();
 
 							ImGui::Text("Soft Source Radius");
