@@ -760,7 +760,13 @@ SDK::FVector Unreal::PlayerController::GetLocation(SDK::APlayerController* playe
 	if (playerControllerReference->AcknowledgedPawn)
 		return Unreal::Actor::GetLocation(playerControllerReference->AcknowledgedPawn);
 	else if (playerControllerReference->PlayerCameraManager)
-		return Unreal::Actor::GetLocation(playerControllerReference->PlayerCameraManager);
+	{
+		SDK::FMinimalViewInfo cameraPOV;
+		if (PlayerCameraManager::GetPOV(playerControllerReference->PlayerCameraManager, &cameraPOV))
+			return cameraPOV.Location;
+		else
+			return Unreal::Actor::GetLocation(playerControllerReference->PlayerCameraManager);
+	}
 	else
 		return SDK::FVector();
 }
@@ -779,7 +785,13 @@ SDK::FRotator Unreal::PlayerController::GetRotation(SDK::APlayerController* play
 	if (playerControllerReference->AcknowledgedPawn)
 		return Unreal::Actor::GetRotation(playerControllerReference->AcknowledgedPawn);
 	else if (playerControllerReference->PlayerCameraManager)
-		return Unreal::Actor::GetRotation(playerControllerReference->PlayerCameraManager);
+	{
+		SDK::FMinimalViewInfo cameraPOV;
+		if (PlayerCameraManager::GetPOV(playerControllerReference->PlayerCameraManager, &cameraPOV))
+			return cameraPOV.Rotation;
+		else
+			return Unreal::Actor::GetRotation(playerControllerReference->PlayerCameraManager);
+	}
 	else
 		return SDK::FRotator();
 }
@@ -817,7 +829,24 @@ Unreal::Transform Unreal::PlayerController::GetTransform(SDK::APlayerController*
 	if (playerControllerReference->AcknowledgedPawn)
 		return Unreal::Actor::GetTransform(playerControllerReference->AcknowledgedPawn);
 	else if (playerControllerReference->PlayerCameraManager)
-		return Unreal::Actor::GetTransform(playerControllerReference->PlayerCameraManager);
+	{
+		Unreal::Transform outTransform;
+
+		SDK::FMinimalViewInfo cameraPOV;
+		if (PlayerCameraManager::GetPOV(playerControllerReference->PlayerCameraManager, &cameraPOV))
+		{
+			outTransform.location = cameraPOV.Location;
+			outTransform.rotation = cameraPOV.Rotation;
+		}
+		else
+		{
+			outTransform.location = Unreal::Actor::GetLocation(playerControllerReference->PlayerCameraManager);
+			outTransform.rotation = Unreal::Actor::GetRotation(playerControllerReference->PlayerCameraManager);
+		}
+
+		outTransform.scale = Unreal::Actor::GetScale3D(playerControllerReference->PlayerCameraManager);
+		return outTransform;
+	}
 	else
 		return Unreal::Transform();
 }

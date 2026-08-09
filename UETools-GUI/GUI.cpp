@@ -2538,8 +2538,12 @@ bool Features::ActorTrace::Trace()
 	if (playerController == nullptr || playerController->PlayerCameraManager == nullptr)
 		return false;
 
-	SDK::FVector cameraLocation = Unreal::Actor::GetLocation(playerController->PlayerCameraManager);
-	SDK::FVector cameraForwardVector = playerController->PlayerCameraManager->GetActorForwardVector();
+	SDK::FMinimalViewInfo cameraPOV;
+	if (Unreal::PlayerCameraManager::GetPOV(playerController->PlayerCameraManager, &cameraPOV) == false)
+		return false;
+
+	SDK::FVector cameraLocation = cameraPOV.Location;
+	SDK::FVector cameraForwardVector = Math::Rotator_ForwardVector(cameraPOV.Rotation);
 	SDK::FVector traceEndLocation = cameraLocation + (cameraForwardVector * Math::Metre_ToUnit(Features::ActorTrace::traceDistance));
 
 	SDK::TArray<SDK::AActor*> actorsToIgnore;
@@ -3540,141 +3544,74 @@ void BackgroundTasks::DirectionalMovementHandler::Worker()
 {
 	while (isEnabled)
 	{
-		bool allowMovement = Features::DirectionalMovement::enabled;
-
-		allowMovement = allowMovement && Features::FreeCamera::IsEnabled() == false;
-
-		if (allowMovement)
+		if (Features::DirectionalMovement::enabled && Features::FreeCamera::IsEnabled() == false)
 		{
 			__try
 			{
-				/* See if we have a Player Controller alongside the Camera Manager. */
 				SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-				if (playerController && playerController->PlayerCameraManager)
+				SDK::ACharacter* character = playerController ? playerController->Character : nullptr;
+
+				if (playerController && playerController->PlayerCameraManager &&
+					character && character->CharacterMovement && character->CharacterMovement->bCheatFlying)
 				{
-					/* See if we have a Character under control and verify that Character is cheat flying. */
-					SDK::ACharacter* character = playerController->Character;
-					if (character && character->CharacterMovement && character->CharacterMovement->bCheatFlying)
+					SDK::FMinimalViewInfo cameraPOV;
+					if (Unreal::PlayerCameraManager::GetPOV(playerController->PlayerCameraManager, &cameraPOV))
 					{
-						bool movementExpected = false;
-						SDK::FVector movementDirection = { 0.0f, 0.0f, 0.0f };
+						float fwdAxis = 0.0f;
+						float rightAxis = 0.0f;
+						float upAxis = 0.0f;
 
 						if (Features::DirectionalMovement::omniMovement && Features::DirectionalMovement::independentOmniMovement)
 						{
-							SDK::FVector cameraForwardVector = playerController->PlayerCameraManager->GetActorForwardVector();
-							SDK::FVector cameraRightVector = playerController->PlayerCameraManager->GetActorRightVector();
-							SDK::FVector characterUpVector = character->GetActorUpVector();
-
-							if (Features::DirectionalMovement::isUpMovementExpected)
-							{
-								movementExpected = true;
-								movementDirection = Math::Vector_Add(movementDirection, characterUpVector);
-							}
-
-							if (Features::DirectionalMovement::isDownMovementExpected)
-							{
-								movementExpected = true;
-								movementDirection = Math::Vector_Add(movementDirection, characterUpVector * -1.0f);
-							}
-
-							if (Features::DirectionalMovement::isForwardMovementExpected)
-							{
-								movementExpected = true;
-								movementDirection = Math::Vector_Add(movementDirection, cameraForwardVector);
-							}
-
-							if (Features::DirectionalMovement::isBackwardMovementExpected)
-							{
-								movementExpected = true;
-								movementDirection = Math::Vector_Add(movementDirection, cameraForwardVector * -1.0f);
-							}
-
-							if (Features::DirectionalMovement::isLeftMovementExpected)
-							{
-								movementExpected = true;
-								movementDirection = Math::Vector_Add(movementDirection, cameraRightVector * -1.0f);
-							}
-
-							if (Features::DirectionalMovement::isRightMovementExpected)
-							{
-								movementExpected = true;
-								movementDirection = Math::Vector_Add(movementDirection, cameraRightVector);
-							}
+							/* Convert boolean inputs to axis values (-1.0f to 1.0f). Opposing inputs automatically cancel out to 0.0f. */
+							fwdAxis = static_cast<float>(Features::DirectionalMovement::isForwardMovementExpected) - static_cast<float>(Features::DirectionalMovement::isBackwardMovementExpected);
+							rightAxis = static_cast<float>(Features::DirectionalMovement::isRightMovementExpected) - static_cast<float>(Features::DirectionalMovement::isLeftMovementExpected);
+							upAxis = static_cast<float>(Features::DirectionalMovement::isUpMovementExpected) - static_cast<float>(Features::DirectionalMovement::isDownMovementExpected);
 						}
 						else
 						{
-							/* Get Character velocity and see if we have any horizontal movement. */
 							SDK::FVector characterVelocity = character->CharacterMovement->Velocity;
-							bool hasHorizontalVelocity = (characterVelocity.X != 0.0 || characterVelocity.Y != 0.0);
+							bool hasHorizontalVelocity = (characterVelocity.X != 0.0f || characterVelocity.Y != 0.0f);
 
 							if (hasHorizontalVelocity || Features::DirectionalMovement::omniMovement)
 							{
-								/* Normalize Character velocity (-1.0 to 1.0) and get Camera forward vector. */
-								SDK::FVector characterVelocityNormalized = Math::Vector_Normal(characterVelocity);
-								SDK::FVector cameraForwardVector = playerController->PlayerCameraManager->GetActorForwardVector();
+								SDK::FVector velocityNorm = Math::Vector_Normal(characterVelocity);
+								SDK::FVector camFwd = Math::Rotator_ForwardVector(cameraPOV.Rotation);
+								double dotForward = Math::Vector_Dot(velocityNorm, camFwd);
 
-								/*
-									Compute the dot product of the normalized character velocity and the camera's forward vector.
-									Result interpretation:
-									  +1.0 -> character moves exactly forward,
-									  -1.0 -> character moves exactly backward,
-									   0.0 -> movement is perpendicular to the camera.
-								*/
-								double dotForward = Math::Vector_Dot(characterVelocityNormalized, cameraForwardVector);
-								if (dotForward > 0.5f) // Check if Ñharacter is attempting to move forward relative to the camera.
-								{
-									movementExpected = true;
-									movementDirection = cameraForwardVector;
-								}
+								/* Determine forward/backward direction based on current movement relative to the camera. */
+								if (dotForward > 0.5f) fwdAxis = 1.0f;
+								else if (Features::DirectionalMovement::omniMovement && dotForward < -0.5f) fwdAxis = -1.0f;
 
-								/* Handle multi-directional movement (Backward, Left, Right) if Omni-Movement is enabled. */
 								if (Features::DirectionalMovement::omniMovement)
 								{
-									if (movementExpected == false && dotForward < -0.5f) // Check for backward movement (dot product is negative) if not already moving forward.
-									{
-										movementExpected = true;
-										movementDirection = cameraForwardVector * -1.0f;
-									}
+									SDK::FVector camRight = Math::Rotator_RightVector(cameraPOV.Rotation);
+									double dotRight = Math::Vector_Dot(velocityNorm, camRight);
 
-									/* Retrieve the Camera right vector to calculate strafing. */
-									SDK::FVector cameraRightVector = playerController->PlayerCameraManager->GetActorRightVector();
-									double dotRight = Math::Vector_Dot(characterVelocityNormalized, cameraRightVector);
+									/* Determine strafing direction (left/right). */
+									if (dotRight > 0.5f) rightAxis = 1.0f;
+									else if (dotRight < -0.5f) rightAxis = -1.0f;
 
-									if (dotRight > 0.5f) // Check if Character is strafing right.
-									{
-										movementExpected = true;
-										movementDirection = Math::Vector_Add(movementDirection, cameraRightVector);
-									}
-									else if (dotRight < -0.5f) // Check if Character is strafing left
-									{
-										movementExpected = true;
-										movementDirection = Math::Vector_Add(movementDirection, cameraRightVector * -1.0f);
-									}
-
-									if (Features::DirectionalMovement::isUpMovementExpected || Features::DirectionalMovement::isDownMovementExpected)
-									{
-										SDK::FVector characterUpVector = character->GetActorUpVector();
-										if (Features::DirectionalMovement::isUpMovementExpected)
-										{
-											movementExpected = true;
-											movementDirection = Math::Vector_Add(movementDirection, characterUpVector);
-										}
-										else if (Features::DirectionalMovement::isDownMovementExpected)
-										{
-											movementExpected = true;
-											movementDirection = Math::Vector_Add(movementDirection, characterUpVector * -1.0f);
-										}
-									}
+									upAxis = static_cast<float>(Features::DirectionalMovement::isUpMovementExpected) - static_cast<float>(Features::DirectionalMovement::isDownMovementExpected);
 								}
 							}
 						}
 
-						if (movementExpected)
+						/* Apply movement only if there are active axis values. */
+						if (fwdAxis != 0.0f || rightAxis != 0.0f || upAxis != 0.0f)
 						{
-							/* Normalize the final accumulated direction vector to ensure consistent speed (account for forward/backward and strafing movement double speed). */
-							SDK::FVector finalDirection = Math::Vector_Normal(movementDirection);
+							SDK::FVector cameraForwardVector = Math::Rotator_ForwardVector(cameraPOV.Rotation);
+							SDK::FVector cameraRightVector = Math::Rotator_RightVector(cameraPOV.Rotation);
+							SDK::FVector characterUpVector = character->GetActorUpVector();
 
-							/* Calculate the target location based on the current location, direction, and step size. */
+							SDK::FVector movementDirection = { 0.0f, 0.0f, 0.0f };
+
+							/* Accumulate the final direction vector. Multiplying by zero safely ignores inactive directions. */
+							movementDirection = Math::Vector_Add(movementDirection, Math::Vector_Multiply(cameraForwardVector, fwdAxis));
+							movementDirection = Math::Vector_Add(movementDirection, Math::Vector_Multiply(cameraRightVector, rightAxis));
+							movementDirection = Math::Vector_Add(movementDirection, Math::Vector_Multiply(characterUpVector, upAxis));
+
+							SDK::FVector finalDirection = Math::Vector_Normal(movementDirection);
 							SDK::FVector currentLocation = Unreal::Actor::GetLocation(character);
 							SDK::FVector finalLocation = Math::Vector_Add(currentLocation, finalDirection * Features::DirectionalMovement::step);
 
