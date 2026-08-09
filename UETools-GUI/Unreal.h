@@ -547,9 +547,7 @@ namespace Unreal
 		};
 
 
-		static bool GetFOV(SDK::APlayerCameraManager* playerCameraManagerReference, float* outFOV);
-		static bool GetAspectRatio(SDK::APlayerCameraManager* playerCameraManagerReference, float* outAspectRatio);
-		static bool GetConstrainAspectRatio(SDK::APlayerCameraManager* playerCameraManagerReference, bool* outConstrainAspectRatio);
+		static bool GetPOV(SDK::APlayerCameraManager* playerCameraManagerReference, SDK::FMinimalViewInfo* outMinimalViewInfo);
 	};
 
 

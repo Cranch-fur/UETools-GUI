@@ -3023,32 +3023,25 @@ bool Features::FreeCamera::Enable()
 			return false;
 
 		Features::FreeCamera::cameraReference = static_cast<SDK::ACameraActor*>(actorReference);
+		Features::FreeCamera::cameraReference->SetActorEnableCollision(false);
 	}
 
 	if (playerController->PlayerCameraManager)
 	{
 		SDK::APlayerCameraManager* playerCameraManager = playerController->PlayerCameraManager;
-		Unreal::Transform playerCameraTransform = Unreal::Actor::GetTransform(playerCameraManager);
 
-		Features::FreeCamera::cameraReference->SetActorEnableCollision(false);
-
-		float playerCameraFOV = 83.0f;
-		Unreal::PlayerCameraManager::GetFOV(playerCameraManager, &playerCameraFOV);
-		Features::FreeCamera::cameraReference->FOVAngle = playerCameraFOV;
-
-		float playerCameraAspectRatio;
-		if (Unreal::PlayerCameraManager::GetAspectRatio(playerCameraManager, &playerCameraAspectRatio))
+		SDK::FMinimalViewInfo cameraPOV;
+		if (Unreal::PlayerCameraManager::GetPOV(playerCameraManager, &cameraPOV))
 		{
-			Features::FreeCamera::cameraReference->AspectRatio = playerCameraAspectRatio;
-		}
+			Unreal::Actor::TeleportTo(Features::FreeCamera::cameraReference, cameraPOV.Location, cameraPOV.Rotation);
 
-		bool playerCameraConstrainAspectRatio;
-		if (Unreal::PlayerCameraManager::GetConstrainAspectRatio(playerCameraManager, &playerCameraConstrainAspectRatio))
-		{
-			Features::FreeCamera::cameraReference->bConstrainAspectRatio = playerCameraConstrainAspectRatio;
+			if (SDK::UCameraComponent* cameraComponent = Features::FreeCamera::cameraReference->CameraComponent)
+			{
+				cameraComponent->FieldOfView = cameraPOV.FOV;
+				cameraComponent->AspectRatio = cameraPOV.AspectRatio;
+				cameraComponent->bConstrainAspectRatio = cameraPOV.bConstrainAspectRatio;
+			}
 		}
-
-		Unreal::Actor::TeleportTo(Features::FreeCamera::cameraReference, playerCameraTransform.location, playerCameraTransform.rotation);
 	}
 
 	/* Save current view target before attempting to switch. */
@@ -3094,7 +3087,7 @@ bool Features::FreeCamera::Disable()
 	if (playerController == nullptr)
 		return false;
 
-	if (Features::FreeCamera::lastViewTarget != nullptr)
+	if (Unreal::Actor::IsValid(Features::FreeCamera::lastViewTarget))
 	{
 		if (Features::FreeCamera::forceFreezePlayer)
 		{
@@ -3112,8 +3105,16 @@ bool Features::FreeCamera::Disable()
 
 		return true;
 	}
-	else if (playerController->Pawn != nullptr)
+	else if (Unreal::Actor::IsValid(playerController->Pawn))
 	{
+		Features::FreeCamera::lastViewTarget = nullptr;
+
+		if (Features::FreeCamera::forceDisablePlayerInput)
+		{
+			playerController->SetIgnoreMoveInput(Features::FreeCamera::wasMoveInputIgnored);
+			playerController->SetIgnoreLookInput(Features::FreeCamera::wasLookInputIgnored);
+		}
+
 		Unreal::PlayerController::SetViewTarget(playerController->Pawn);
 		return true;
 	}
@@ -4198,8 +4199,16 @@ void DebugDraw::DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalM
 		"clavicle", "joint"
 	};
 
-	std::vector<SDK::FName> socketNamesToDraw;
+	/* Local structure to cache projected screen coordinates and reduce redundant math. */
+	struct CachedBone
+	{
+		SDK::FName boneName;
+		ImVec2 screenPosition;
+	};
+
+	std::vector<CachedBone> validBones;
 	std::vector<SDK::FName> spottedBonesNames;
+
 	SDK::TArray<SDK::FName> socketNamesCollection = skeletalMeshComponent->GetAllSocketNames();
 	for (SDK::FName socketName : socketNamesCollection)
 	{
@@ -4209,41 +4218,67 @@ void DebugDraw::DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalM
 		for (SDK::FName spottedBoneName : spottedBonesNames)
 		{
 			if (boneName == spottedBoneName)
+			{
 				isUniqueBone = false;
+				break;
+			}
 		}
 
 		if (isUniqueBone == false)
 			continue;
 
-
 		if (drawAllSockets == false)
 		{
 			bool isCommonBone = false;
-			for (std::string commonBoneName : commonBoneNames)
+			std::string sBoneName = boneName.ToString();
+			std::string lowerBoneName = Utilities::String::ToLowerCase(sBoneName);
+
+			for (const std::string& cmnBoneName : commonBoneNames)
 			{
-				std::string sBoneName = boneName.ToString();
-				if (Utilities::String::ToLowerCase(sBoneName).find(commonBoneName) != std::string::npos)
+				if (lowerBoneName.find(cmnBoneName) != std::string::npos)
+				{
 					isCommonBone = true;
+					break;
+				}
 			}
 
 			if (isCommonBone == false)
 				continue;
 		}
 
-
 		spottedBonesNames.push_back(boneName);
-		socketNamesToDraw.push_back(socketName);
-	}
 
-	for (SDK::FName socketName : socketNamesToDraw)
-	{
 		/* GetSocketLocation() returns world location out of the box. */
 		SDK::FVector socket_World = skeletalMeshComponent->GetSocketLocation(socketName);
 
 		SDK::FVector2D socket_Screen;
 		if (Unreal::PlayerController::ProjectWorldToScreen(playerController, socket_World, &socket_Screen))
 		{
-			drawList->AddCircleFilled(ImVec2(socket_Screen.X, socket_Screen.Y), drawThickness * 2, drawColor);
+			CachedBone cachedBone;
+			cachedBone.boneName = boneName;
+			cachedBone.screenPosition = ImVec2(socket_Screen.X, socket_Screen.Y);
+
+			validBones.push_back(cachedBone);
+		}
+	}
+
+	/* Draw bones and connect them with lines to form a skeletal hierarchy. */
+	for (const CachedBone& bone : validBones)
+	{
+		/* Draw joint circle. */
+		drawList->AddCircleFilled(bone.screenPosition, drawThickness * 1.5f, drawColor);
+
+		/* Attempt to retrieve the parent bone and draw a connection line. */
+		SDK::FName parentBoneName = skeletalMeshComponent->GetParentBone(bone.boneName);
+
+		for (const CachedBone& potentialParent : validBones)
+		{
+			/* If parent bone is found among projected valid bones, connect them. */
+			if (potentialParent.boneName == parentBoneName)
+			{
+				drawList->AddLine(bone.screenPosition, potentialParent.screenPosition, drawColor, drawThickness);
+				break; /* Parent found and line drawn, no need to keep searching. */
+			}
 		}
 	}
 }

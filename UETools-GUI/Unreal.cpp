@@ -610,39 +610,19 @@ bool Unreal::Pawn::PlayAnimation(SDK::APawn* pawnReference, const std::wstring& 
 
 
 
-bool Unreal::PlayerCameraManager::GetFOV(SDK::APlayerCameraManager* playerCameraManagerReference, float* outFOV)
+bool Unreal::PlayerCameraManager::GetPOV(SDK::APlayerCameraManager* playerCameraManagerReference, SDK::FMinimalViewInfo* outMinimalViewInfo)
 {
 	if (playerCameraManagerReference == nullptr)
 		return false;
 
-	if (outFOV == nullptr)
+	if (outMinimalViewInfo == nullptr)
 		return false;
 
-	*outFOV = playerCameraManagerReference->CameraCache.POV.FOV;
-	return true;
-}
-
-bool Unreal::PlayerCameraManager::GetAspectRatio(SDK::APlayerCameraManager* playerCameraManagerReference, float* outAspectRatio)
-{
-	if (playerCameraManagerReference == nullptr)
-		return false;
-
-	if (outAspectRatio == nullptr)
-		return false;
-
-	*outAspectRatio = playerCameraManagerReference->CameraCache.POV.AspectRatio;
-	return true;
-}
-
-bool Unreal::PlayerCameraManager::GetConstrainAspectRatio(SDK::APlayerCameraManager* playerCameraManagerReference, bool* outConstrainAspectRatio)
-{
-	if (playerCameraManagerReference == nullptr)
-		return false;
-
-	if (outConstrainAspectRatio == nullptr)
-		return false;
-
-	*outConstrainAspectRatio = playerCameraManagerReference->CameraCache.POV.bConstrainAspectRatio;
+	/*
+		CameraCachePrivate isn't present in older versions of the Engine (e.g. 4.19.0). Use following code:
+		*outMinimalViewInfo = playerCameraManagerReference->CameraCache.POV;
+	*/
+	*outMinimalViewInfo = playerCameraManagerReference->CameraCachePrivate.POV;
 	return true;
 }
 
@@ -881,12 +861,11 @@ bool Unreal::PlayerController::ProjectWorldToScreen(SDK::APlayerController* play
 
 	SDK::APlayerCameraManager* playerCameraManager = playerControllerReference->PlayerCameraManager;
 
-	Unreal::Transform cameraTransform = Unreal::Actor::GetTransform(playerCameraManager);
+	SDK::FMinimalViewInfo cameraPOV;
+	if (PlayerCameraManager::GetPOV(playerCameraManager, &cameraPOV) == false)
+		return false;
 
-	float cameraFOV = 83.0f;
-	PlayerCameraManager::GetFOV(playerCameraManager, &cameraFOV);
-
-	return Math::ProjectWorldToScreen(cameraTransform.location, cameraTransform.rotation, cameraFOV, worldLocation, outScreenLocation);
+	return Math::ProjectWorldToScreen(cameraPOV.Location, cameraPOV.Rotation, cameraPOV.FOV, worldLocation, outScreenLocation);
 }
 
 
