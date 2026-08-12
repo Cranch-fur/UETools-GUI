@@ -257,24 +257,22 @@ void OpenWindow3::Create()
             break;
         }
 
+        if (hTargetWindow == nullptr)
+        {
+            continue;
+        }
+
         bool isMenuActive = GUI::GetIsMenuActive();
         static bool lastIsMenuActive = !isMenuActive;
 
         bool isInFocus = IsWindowFocus(hwnd) && bTargetSet;
         GUI::SetIsTitleInFocus(isInFocus);
 
-        if (hTargetWindow != nullptr)
-        {
 #ifdef INACTIVE_ZERO_SIZE
-            MoveWindow(hwnd, (isMenuActive == false) || (isInFocus == false));
+        MoveWindow(hwnd, (isInFocus == false || isMenuActive == false));
 #else
-            MoveWindow(hwnd);
+        MoveWindow(hwnd, (isInFocus == false));
 #endif
-        }
-        else
-        {
-            continue;
-        }
 
         if (isInFocus == false)
         {
