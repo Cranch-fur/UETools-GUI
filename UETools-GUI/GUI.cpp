@@ -786,7 +786,7 @@ bool ImGui::ObjectFilterModeComboBox(const char* label, E_ObjectFilterMode* v)
 
 
 
-int ImGui::ImGuiKey_ToWinAPI(const ImGuiKey& key)
+int ImGui::ImGuiKey_ToWinAPI(ImGuiKey key)
 {
 	switch (key)
 	{
@@ -882,7 +882,71 @@ int ImGui::ImGuiKey_ToWinAPI(const ImGuiKey& key)
 	}
 }
 
-const char* ImGui::ImGuiKey_GetName(const ImGuiKey& key)
+WORD ImGui::ImGuiKey_ToXInput(ImGuiKey key)
+{
+	switch (key)
+	{
+		case ImGuiKey_GamepadFaceUp:    return XINPUT_GAMEPAD_Y;
+		case ImGuiKey_GamepadFaceDown:  return XINPUT_GAMEPAD_A;
+		case ImGuiKey_GamepadFaceLeft:  return XINPUT_GAMEPAD_X;
+		case ImGuiKey_GamepadFaceRight: return XINPUT_GAMEPAD_B;
+
+		case ImGuiKey_GamepadDpadUp:    return XINPUT_GAMEPAD_DPAD_UP;
+		case ImGuiKey_GamepadDpadDown:  return XINPUT_GAMEPAD_DPAD_DOWN;
+		case ImGuiKey_GamepadDpadLeft:  return XINPUT_GAMEPAD_DPAD_LEFT;
+		case ImGuiKey_GamepadDpadRight: return XINPUT_GAMEPAD_DPAD_RIGHT;
+
+		case ImGuiKey_GamepadL1:        return XINPUT_GAMEPAD_LEFT_SHOULDER;
+		case ImGuiKey_GamepadR1:        return XINPUT_GAMEPAD_RIGHT_SHOULDER;
+
+		case ImGuiKey_GamepadL3:        return XINPUT_GAMEPAD_LEFT_THUMB;
+		case ImGuiKey_GamepadR3:        return XINPUT_GAMEPAD_RIGHT_THUMB;
+
+		case ImGuiKey_GamepadStart:     return XINPUT_GAMEPAD_START;
+		case ImGuiKey_GamepadBack:      return XINPUT_GAMEPAD_BACK;
+
+		default: return 0;
+	}
+}
+
+
+bool ImGui::IsControllerKey(ImGuiKey key)
+{
+	return (key == ImGuiKey_GamepadL2) || (key == ImGuiKey_GamepadR2) || (ImGuiKey_ToXInput(key) != 0);
+}
+
+
+DWORD ImGui::XInputGetCombinedState(XINPUT_STATE* combinedState)
+{
+	if (!combinedState)
+		return ERROR_BAD_ARGUMENTS;
+
+	ZeroMemory(combinedState, sizeof(XINPUT_STATE));
+
+	bool isAnyConnected = false;
+	XINPUT_STATE tempState;
+
+	for (DWORD i = 0; i < XUSER_MAX_COUNT; i++)
+	{
+		if (XInputGetState(i, &tempState) == ERROR_SUCCESS)
+		{
+			isAnyConnected = true;
+
+			combinedState->Gamepad.wButtons |= tempState.Gamepad.wButtons;
+
+			if (tempState.Gamepad.bLeftTrigger > combinedState->Gamepad.bLeftTrigger)
+				combinedState->Gamepad.bLeftTrigger = tempState.Gamepad.bLeftTrigger;
+
+			if (tempState.Gamepad.bRightTrigger > combinedState->Gamepad.bRightTrigger)
+				combinedState->Gamepad.bRightTrigger = tempState.Gamepad.bRightTrigger;
+		}
+	}
+
+	return isAnyConnected ? ERROR_SUCCESS : ERROR_DEVICE_NOT_CONNECTED;
+}
+
+
+const char* ImGui::ImGuiKey_GetName(ImGuiKey key)
 {
 	switch (key)
 	{
@@ -973,6 +1037,28 @@ const char* ImGui::ImGuiKey_GetName(const ImGuiKey& key)
 		case ImGuiKey_LeftSuper:  return "LWin";
 		case ImGuiKey_RightSuper: return "RWin";
 
+		case ImGuiKey_GamepadFaceDown:  return "A / Cross";
+		case ImGuiKey_GamepadFaceRight: return "B / Circle";
+		case ImGuiKey_GamepadFaceLeft:  return "X / Square";
+		case ImGuiKey_GamepadFaceUp:    return "Y / Triangle";
+
+		case ImGuiKey_GamepadDpadUp:    return "D-Pad Up";
+		case ImGuiKey_GamepadDpadDown:  return "D-Pad Down";
+		case ImGuiKey_GamepadDpadLeft:  return "D-Pad Left";
+		case ImGuiKey_GamepadDpadRight: return "D-Pad Right";
+
+		case ImGuiKey_GamepadL1:        return "LB / L1";
+		case ImGuiKey_GamepadR1:        return "RB / R1";
+
+		case ImGuiKey_GamepadL2:        return "LT / L2";
+		case ImGuiKey_GamepadR2:        return "RT / R2";
+
+		case ImGuiKey_GamepadL3:        return "LS / L3";
+		case ImGuiKey_GamepadR3:        return "RS / R3";
+
+		case ImGuiKey_GamepadStart:     return "Start / Menu";
+		case ImGuiKey_GamepadBack:      return "Back / View";
+
 		default: return "???";
 	}
 }
@@ -1035,8 +1121,8 @@ bool ImGui::KeyBindingInput(const char* label, KeyBinding* binding)
 		{
 			if (IsKeyPressed((ImGuiKey)keyCode))
 			{
-				/* Verify that keyCode is within pre-determined list of keys. */
-				if (ImGuiKey_ToWinAPI((ImGuiKey)keyCode) == 0)
+				/* Verify that keyCode is within pre-determined list of keys (Keyboard/Mouse or Gamepad). */
+				if (ImGuiKey_ToWinAPI((ImGuiKey)keyCode) == 0 && IsControllerKey((ImGuiKey)keyCode) == false)
 					continue;
 
 				/* When user tries to assign same key that is already set, consider that as will to unbind. */
@@ -1075,23 +1161,65 @@ bool ImGui::IsKeyBindingPressed(KeyBinding* binding, bool waitForRelease)
 	if (binding->key == ImGuiKey_None)
 		return false;
 
-	int keyCode = ImGuiKey_ToWinAPI(binding->key);
-	if (waitForRelease)
+	if (IsControllerKey(binding->key))
 	{
-		if (GetAsyncKeyState(keyCode) & 0x8000)
-		{
-			binding->isInUse = true;
-			while (GetAsyncKeyState(keyCode) & 0x8000)
+		auto IsGamepadKeyDown = [binding]() -> bool
 			{
-				Sleep(1);
-			}
+				XINPUT_STATE state;
+				if (XInputGetCombinedState(&state) == ERROR_SUCCESS)
+				{
+					if (binding->key == ImGuiKey_GamepadL2)
+						return state.Gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
-			binding->isInUse = false;
-			return true;
+					if (binding->key == ImGuiKey_GamepadR2)
+						return state.Gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+
+					WORD xbtn = ImGuiKey_ToXInput(binding->key);
+					if (xbtn != 0)
+						return (state.Gamepad.wButtons & xbtn) != 0;
+				}
+				return false;
+			};
+
+		if (waitForRelease)
+		{
+			if (IsGamepadKeyDown())
+			{
+				binding->isInUse = true;
+				while (IsGamepadKeyDown())
+				{
+					Sleep(1);
+				}
+
+				binding->isInUse = false;
+				return true;
+			}
+		}
+		else
+		{
+			return IsGamepadKeyDown();
 		}
 	}
 	else
-		return (GetAsyncKeyState(keyCode) & 1);
+	{
+		int keyCode = ImGuiKey_ToWinAPI(binding->key);
+		if (waitForRelease)
+		{
+			if (GetAsyncKeyState(keyCode) & 0x8000)
+			{
+				binding->isInUse = true;
+				while (GetAsyncKeyState(keyCode) & 0x8000)
+				{
+					Sleep(1);
+				}
+
+				binding->isInUse = false;
+				return true;
+			}
+		}
+		else
+			return (GetAsyncKeyState(keyCode) & 1);
+	}
 
 	return false;
 }
@@ -1110,9 +1238,28 @@ bool ImGui::IsKeyBindingDown(KeyBinding* binding)
 	if (binding->key == ImGuiKey_None)
 		return false;
 
-	int keyCode = ImGuiKey_ToWinAPI(binding->key);
-	if (GetAsyncKeyState(keyCode) & 0x8000)
-		return true;
+	if (IsControllerKey(binding->key))
+	{
+		XINPUT_STATE state;
+		if (XInputGetCombinedState(&state) == ERROR_SUCCESS)
+		{
+			if (binding->key == ImGuiKey_GamepadL2)
+				return state.Gamepad.bLeftTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+
+			if (binding->key == ImGuiKey_GamepadR2)
+				return state.Gamepad.bRightTrigger > XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+
+			WORD xbtn = ImGuiKey_ToXInput(binding->key);
+			if (xbtn != 0)
+				return (state.Gamepad.wButtons & xbtn) != 0;
+		}
+	}
+	else
+	{
+		int keyCode = ImGuiKey_ToWinAPI(binding->key);
+		if (GetAsyncKeyState(keyCode) & 0x8000)
+			return true;
+	}
 
 	return false;
 }
@@ -1131,8 +1278,29 @@ bool ImGui::IsKeyBindingReleased(KeyBinding* binding)
 	if (binding->key == ImGuiKey_None)
 		return false;
 
-	int keyCode = ImGuiKey_ToWinAPI(binding->key);
-	return (GetAsyncKeyState(keyCode) & 0x8000) == false;
+	if (IsControllerKey(binding->key))
+	{
+		XINPUT_STATE state;
+		if (XInputGetCombinedState(&state) == ERROR_SUCCESS)
+		{
+			if (binding->key == ImGuiKey_GamepadL2)
+				return state.Gamepad.bLeftTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+
+			if (binding->key == ImGuiKey_GamepadR2)
+				return state.Gamepad.bRightTrigger <= XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+
+			WORD xbtn = ImGuiKey_ToXInput(binding->key);
+			if (xbtn != 0)
+				return (state.Gamepad.wButtons & xbtn) == 0;
+		}
+
+		return true;
+	}
+	else
+	{
+		int keyCode = ImGuiKey_ToWinAPI(binding->key);
+		return (GetAsyncKeyState(keyCode) & 0x8000) == false;
+	}
 }
 
 
@@ -3252,8 +3420,12 @@ void BackgroundTasks::KeybindingsHandler::Worker()
 		/* Following inputs are only processed while title window is in focus. */
 		if (GUI::GetIsTitleInFocus())
 		{
-			if (ImGui::IsKeyBindingPressed(&Inputs::Keybindings::general_MenuOpenClose))
+			if (ImGui::IsKeyBindingPressed(&Inputs::Keybindings::general_MenuOpenClose) ||
+			   (ImGui::IsKeyBindingDown(&Inputs::Keybindings::general_MenuOpenClose_ControllerA) && ImGui::IsKeyBindingPressed(&Inputs::Keybindings::general_MenuOpenClose_ControllerB)))
+			{
 				GUI::ToggleIsMenuActive();
+			}
+				
 
 			if (GUI::GetIsMenuActive() == false)
 			{

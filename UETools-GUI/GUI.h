@@ -12,7 +12,10 @@
 #include "Unreal.h"
 #include "Math.h"
 
+#include <xinput.h>
 #include <thread>
+
+#pragma comment(lib, "xinput.lib")
 
 
 
@@ -224,13 +227,27 @@ namespace ImGui
 	* @param key - ImGui key to be converted.
 	* @return The corresponding WinAPI virtual-key code, or 0 if unsupported.
 	*/
-	static int ImGuiKey_ToWinAPI(const ImGuiKey& key);
+	static int ImGuiKey_ToWinAPI(ImGuiKey key);
+	/*
+	* @brief Using pre-determined table, converts an ImGui key to the corresponding XInput virtual-key code.
+	* @param key - ImGui key to be converted.
+	* @return The corresponding XInput virtual-key code, or 0 if unsupported.
+	*/
+	WORD ImGuiKey_ToXInput(ImGuiKey key);
+
+
+	static bool IsControllerKey(ImGuiKey key);
+
+
+	static DWORD XInputGetCombinedState(XINPUT_STATE* combinedState);
+
+
 	/*
 	* @brief Using pre-determined table, returns a human-readable name for a given ImGui key.
 	* @param key - ImGui key to get the name of.
 	* @return The key name as a string.
 	*/
-	static const char* ImGuiKey_GetName(const ImGuiKey& key);
+	static const char* ImGuiKey_GetName(ImGuiKey key);
 
 
 	struct KeyBinding
@@ -1168,6 +1185,8 @@ namespace Inputs
 	{
 	public:
 		static inline ImGui::KeyBinding general_MenuOpenClose{ ImGuiKey_Insert };
+		static inline ImGui::KeyBinding general_MenuOpenClose_ControllerA{ ImGuiKey_GamepadL3 };
+		static inline ImGui::KeyBinding general_MenuOpenClose_ControllerB{ ImGuiKey_GamepadR3 };
 
 
 		static inline ImGui::KeyBinding debug_ActorTrace;
