@@ -6128,6 +6128,7 @@ void Templates::Menus::Debug::Sub_Actors()
 				{
 					std::snprintf(Features::ActorsList::filterBuffer, sizeof(Features::ActorsList::filterBuffer), actor.objectName.c_str());
 					Features::ActorsList::filterMode = ImGui::E_ObjectFilterMode::ObjectName;
+					Features::ActorsList::Filter();
 
 					GUI::PlayActionSound(true);
 				}
@@ -7484,6 +7485,7 @@ void Templates::Menus::Debug::Sub_Widgets()
 				{
 					std::snprintf(Features::WidgetsList::filterBuffer, sizeof(Features::WidgetsList::filterBuffer), widget.objectName.c_str());
 					Features::WidgetsList::filterMode = ImGui::E_ObjectFilterMode::ObjectName;
+					Features::WidgetsList::Filter();
 
 					GUI::PlayActionSound(true);
 				}
@@ -7836,6 +7838,7 @@ void Templates::Menus::Debug::Sub_Objects()
 				{
 					std::snprintf(Features::ObjectsList::filterBuffer, sizeof(Features::ObjectsList::filterBuffer), object.objectName.c_str());
 					Features::ObjectsList::filterMode = ImGui::E_ObjectFilterMode::ObjectName;
+					Features::ObjectsList::Filter();
 
 					GUI::PlayActionSound(true);
 				}
@@ -8395,7 +8398,7 @@ void Templates::Menus::World::Draw()
 				if (ImGui::TreeNode("Settings##TimeDilation"))
 				{
 					ImGui::Text("Minimum");
-					if (ImGui::SliderDoubleEditable("##TimeDilation##Min", &minTimeDilation, 0.0f, 20.0f))
+					if (ImGui::SliderDoubleEditable("##TimeDilation##Min", &minTimeDilation, 0.0f, 100.0f))
 					{
 						worldSettings->MinGlobalTimeDilation = minTimeDilation;
 					}
@@ -8403,7 +8406,7 @@ void Templates::Menus::World::Draw()
 					ImGui::NewLine();
 
 					ImGui::Text("Maximum");
-					if (ImGui::SliderDoubleEditable("##TimeDilation##Max", &maxTimeDilation, 0.0f, 20.0f))
+					if (ImGui::SliderDoubleEditable("##TimeDilation##Max", &maxTimeDilation, 0.0f, 100.0f))
 					{
 						worldSettings->MaxGlobalTimeDilation = maxTimeDilation;
 					}
@@ -8416,7 +8419,7 @@ void Templates::Menus::World::Draw()
 				ImGui::Text("Demo Time Dilation");
 				double demoTimeDilation = worldSettings->DemoPlayTimeDilation;
 
-				if (ImGui::SliderDoubleEditable("##DemoTimeDilation", &demoTimeDilation, 0.0f, 20.0f))
+				if (ImGui::SliderDoubleEditable("##DemoTimeDilation", &demoTimeDilation, 0.0f, 100.0f))
 				{
 					worldSettings->DemoPlayTimeDilation = demoTimeDilation;
 				}
