@@ -294,7 +294,7 @@ void ImGui::TextVector(const char* label, const SDK::FVector& value, bool useCol
 	ImGui::PushID(label ? label : vectorString.c_str());
 
 	ImGui::BeginGroup();
-	for (int i = 0; i < 3; i++)
+	for (int32_t i = 0; i < 3; i++)
 	{
 		if (useColoring) ImGui::PushStyleColor(ImGuiCol_Text, axis_colors[i]);
 		ImGui::SetFontBig();
@@ -381,7 +381,7 @@ void ImGui::TextRotator(const char* label, const SDK::FRotator& value, bool useC
 	ImGui::PushID(label ? label : rotatorString.c_str());
 
 	ImGui::BeginGroup();
-	for (int i = 0; i < 3; i++)
+	for (int32_t i = 0; i < 3; i++)
 	{
 		if (useColoring) ImGui::PushStyleColor(ImGuiCol_Text, axis_colors[i]);
 		ImGui::SetFontBig();
@@ -534,6 +534,14 @@ void ImGui::ReadOnlyInputText(const char* label, const char* text, bool showCopy
 	}
 
 	ImGui::PopID();
+}
+
+
+
+
+bool ImGui::InputDouble3(const char* label, double v[3], const char* format, ImGuiInputTextFlags flags)
+{
+	return ImGui::InputScalarN(label, ImGuiDataType_Double, v, 3, NULL, NULL, format, flags);
 }
 
 
@@ -770,7 +778,7 @@ bool ImGui::ObjectFilterModeComboBox(const char* label, E_ObjectFilterMode* v)
 	}
 
 	static const char* items[] = { "Class Name", "Object Name", "All" };
-	int index = static_cast<int>(*v);
+	int32_t index = static_cast<int32_t>(*v);
 
 	ImGui::SetNextItemWidth(200);
 	if (ImGui::Combo("##object_filter_combo", &index, items, IM_ARRAYSIZE(items))) 
@@ -786,7 +794,7 @@ bool ImGui::ObjectFilterModeComboBox(const char* label, E_ObjectFilterMode* v)
 
 
 
-int ImGui::ImGuiKey_ToWinAPI(const ImGuiKey& key)
+int32_t ImGui::ImGuiKey_ToWinAPI(const ImGuiKey& key)
 {
 	switch (key)
 	{
@@ -1031,7 +1039,7 @@ bool ImGui::KeyBindingInput(const char* label, KeyBinding* binding)
 		ImGui::PushStyleColor(ImGuiCol_Button, buttonColor_capturing);
 
 		Button("...", buttonSize);
-		for (int keyCode = ImGuiKey_NamedKey_BEGIN; keyCode < ImGuiKey_NamedKey_END; keyCode++)
+		for (int32_t keyCode = ImGuiKey_NamedKey_BEGIN; keyCode < ImGuiKey_NamedKey_END; keyCode++)
 		{
 			if (IsKeyPressed((ImGuiKey)keyCode))
 			{
@@ -1075,7 +1083,7 @@ bool ImGui::IsKeyBindingPressed(KeyBinding* binding, bool waitForRelease)
 	if (binding->key == ImGuiKey_None)
 		return false;
 
-	int keyCode = ImGuiKey_ToWinAPI(binding->key);
+	int32_t keyCode = ImGuiKey_ToWinAPI(binding->key);
 	if (waitForRelease)
 	{
 		if (GetAsyncKeyState(keyCode) & 0x8000)
@@ -1110,7 +1118,7 @@ bool ImGui::IsKeyBindingDown(KeyBinding* binding)
 	if (binding->key == ImGuiKey_None)
 		return false;
 
-	int keyCode = ImGuiKey_ToWinAPI(binding->key);
+	int32_t keyCode = ImGuiKey_ToWinAPI(binding->key);
 	if (GetAsyncKeyState(keyCode) & 0x8000)
 		return true;
 
@@ -1131,7 +1139,7 @@ bool ImGui::IsKeyBindingReleased(KeyBinding* binding)
 	if (binding->key == ImGuiKey_None)
 		return false;
 
-	int keyCode = ImGuiKey_ToWinAPI(binding->key);
+	int32_t keyCode = ImGuiKey_ToWinAPI(binding->key);
 	return (GetAsyncKeyState(keyCode) & 0x8000) == false;
 }
 
@@ -1337,6 +1345,51 @@ void ImGui::TitleText(const char* fmt, ...)
 
 
 
+bool ImGui::BeginOverlay(const char* name, bool* p_open, bool isMenuActive, E_OverlayCorner defaultCorner)
+{
+	const float PADDING = 15.0f;
+	ImGuiIO& io = ImGui::GetIO();
+
+	if (defaultCorner != E_OverlayCorner::None)
+	{
+		int32_t corner = static_cast<int32_t>(defaultCorner);
+		ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - PADDING : PADDING, (corner & 2) ? io.DisplaySize.y - PADDING : PADDING);
+		ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
+		ImGui::SetNextWindowPos(window_pos, ImGuiCond_FirstUseEver, window_pos_pivot);
+	}
+
+	ImGui::SetNextWindowBgAlpha(0.65f);
+
+	ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+
+	if (isMenuActive == false)
+	{
+		window_flags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoMouseInputs;
+	}
+
+	bool isRendered = ImGui::Begin(name, p_open, window_flags);
+	if (isRendered)
+	{
+		const char* idPosition = std::strstr(name, "##");
+		std::string displayName = idPosition ? std::string(name, idPosition - name) : std::string(name);
+
+		if (displayName.empty() == false)
+		{
+			float windowWidth = ImGui::GetWindowSize().x;
+			float textWidth = ImGui::CalcTextSize(displayName.c_str()).x;
+
+			ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+			ImGui::TextUnformatted(displayName.c_str());
+			ImGui::Separator();
+		}
+	}
+
+	return isRendered;
+}
+
+
+
+
 
 
 // ==============================
@@ -1479,6 +1532,8 @@ void GUI::Draw()
 #endif
 
 	Features::WidgetVisualisation::Draw_ThreadSafe();
+
+	Features::Overlays::Draw_ThreadSafe();
 }
 
 
@@ -1687,6 +1742,8 @@ void Features::Config::Load()
 	ReadFeatureFromConfig(&featuresConfig, "Features_FreeCamera_mouseControlSensitivity", &Features::FreeCamera::mouseControlSensitivity);
 	ReadFeatureFromConfig(&featuresConfig, "Features_FreeCamera_mouseControlLimitMaximumDelta", &Features::FreeCamera::mouseControlLimitMaximumDelta);
 	ReadFeatureFromConfig(&featuresConfig, "Features_FreeCamera_mouseControlMaximumDelta", &Features::FreeCamera::mouseControlMaximumDelta);
+
+	ReadFeatureFromConfig(&featuresConfig, "Features_Overlays_showCharacter", &Features::Overlays::showCharacter);
 }
 
 void Features::Config::Save()
@@ -1781,6 +1838,8 @@ void Features::Config::Save()
 	featuresConfig.SetKey("Features_FreeCamera_mouseControlSensitivity", Features::FreeCamera::mouseControlSensitivity);
 	featuresConfig.SetKey("Features_FreeCamera_mouseControlLimitMaximumDelta", Features::FreeCamera::mouseControlLimitMaximumDelta);
 	featuresConfig.SetKey("Features_FreeCamera_mouseControlMaximumDelta", Features::FreeCamera::mouseControlMaximumDelta);
+
+	featuresConfig.SetKey("Features_Overlays_showCharacter", Features::Overlays::showCharacter);
 
 	featuresConfig.Save();
 }
@@ -3243,6 +3302,82 @@ void Features::ConsoleCommands::Update()
 
 
 
+void Features::Overlays::Draw()
+{
+	bool isMenuActive = GUI::GetIsMenuActive();
+
+	if (Features::Overlays::showCharacter)
+	{
+		if (ImGui::BeginOverlay("Character##Overlay", &Features::Overlays::showCharacter, isMenuActive, ImGui::E_OverlayCorner::TopRight))
+		{
+			if (SDK::APlayerController* playerController = Unreal::PlayerController::Get())
+			{
+				if (SDK::ACharacter* character = playerController->Character)
+				{
+					Unreal::Transform transform = Unreal::Actor::GetTransform(character);
+
+					ImGui::TextVectorColored("Location:", transform.location);
+					ImGui::TextRotatorColored("Rotation:", transform.rotation);
+					ImGui::TextVectorColored("Scale:   ", transform.scale);
+
+					if (SDK::UCharacterMovementComponent* movementComponent = character->CharacterMovement)
+					{
+						ImGui::NewLine();
+
+						SDK::FVector velocity = movementComponent->Velocity;
+						float speedUnit = Math::Vector_Distance(SDK::FVector(0.0, 0.0, 0.0), velocity);
+						float speedMetres = Math::Unit_ToMetre(speedUnit);
+
+						ImGui::TextVectorColored("Velocity:", velocity);
+						ImGui::Text("Speed: %.1f m/s", speedMetres);
+					}
+					else
+						ImGui::TextColored(ImGui::LinearColor::Red, "Movement Component Doesn't Exist!");
+				}
+				else
+					ImGui::TextColored(ImGui::LinearColor::Red, "Character Doesn't Exist!");
+
+				ImGui::CategorySeparator();
+
+				if (SDK::APlayerCameraManager* playerCameraManager = playerController->PlayerCameraManager)
+				{
+					SDK::FMinimalViewInfo cameraPOV;
+					if (Unreal::PlayerCameraManager::GetPOV(playerCameraManager, &cameraPOV))
+					{
+						ImGui::TextVectorColored("POV Location:", cameraPOV.Location);
+						ImGui::TextRotatorColored("POV Rotation:", cameraPOV.Rotation);
+
+						ImGui::NewLine();
+
+						ImGui::TextFloatColored("FOV:         ", cameraPOV.FOV);
+						ImGui::TextFloatColored("Aspect Ratio:", cameraPOV.AspectRatio);
+					}
+					else
+						ImGui::TextColored(ImGui::LinearColor::Red, "Failed To Obtain Camera POV!");
+				}
+				else
+					ImGui::TextColored(ImGui::LinearColor::Red, "Player Camera Manager Doesn't Exist!");
+			}
+			else
+				ImGui::TextColored(ImGui::LinearColor::Red, "Player Controller Doesn't Exist!");
+		}
+
+		ImGui::End();
+	}
+}
+
+void Features::Overlays::Draw_ThreadSafe()
+{
+	__try
+	{
+		Features::Overlays::Draw();
+	}
+	__except (EXCEPTION()) {}
+}
+
+
+
+
 
 
 void BackgroundTasks::KeybindingsHandler::Worker()
@@ -3580,8 +3715,10 @@ void BackgroundTasks::DirectionalMovementHandler::Worker()
 								double dotForward = Math::Vector_Dot(velocityNorm, camFwd);
 
 								/* Determine forward/backward direction based on current movement relative to the camera. */
-								if (dotForward > 0.5f) fwdAxis = 1.0f;
-								else if (Features::DirectionalMovement::omniMovement && dotForward < -0.5f) fwdAxis = -1.0f;
+								if (dotForward > 0.5f) 
+									fwdAxis = 1.0f;
+								else if (Features::DirectionalMovement::omniMovement && dotForward < -0.5f)
+									fwdAxis = -1.0f;
 
 								if (Features::DirectionalMovement::omniMovement)
 								{
@@ -3589,8 +3726,10 @@ void BackgroundTasks::DirectionalMovementHandler::Worker()
 									double dotRight = Math::Vector_Dot(velocityNorm, camRight);
 
 									/* Determine strafing direction (left/right). */
-									if (dotRight > 0.5f) rightAxis = 1.0f;
-									else if (dotRight < -0.5f) rightAxis = -1.0f;
+									if (dotRight > 0.5f)
+										rightAxis = 1.0f;
+									else if (dotRight < -0.5f)
+										rightAxis = -1.0f;
 
 									upAxis = static_cast<float>(Features::DirectionalMovement::isUpMovementExpected) - static_cast<float>(Features::DirectionalMovement::isDownMovementExpected);
 								}
@@ -4600,6 +4739,16 @@ void Templates::Functions::Draw(SDK::UObject* objectReference)
 
 				if (ImGui::TreeNode(function.name.c_str()))
 				{
+					ImGui::BeginDisabled(std::strcmp(Features::Functions::filterBuffer, function.name.c_str()) == 0);
+					if (ImGui::Button("Focus On"))
+					{
+						std::snprintf(Features::Functions::filterBuffer, sizeof(Features::Functions::filterBuffer), function.name.c_str());
+						GUI::PlayActionSound(true);
+					}
+					ImGui::EndDisabled();
+
+					ImGui::NewLine();
+
 					ImGui::TextCopyable("Flags: %s", function.FlagsAsString().c_str());
 					ImGui::TextCopyable("Address: %s", memoryAddress.c_str());
 					
@@ -4630,18 +4779,18 @@ void Templates::LocationRotationScale::Draw(SDK::AActor* actorReference)
 	static SDK::AActor* rotationSource = nullptr;
 	static SDK::AActor* scaleSource = nullptr;
 
-	static float userProvidedLocation[3];
-	static float userProvidedRotation[3];
-	static float userProvidedScale[3];
+	static double userProvidedLocation[3];
+	static double userProvidedRotation[3];
+	static double userProvidedScale[3];
 
 
 	static SDK::AActor* relativeLocationSource = nullptr;
 	static SDK::AActor* relativeRotationSource = nullptr;
 	static SDK::AActor* relativeScaleSource = nullptr;
 
-	static float userProvidedRelativeLocation[3];
-	static float userProvidedRelativeRotation[3];
-	static float userProvidedRelativeScale[3];
+	static double userProvidedRelativeLocation[3];
+	static double userProvidedRelativeRotation[3];
+	static double userProvidedRelativeScale[3];
 	
 	
 	if (ImGui::Button("Get All (Location, Rotation, Scale)"))
@@ -4692,12 +4841,12 @@ void Templates::LocationRotationScale::Draw(SDK::AActor* actorReference)
 	if (actorReference != locationSource)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::Color::Red);
-		ImGui::InputFloat3("##Location", userProvidedLocation);
+		ImGui::InputDouble3("##Location", userProvidedLocation);
 		ImGui::PopStyleColor();
 	}
 	else
 	{
-		ImGui::InputFloat3("##Location", userProvidedLocation);
+		ImGui::InputDouble3("##Location", userProvidedLocation);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Set##Location"))
@@ -4726,12 +4875,12 @@ void Templates::LocationRotationScale::Draw(SDK::AActor* actorReference)
 	if (actorReference != rotationSource)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::Color::Red);
-		ImGui::InputFloat3("##Rotation", userProvidedRotation);
+		ImGui::InputDouble3("##Rotation", userProvidedRotation);
 		ImGui::PopStyleColor();
 	}
 	else
 	{
-		ImGui::InputFloat3("##Rotation", userProvidedRotation);
+		ImGui::InputDouble3("##Rotation", userProvidedRotation);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Set##Rotation"))
@@ -4760,12 +4909,12 @@ void Templates::LocationRotationScale::Draw(SDK::AActor* actorReference)
 	if (actorReference != scaleSource)
 	{
 		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::Color::Red);
-		ImGui::InputFloat3("##Scale", userProvidedScale);
+		ImGui::InputDouble3("##Scale", userProvidedScale);
 		ImGui::PopStyleColor();
 	}
 	else
 	{
-		ImGui::InputFloat3("##Scale", userProvidedScale);
+		ImGui::InputDouble3("##Scale", userProvidedScale);
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Set##Scale"))
@@ -4795,12 +4944,12 @@ void Templates::LocationRotationScale::Draw(SDK::AActor* actorReference)
 		if (actorReference != relativeLocationSource)
 		{
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::Color::Red);
-			ImGui::InputFloat3("##RelativeLocation", userProvidedRelativeLocation);
+			ImGui::InputDouble3("##RelativeLocation", userProvidedRelativeLocation);
 			ImGui::PopStyleColor();
 		}
 		else
 		{
-			ImGui::InputFloat3("##RelativeLocation", userProvidedRelativeLocation);
+			ImGui::InputDouble3("##RelativeLocation", userProvidedRelativeLocation);
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Set##RelativeLocation"))
@@ -4829,12 +4978,12 @@ void Templates::LocationRotationScale::Draw(SDK::AActor* actorReference)
 		if (actorReference != relativeRotationSource)
 		{
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::Color::Red);
-			ImGui::InputFloat3("##RelativeRotation", userProvidedRelativeRotation);
+			ImGui::InputDouble3("##RelativeRotation", userProvidedRelativeRotation);
 			ImGui::PopStyleColor();
 		}
 		else
 		{
-			ImGui::InputFloat3("##RelativeRotation", userProvidedRelativeRotation);
+			ImGui::InputDouble3("##RelativeRotation", userProvidedRelativeRotation);
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Set##RelativeRotation"))
@@ -4863,12 +5012,12 @@ void Templates::LocationRotationScale::Draw(SDK::AActor* actorReference)
 		if (actorReference != relativeScaleSource)
 		{
 			ImGui::PushStyleColor(ImGuiCol_Text, ImGui::Color::Red);
-			ImGui::InputFloat3("##RelativeScale", userProvidedRelativeScale);
+			ImGui::InputDouble3("##RelativeScale", userProvidedRelativeScale);
 			ImGui::PopStyleColor();
 		}
 		else
 		{
-			ImGui::InputFloat3("##RelativeScale", userProvidedRelativeScale);
+			ImGui::InputDouble3("##RelativeScale", userProvidedRelativeScale);
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Set##RelativeScale"))
@@ -5108,6 +5257,16 @@ void Templates::Menus::Debug::Sub_Engine()
 
 								if (ImGui::TreeNode(function.name.c_str()))
 								{
+									ImGui::BeginDisabled(std::strcmp(Features::ConsoleCommands::filterBuffer, function.name.c_str()) == 0);
+									if (ImGui::Button("Focus On"))
+									{
+										std::snprintf(Features::ConsoleCommands::filterBuffer, sizeof(Features::ConsoleCommands::filterBuffer), function.name.c_str());
+										GUI::PlayActionSound(true);
+									}
+									ImGui::EndDisabled();
+
+									ImGui::NewLine();
+
 									ImGui::TextCopyable("Flags: %s", function.FlagsAsString().c_str());
 									ImGui::TextCopyable("Address: %s", memoryAddress.c_str());
 
@@ -5770,7 +5929,7 @@ void Templates::Menus::Debug::Sub_Actors()
 			ImGui::BeginDisabled(Features::ActorSummon::usePlayerLocation);
 			ImGui::Text("Location:");
 			ImGui::SameLine();
-			ImGui::InputFloat3("##Actors##Summon##Location", Features::ActorSummon::location);
+			ImGui::InputDouble3("##Actors##Summon##Location", Features::ActorSummon::location);
 			ImGui::EndDisabled();
 			ImGui::SameLine();
 			ImGui::Checkbox("Use Player Location##Actors##Summon", &Features::ActorSummon::usePlayerLocation);
@@ -5778,7 +5937,7 @@ void Templates::Menus::Debug::Sub_Actors()
 			ImGui::BeginDisabled(Features::ActorSummon::usePlayerRotation);
 			ImGui::Text("Rotation:");
 			ImGui::SameLine();
-			ImGui::InputFloat3("##Actors##Summon##Rotation", Features::ActorSummon::rotation);
+			ImGui::InputDouble3("##Actors##Summon##Rotation", Features::ActorSummon::rotation);
 			ImGui::EndDisabled();
 			ImGui::SameLine();
 			ImGui::Checkbox("Use Player Rotation##Actors##Summon", &Features::ActorSummon::usePlayerRotation);
@@ -5786,7 +5945,7 @@ void Templates::Menus::Debug::Sub_Actors()
 			ImGui::BeginDisabled(Features::ActorSummon::usePlayerScale);
 			ImGui::Text("Scale:   ");
 			ImGui::SameLine();
-			ImGui::InputFloat3("##Actors##Summon##Scale", Features::ActorSummon::scale);
+			ImGui::InputDouble3("##Actors##Summon##Scale", Features::ActorSummon::scale);
 			ImGui::EndDisabled();
 			ImGui::SameLine();
 			ImGui::Checkbox("Use Player Scale##Actors##Summon", &Features::ActorSummon::usePlayerScale);
@@ -5795,9 +5954,20 @@ void Templates::Menus::Debug::Sub_Actors()
 
 			if (ImGui::Button("Summon##ActorSpawn"))
 			{
-				SDK::FVector location = { Features::ActorSummon::location[0], Features::ActorSummon::location[1], Features::ActorSummon::location[2] };
-				SDK::FRotator rotation = { Features::ActorSummon::rotation[0], Features::ActorSummon::rotation[1], Features::ActorSummon::rotation[2] };
-				SDK::FVector scale = { Features::ActorSummon::scale[0], Features::ActorSummon::scale[1], Features::ActorSummon::scale[2] };
+				SDK::FVector location;
+				location.X = Features::ActorSummon::location[0];
+				location.Y = Features::ActorSummon::location[1];
+				location.Z = Features::ActorSummon::location[2];
+
+				SDK::FRotator rotation;
+				rotation.Pitch = Features::ActorSummon::rotation[0];
+				rotation.Yaw = Features::ActorSummon::rotation[1];
+				rotation.Roll = Features::ActorSummon::rotation[2];
+
+				SDK::FVector scale;
+				scale.X = Features::ActorSummon::scale[0];
+				scale.Y = Features::ActorSummon::scale[1];
+				scale.Z = Features::ActorSummon::scale[2];
 
 				if (Features::ActorSummon::usePlayerLocation || Features::ActorSummon::usePlayerRotation || Features::ActorSummon::usePlayerScale)
 				{
@@ -6113,6 +6283,7 @@ void Templates::Menus::Debug::Sub_Actors()
 		/* Output to user interface Actors that are matching "Search Filter". */
 		ImGui::PaginatedList("ActorsList", &Features::ActorsList::currentPage, Features::ActorsList::filteredActors, Features::ActorsList::rowsPerPage, [](Unreal::Actor::DataStructure& actor)
 		{
+			ImGui::PushID(&actor);
 			bool isValid = Unreal::Actor::IsValid(actor.reference);
 
 			ImGui::PushStyleColor(ImGuiCol_Text, isValid ? ImGui::Color::Green : ImGui::Color::Red);
@@ -6121,8 +6292,6 @@ void Templates::Menus::Debug::Sub_Actors()
 
 			if (isTreeNodeOpen)
 			{
-				ImGui::PushID(actor.objectName.c_str());
-
 				ImGui::BeginDisabled(std::strcmp(Features::ActorsList::filterBuffer, actor.objectName.c_str()) == 0);
 				if (ImGui::Button("Focus On"))
 				{
@@ -6408,9 +6577,10 @@ void Templates::Menus::Debug::Sub_Actors()
 				}
 
 				ImGui::NewLine();
-				ImGui::PopID();
 				ImGui::TreePop();
 			}
+
+			ImGui::PopID();
 		});
 	}
 }
@@ -7265,90 +7435,114 @@ void Templates::Menus::Debug::Sub_Actors_Components(const Unreal::Actor::DataStr
 
 		for (Unreal::ActorComponent::DataStructure& component : filteredComponents) // <-- Reference!
 		{
-			if (ImGui::TreeNode(component.objectName.c_str()))
+			ImGui::PushID(component.reference);
+			bool isValid = Unreal::Object::IsValid(component.reference);
+
+			ImGui::PushStyleColor(ImGuiCol_Text, isValid ? ImGui::Color::Green : ImGui::Color::Red);
+			bool isTreeNodeOpen = ImGui::TreeNode(component.objectName.c_str());
+			ImGui::PopStyleColor();
+
+			if (isTreeNodeOpen)
 			{
+				ImGui::BeginDisabled(std::strcmp(Features::ActorsList::componentsFilterBuffer, component.objectName.c_str()) == 0);
+				if (ImGui::Button("Focus On"))
+				{
+					std::snprintf(Features::ActorsList::componentsFilterBuffer, sizeof(Features::ActorsList::componentsFilterBuffer), component.objectName.c_str());
+					Features::ActorsList::componentsFilterMode = ImGui::E_ObjectFilterMode::ObjectName;
+					GUI::PlayActionSound(true);
+				}
+				ImGui::EndDisabled();
+
+				ImGui::NewLine();
+
 				ImGui::TextCopyable("Component Class: %s", component.className.c_str());
 				ImGui::TextCopyable("Component Object: %s", component.objectName.c_str());
 
-				ImGui::NewLine();
-
-				ImGui::TextBoolColored("Is Active:", component.reference->bIsActive);
-
-				if (ImGui::Button("Enable"))
+				if (isValid)
 				{
-					if (component.reference)
+					ImGui::NewLine();
+
+					ImGui::TextBoolColored("Is Active:", component.reference->bIsActive);
+
+					if (ImGui::Button("Enable"))
 					{
-						component.reference->Activate(false);
-						GUI::PlayActionSound(true);
+						if (component.reference)
+						{
+							component.reference->Activate(false);
+							GUI::PlayActionSound(true);
+						}
+						else
+							GUI::PlayActionSound(false);
 					}
-					else
-						GUI::PlayActionSound(false);
-				}
-				ImGui::SameLine();
-				if (ImGui::Button("Disable"))
-				{
-					if (component.reference)
+					ImGui::SameLine();
+					if (ImGui::Button("Disable"))
 					{
-						component.reference->Deactivate();
-						GUI::PlayActionSound(true);
+						if (component.reference)
+						{
+							component.reference->Deactivate();
+							GUI::PlayActionSound(true);
+						}
+						else
+							GUI::PlayActionSound(false);
 					}
-					else
-						GUI::PlayActionSound(false);
-				}
-				ImGui::SameLine();
-				if (ImGui::Button("Reset"))
-				{
-					if (component.reference)
+					ImGui::SameLine();
+					if (ImGui::Button("Reset"))
 					{
-						component.reference->Activate(true);
-						GUI::PlayActionSound(true);
+						if (component.reference)
+						{
+							component.reference->Activate(true);
+							GUI::PlayActionSound(true);
+						}
+						else
+							GUI::PlayActionSound(false);
 					}
-					else
-						GUI::PlayActionSound(false);
+
+					ImGui::NewLine();
+
+					ImGui::TextBoolColored("Auto Activate:", component.reference->bAutoActivate);
+					ImGui::TextBoolColored("Editor Only:", component.reference->bIsEditorOnly);
+
+					ImGui::TextBoolColored("Net Addressible:", component.reference->bNetAddressable);
+					ImGui::TextBoolColored("Replicates:", component.reference->bReplicates);
+
+					ImGui::NewLine();
+
+					std::string creationMethod;
+					switch (component.reference->CreationMethod)
+					{
+						case SDK::EComponentCreationMethod::Native:
+							creationMethod = "Native";
+							break;
+
+						case SDK::EComponentCreationMethod::SimpleConstructionScript:
+							creationMethod = "Simple Contruction Script";
+							break;
+
+						case SDK::EComponentCreationMethod::UserConstructionScript:
+							creationMethod = "User Construction Script";
+							break;
+
+						case SDK::EComponentCreationMethod::Instance:
+							creationMethod = "Instance";
+							break;
+
+						default:
+							creationMethod = std::to_string(static_cast<uint8_t>(component.reference->CreationMethod));
+							break;
+					}
+					ImGui::Text("Creation Method: %s", creationMethod.c_str());
+
+					ImGui::NewLine();
+
+					Templates::Functions::Draw(component.reference);
+
 				}
-
-				ImGui::NewLine();
-
-				ImGui::TextBoolColored("Auto Activate:", component.reference->bAutoActivate);
-				ImGui::TextBoolColored("Editor Only:", component.reference->bIsEditorOnly);
-
-				ImGui::TextBoolColored("Net Addressible:", component.reference->bNetAddressable);
-				ImGui::TextBoolColored("Replicates:", component.reference->bReplicates);
-
-				ImGui::NewLine();
-
-				std::string creationMethod;
-				switch (component.reference->CreationMethod)
-				{
-					case SDK::EComponentCreationMethod::Native:
-						creationMethod = "Native";
-						break;
-
-					case SDK::EComponentCreationMethod::SimpleConstructionScript:
-						creationMethod = "Simple Contruction Script";
-						break;
-
-					case SDK::EComponentCreationMethod::UserConstructionScript:
-						creationMethod = "User Construction Script";
-						break;
-
-					case SDK::EComponentCreationMethod::Instance:
-						creationMethod = "Instance";
-						break;
-
-					default:
-						creationMethod = std::to_string(static_cast<uint8_t>(component.reference->CreationMethod));
-						break;
-				}
-				ImGui::Text("Creation Method: %s", creationMethod.c_str());
-
-				ImGui::NewLine();
-
-				Templates::Functions::Draw(component.reference);
-
+				
 				ImGui::NewLine();
 				ImGui::TreePop();
 			}
+
+			ImGui::PopID();
 		}
 
 		ImGui::TreePop();
@@ -7470,6 +7664,7 @@ void Templates::Menus::Debug::Sub_Widgets()
 
 		ImGui::PaginatedList("WidgetsList", &Features::WidgetsList::currentPage, Features::WidgetsList::filteredWidgets, Features::WidgetsList::rowsPerPage, [](Unreal::UserWidget::DataStructure& widget)
 		{
+			ImGui::PushID(&widget);
 			bool isValid = Unreal::Object::IsValid(widget.reference);
 
 			ImGui::PushStyleColor(ImGuiCol_Text, isValid ? ImGui::Color::Green : ImGui::Color::Red);
@@ -7478,8 +7673,6 @@ void Templates::Menus::Debug::Sub_Widgets()
 
 			if (isTreeNodeOpen)
 			{
-				ImGui::PushID(widget.objectName.c_str());
-
 				ImGui::BeginDisabled(std::strcmp(Features::WidgetsList::filterBuffer, widget.objectName.c_str()) == 0);
 				if (ImGui::Button("Focus On"))
 				{
@@ -7719,9 +7912,10 @@ void Templates::Menus::Debug::Sub_Widgets()
 				}
 				
 				ImGui::NewLine();
-				ImGui::PopID();
 				ImGui::TreePop();
 			}
+
+			ImGui::PopID();
 		});
 	}
 }
@@ -7823,6 +8017,7 @@ void Templates::Menus::Debug::Sub_Objects()
 
 		ImGui::PaginatedList("ObjectsList", &Features::ObjectsList::currentPage, Features::ObjectsList::filteredObjects, Features::ObjectsList::rowsPerPage, [](Unreal::Object::DataStructure& object)
 		{
+			ImGui::PushID(&object);
 			bool isValid = Unreal::Object::IsValid(object.reference);
 
 			ImGui::PushStyleColor(ImGuiCol_Text, isValid ? ImGui::Color::Green : ImGui::Color::Red);
@@ -7831,8 +8026,6 @@ void Templates::Menus::Debug::Sub_Objects()
 
 			if (isTreeNodeOpen)
 			{
-				ImGui::PushID(object.objectName.c_str());
-
 				ImGui::BeginDisabled(std::strcmp(Features::ObjectsList::filterBuffer, object.objectName.c_str()) == 0);
 				if (ImGui::Button("Focus On"))
 				{
@@ -7868,9 +8061,10 @@ void Templates::Menus::Debug::Sub_Objects()
 				}
 
 				ImGui::NewLine();
-				ImGui::PopID();
 				ImGui::TreePop();
 			}
+
+			ImGui::PopID();
 		});
 	}
 }
@@ -7952,22 +8146,22 @@ void Templates::Menus::Debug::Draw()
 				const double elapsed = now - Features::Debug::lastUpdateTime;
 				if (elapsed < 60.0)
 				{
-					int seconds = (int)elapsed;
+					int32_t seconds = static_cast<int32_t>(elapsed); // <-- Замена int
 					ImGui::Text("Last Update: %d %s ago", seconds, (seconds == 1 ? "second" : "seconds"));
 				}
 				else if (elapsed < 3600.0)
 				{
-					int minutes = (int)(elapsed / 60.0);
+					int32_t minutes = static_cast<int32_t>(elapsed / 60.0); // <-- Замена int
 					ImGui::Text("Last Update: %d %s ago", minutes, (minutes == 1 ? "minute" : "minutes"));
 				}
 				else if (elapsed < 86400.0)
 				{
-					int hours = (int)(elapsed / 3600.0);
+					int32_t hours = static_cast<int32_t>(elapsed / 3600.0); // <-- Замена int
 					ImGui::Text("Last Update: %d %s ago", hours, (hours == 1 ? "hour" : "hours"));
 				}
 				else
 				{
-					int days = (int)(elapsed / 86400.0);
+					int32_t days = static_cast<int32_t>(elapsed / 86400.0); // <-- Замена int
 					ImGui::Text("Last Update: %d %s ago", days, (days == 1 ? "day" : "days"));
 				}
 			}
@@ -8103,6 +8297,7 @@ void Templates::Menus::World::Draw()
 
 				ImGui::PaginatedList("LevelStreaming", &Features::LevelStreaming::currentPage, Features::LevelStreaming::filteredLevels, Features::LevelStreaming::rowsPerPage, [](Unreal::LevelStreaming::DataStructure& levelStreaming)
 				{
+					ImGui::PushID(&levelStreaming);
 					bool isValid = Unreal::Object::IsValid(levelStreaming.reference);
 
 					bool shouldBeLoaded = false;
@@ -8132,7 +8327,24 @@ void Templates::Menus::World::Draw()
 
 					if (isTreeNodeOpen)
 					{
-						ImGui::PushID(levelStreaming.objectName.c_str());
+						ImGui::BeginDisabled(std::strcmp(Features::LevelStreaming::filterBuffer, levelStreaming.levelPath.c_str()) == 0);
+						if (ImGui::Button("Focus On"))
+						{
+							std::snprintf(Features::LevelStreaming::filterBuffer, sizeof(Features::LevelStreaming::filterBuffer), levelStreaming.levelPath.c_str());
+							Features::LevelStreaming::Filter();
+							GUI::PlayActionSound(true);
+						}
+						ImGui::EndDisabled();
+						ImGui::SameLine();
+						ImGui::BeginDisabled(isValid == false);
+						if (ImGui::Button("Refresh"))
+						{
+							Features::LevelStreaming::Update(levelStreaming);
+							GUI::PlayActionSound(true);
+						}
+						ImGui::EndDisabled();
+
+						ImGui::NewLine();
 						
 						ImGui::TextBoolColored("Should Be Loaded:", shouldBeLoaded);
 						if (isValid)
@@ -8224,10 +8436,10 @@ void Templates::Menus::World::Draw()
 						}
 
 						ImGui::NewLine();
-
-						ImGui::PopID();
 						ImGui::TreePop();
 					}
+
+					ImGui::PopID();
 				});
 
 				ImGui::TreePop();
@@ -8248,11 +8460,11 @@ void Templates::Menus::World::Draw()
 
 				ImGui::Text("Level Location:");
 				ImGui::SameLine();
-				ImGui::InputFloat3("##LevelLocationOffset", Features::LoadLevelInstance::locationOffset);
+				ImGui::InputDouble3("##LevelLocationOffset", Features::LoadLevelInstance::locationOffset);
 
 				ImGui::Text("Level Rotation:");
 				ImGui::SameLine();
-				ImGui::InputFloat3("##LevelRotationOffset", Features::LoadLevelInstance::rotationOffset);
+				ImGui::InputDouble3("##LevelRotationOffset", Features::LoadLevelInstance::rotationOffset);
 
 				ImGui::NewLine();
 
@@ -8496,6 +8708,10 @@ void Templates::Menus::Character::Draw()
 		if (characterObtained)
 		{
 			ImGui::TextCopyable("Character: %s", character->GetFullName().c_str());
+			if (ImGui::Checkbox("Show Overlay", &Features::Overlays::showCharacter))
+			{
+				Features::Config::Save();
+			}
 
 			ImGui::NewLine();
 
@@ -8516,8 +8732,7 @@ void Templates::Menus::Character::Draw()
 					GUI::GUI::PlayActionSound(true);
 				}
 
-				static int selectedPositionIndex = -1;
-
+				static int32_t selectedPositionIndex = -1;
 				if (ImGui::BeginTable("PositionsLayout", 2, ImGuiTableFlags_SizingFixedFit))
 				{
 					ImGui::TableSetupColumn("PositionsLeftSide", ImGuiTableColumnFlags_WidthFixed, 400.0f);
@@ -8545,12 +8760,55 @@ void Templates::Menus::Character::Draw()
 								ImGui::TableSetColumnIndex(0);
 
 								char positionIdLabel[Features::Positions::newEntryTitleBufferSize];
-								sprintf_s(positionIdLabel, "%d", (int)i);
+								sprintf_s(positionIdLabel, "%d", (int32_t)i);
 
 								/* Make line highlighted by clicking on ID. */
 								if (ImGui::Selectable(positionIdLabel, selectedPositionIndex == i, ImGuiSelectableFlags_SpanAllColumns))
 								{
-									selectedPositionIndex = (int)i;
+									selectedPositionIndex = (int32_t)i;
+								}
+
+								/* Handle Drag & Drop Source */
+								if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+								{
+									ImGui::SetDragDropPayload("POSITION_ENTRY", &i, sizeof(size_t));
+									ImGui::Text("Move %s", Features::Positions::entries[i].title.c_str());
+									ImGui::EndDragDropSource();
+								}
+
+								/* Handle Drag & Drop Target */
+								if (ImGui::BeginDragDropTarget())
+								{
+									if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("POSITION_ENTRY"))
+									{	
+										size_t payloadIndex = *(const size_t*)payload->Data;
+										if (payloadIndex != i)
+										{
+											Features::Positions::PositionEntry draggedEntry = Features::Positions::entries[payloadIndex];
+											Features::Positions::entries.erase(Features::Positions::entries.begin() + payloadIndex);
+											Features::Positions::entries.insert(Features::Positions::entries.begin() + i, draggedEntry);
+
+											/* Maintain correct selection index after reordering */
+											if (selectedPositionIndex == payloadIndex)
+											{
+												selectedPositionIndex = (int32_t)i;
+											}
+											else if (selectedPositionIndex >= 0)
+											{
+												if (payloadIndex < selectedPositionIndex && i >= selectedPositionIndex)
+												{
+													selectedPositionIndex--;
+												}
+												else if (payloadIndex > selectedPositionIndex && i <= selectedPositionIndex)
+												{
+													selectedPositionIndex++;
+												}
+											}
+
+											Features::Positions::Save();
+										}
+									}
+									ImGui::EndDragDropTarget();
 								}
 
 								/* Title */
@@ -8570,6 +8828,7 @@ void Templates::Menus::Character::Draw()
 
 					bool isPositionsListFull = Features::Positions::entries.size() >= Features::Positions::entriesLimit;
 					ImGui::BeginDisabled(isPositionsListFull);
+					ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 					ImGui::InputTextWithHint("##PositionTitle", "Position Title", Features::Positions::newEntryTitleBuffer, Features::Positions::newEntryTitleBufferSize);
 
 					if (ImGui::Button("Store Current Position"))

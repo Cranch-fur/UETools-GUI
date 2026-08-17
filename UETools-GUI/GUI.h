@@ -122,6 +122,9 @@ namespace ImGui
 	void ReadOnlyInputText(const char* label, const char* text, bool showCopyButton = true);
 
 
+	bool InputDouble3(const char* label, double v[3], const char* format = "%.3f", ImGuiInputTextFlags flags = 0);
+
+
 	bool SliderIntEditable(const char* label, int32_t* v, int32_t v_min, int32_t v_max, const char* format = "%d", ImGuiSliderFlags flags = 0);
 	bool SliderFloatEditable(const char* label, float* v, float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
 	bool SliderDoubleEditable(const char* label, double* v, double v_min, double v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0);
@@ -201,7 +204,7 @@ namespace ImGui
 		int32_t projectedEnd = startIndex + rowsPerPage;
 		int32_t endIndex = projectedEnd < totalRows ? projectedEnd : totalRows;
 
-		for (int32_t i = startIndex; i < endIndex; ++i)
+		for (int32_t i = startIndex; i < endIndex && i < rows.size(); ++i)
 		{
 			FnRenderRow(rows[i]);
 		}
@@ -224,7 +227,7 @@ namespace ImGui
 	* @param key - ImGui key to be converted.
 	* @return The corresponding WinAPI virtual-key code, or 0 if unsupported.
 	*/
-	static int ImGuiKey_ToWinAPI(const ImGuiKey& key);
+	static int32_t ImGuiKey_ToWinAPI(const ImGuiKey& key);
 	/*
 	* @brief Using pre-determined table, returns a human-readable name for a given ImGui key.
 	* @param key - ImGui key to get the name of.
@@ -347,6 +350,28 @@ namespace ImGui
 		static const char* menuSpacer = "                                                                                               ";
 		ImGui::TextUnformatted(menuSpacer, menuSpacer + 95);
 	}
+
+
+
+
+	enum class E_OverlayCorner
+	{
+		TopLeft = 0,
+		TopRight = 1,
+		BottomLeft = 2,
+		BottomRight = 3,
+		None = -1
+	};
+
+	/*
+	* @brief Creates a scalable overlay window.
+	* @param name - Display name and unique identifier (e.g. "Title##ID").
+	* @param p_open - Pointer to a boolean state to allow closing the overlay.
+	* @param isMenuActive - If false, the overlay becomes click-through and unmovable.
+	* @param defaultCorner - The corner where the overlay will spawn on its first use.
+	* @return 'True' if the window is not collapsed/hidden. ALWAYS call ImGui::End() after this, regardless of the return value.
+	*/
+	bool BeginOverlay(const char* name, bool* p_open, bool isMenuActive, E_OverlayCorner defaultCorner = E_OverlayCorner::TopRight);
 };
 
 
@@ -578,11 +603,11 @@ namespace Features
 		static inline const size_t pathBufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
 		static inline char pathBuffer[pathBufferSize] = {};
 
-		static inline float location[3];
+		static inline double location[3];
 		static inline bool usePlayerLocation = true;
-		static inline float rotation[3];
+		static inline double rotation[3];
 		static inline bool usePlayerRotation = true;
-		static inline float scale[3] = { 1.0f, 1.0f, 1.0f };
+		static inline double scale[3] = { 1.0f, 1.0f, 1.0f };
 		static inline bool usePlayerScale = false;
 	};
 #endif
@@ -879,8 +904,8 @@ namespace Features
 		static inline const size_t levelPathBufferSize = SIZE_BUFFER_MULTIOBJECTPATH;
 		static inline char levelPathBuffer[levelPathBufferSize] = {};
 
-		static inline float locationOffset[3];
-		static inline float rotationOffset[3];
+		static inline double locationOffset[3];
+		static inline double rotationOffset[3];
 	};
 
 
@@ -1062,6 +1087,18 @@ namespace Features
 		/* Allocate large buffer to account for combined console commands (e.g: "stat fps | stat unit") */
 		static inline const size_t bufferSize = SIZE_BUFFER_CONSOLE;
 		static inline char buffer[bufferSize] = {};
+	};
+
+
+
+
+	class Overlays
+	{
+	public:
+		static inline bool showCharacter = false;
+
+		static void Draw();
+		static void Draw_ThreadSafe();
 	};
 };
 
