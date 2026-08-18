@@ -9153,7 +9153,7 @@ void Templates::Menus::Character::Draw()
 				}
 				ImGui::EndDisabled();
 				ImGui::SameLine();
-				ImGui::BeginDisabled(isMoveInputIgnored == false);
+				ImGui::BeginDisabled(isLookInputIgnored == false);
 				if (ImGui::Button("Disable##IgnoreLookInput"))
 				{
 					if (playerController)
