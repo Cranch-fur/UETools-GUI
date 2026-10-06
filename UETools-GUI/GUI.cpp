@@ -2529,10 +2529,10 @@ bool Features::Positions::ReadPositionFromConfig(ConfigInstance* positionsConfig
 
 	positionEntry->title = positionsConfig->GetKey<std::string>(entryName_Title).value_or(std::string());
 
-	std::array<float, 3> location = positionsConfig->GetKey<std::array<float, 3>>(entryName_Location).value_or({ 0.0f, 0.0f, 0.0f });
+	std::array<float, 3> location = positionsConfig->GetKey<std::array<float, 3>>(entryName_Location).value_or(std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
 	positionEntry->location = { location[0], location[1], location[2] };
 
-	std::array<float, 3> rotation = positionsConfig->GetKey<std::array<float, 3>>(entryName_Rotation).value_or({ 0.0f, 0.0f, 0.0f });
+	std::array<float, 3> rotation = positionsConfig->GetKey<std::array<float, 3>>(entryName_Rotation).value_or(std::array<float, 3>{ 0.0f, 0.0f, 0.0f });
 	positionEntry->rotation = { rotation[0], rotation[1], rotation[2] };
 
 	return true;
@@ -6977,7 +6977,7 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 							ImGui::NewLine();
 
 							ImGui::Text("Dynamic Shadow Distance (Stationary)");
-							ImGui::SliderFloatEditable("##DynamicShadowDistanceMovable", &directionalLightComponent->DynamicShadowDistanceStationaryLight, 0.0f, 100000.0f);
+							ImGui::SliderFloatEditable("##DynamicShadowDistanceStationary", &directionalLightComponent->DynamicShadowDistanceStationaryLight, 0.0f, 100000.0f);
 							if (ImGui::IsItemDeactivatedAfterEdit())
 							{
 								RefreshLightComponent(lightComponent);
