@@ -1,5 +1,6 @@
 #include "Math.h"
 #include "Unreal.h" // Rotator_ToQuat()
+#include "Window.h" // GetTargetWindow()
 
 
 
@@ -22,7 +23,7 @@ SDK::FVector Math::Vector_Add(const SDK::FVector& A, float B)
     {
         A.X + B,
         A.Y + B,
-        A.Y + B
+        A.Z + B
     };
 }
 
@@ -43,7 +44,7 @@ SDK::FVector Math::Vector_Subtract(const SDK::FVector& A, float B)
     {
         A.X - B,
         A.Y - B,
-        A.Y - B
+        A.Z - B
     };
 }
 
@@ -311,50 +312,95 @@ SDK::FTransform Math::Unreal_ToFTransform(const Unreal::Transform& unrealTransfo
 
 
 
-bool Math::ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& viewportSize, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
+bool Math::ViewProjection::IsBuiltFrom(const SDK::FVector& location, const SDK::FRotator& rotation, float fov, const SDK::FVector2D& viewport) const
 {
-    if (outScreenLocation == nullptr)
-        return false;
+    return cameraLocation.X == location.X && cameraLocation.Y == location.Y && cameraLocation.Z == location.Z &&
+           cameraRotation.Pitch == rotation.Pitch && cameraRotation.Yaw == rotation.Yaw && cameraRotation.Roll == rotation.Roll &&
+           fieldOfView == fov &&
+           viewportSize.X == viewport.X && viewportSize.Y == viewport.Y;
+}
 
-    /* Get camera axis vectors. */
-    SDK::FVector vAxisX = Math::Rotator_ForwardVector(cameraRotation);
-    SDK::FVector vAxisY = Math::Rotator_RightVector(cameraRotation);
-    SDK::FVector vAxisZ = Math::Rotator_UpVector(cameraRotation);
 
-    /* Calculate delta vector from camera to target. */
-    SDK::FVector vDelta = Math::Vector_Subtract(worldLocation, cameraLocation);
+Math::ViewProjection Math::MakeViewProjection(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& viewportSize)
+{
+    ViewProjection viewProjection;
+    viewProjection.cameraLocation = cameraLocation;
+    viewProjection.cameraRotation = cameraRotation;
+    viewProjection.fieldOfView = fieldOfView;
+    viewProjection.viewportSize = viewportSize;
 
-    /* Transform delta into camera space using Dot Product. */
-    SDK::FVector vTransformed;
-    vTransformed.X = Math::Vector_Dot(vDelta, vAxisX);
-    vTransformed.Y = Math::Vector_Dot(vDelta, vAxisY);
-    vTransformed.Z = Math::Vector_Dot(vDelta, vAxisZ);
+    /* Single quaternion for all three axes (previously rotator was converted for each axis separately). */
+    const SDK::FQuat cameraQuat = Rotator_ToQuat(cameraRotation);
 
-    /* If X is less than or equal to 0, the target is behind the camera. */
-    if (vTransformed.X <= 0.01f)
-        return false;
+    SDK::FVector forward;
+    forward.X = 1.0f;
+    SDK::FVector right;
+    right.Y = 1.0f;
+    SDK::FVector up;
+    up.Z = 1.0f;
 
-    SDK::FVector2D viewportCenter =
+    viewProjection.axisForward = Vector_Rotate(forward, cameraQuat);
+    viewProjection.axisRight = Vector_Rotate(right, cameraQuat);
+    viewProjection.axisUp = Vector_Rotate(up, cameraQuat);
+
+    viewProjection.viewportCenter =
     {
         viewportSize.X / 2.0f,
         viewportSize.Y / 2.0f
     };
 
-    /* Convert FOV to radians and calculate projection math. */
-    float fovRadians = fieldOfView * Math::PI / 360.0f;
-    float screenFOV = viewportCenter.X / std::tanf(fovRadians);
+    /* Convert FOV to radians (half angle) and calculate distance to projection plane. */
+    const float fovRadians = fieldOfView * Math::PI / 360.0f;
+    viewProjection.screenFactor = static_cast<float>(viewProjection.viewportCenter.X) / std::tanf(fovRadians);
+
+    return viewProjection;
+}
+
+
+SDK::FVector2D Math::GetViewportSize()
+{
+    /* Size cached by overlay each frame, avoids querying window on every projection. */
+    POINT viewportSize = Window::GetTargetWindowSize();
+    if (viewportSize.x <= 0 || viewportSize.y <= 0)
+        viewportSize = Utilities::Viewport::GetWindowSize(Window::GetTargetWindow());
+
+    return { static_cast<float>(viewportSize.x), static_cast<float>(viewportSize.y) };
+}
+
+
+bool Math::ProjectWorldToScreen(const ViewProjection& viewProjection, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
+{
+    if (outScreenLocation == nullptr)
+        return false;
+
+    /* Calculate delta vector from camera to target. */
+    SDK::FVector vDelta = Math::Vector_Subtract(worldLocation, viewProjection.cameraLocation);
+
+    /* Transform delta into camera space using Dot Product. */
+    SDK::FVector vTransformed;
+    vTransformed.X = Math::Vector_Dot(vDelta, viewProjection.axisForward);
+    vTransformed.Y = Math::Vector_Dot(vDelta, viewProjection.axisRight);
+    vTransformed.Z = Math::Vector_Dot(vDelta, viewProjection.axisUp);
+
+    /* If X is less than or equal to 0, the target is behind the camera. */
+    if (vTransformed.X <= 0.01f)
+        return false;
 
     /* Project to screen coordinates. */
-    outScreenLocation->X = viewportCenter.X + vTransformed.Y * (screenFOV / vTransformed.X);
-    outScreenLocation->Y = viewportCenter.Y - vTransformed.Z * (screenFOV / vTransformed.X);
+    outScreenLocation->X = viewProjection.viewportCenter.X + vTransformed.Y * (viewProjection.screenFactor / vTransformed.X);
+    outScreenLocation->Y = viewProjection.viewportCenter.Y - vTransformed.Z * (viewProjection.screenFactor / vTransformed.X);
 
     return true;
 }
 
+bool Math::ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& viewportSize, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
+{
+    return ProjectWorldToScreen(MakeViewProjection(cameraLocation, cameraRotation, fieldOfView, viewportSize), worldLocation, outScreenLocation);
+}
+
 bool Math::ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation)
 {
-    POINT viewportSize = Utilities::Viewport::GetWindowSize();
-    return ProjectWorldToScreen(cameraLocation, cameraRotation, fieldOfView, { static_cast<float>(viewportSize.x), static_cast<float>(viewportSize.y) }, worldLocation, outScreenLocation);
+    return ProjectWorldToScreen(cameraLocation, cameraRotation, fieldOfView, GetViewportSize(), worldLocation, outScreenLocation);
 }
 
 

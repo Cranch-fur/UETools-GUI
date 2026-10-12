@@ -294,7 +294,7 @@ const bool ConfigInstance::IsLineCommentOrEmpty(const std::string& line)
 }
 
 
-const bool ConfigInstance::ReadFloat(const std::string& text, const size_t& inPos, size_t* outPos, float* outValue)
+const bool ConfigInstance::ReadFloat(const std::string& text, size_t inPos, size_t* outPos, float* outValue)
 {
     if (outPos == nullptr || outValue == nullptr) // Check if output pointers are invalid.
     {
@@ -445,7 +445,7 @@ const std::string ConfigInstance::String_ToLower(const std::string& text)
     return outText;
 }
 
-const std::string ConfigInstance::Float_ToString(const float& value)
+const std::string ConfigInstance::Float_ToString(float value)
 {
     std::ostringstream stringStream = {};
     stringStream << std::setprecision(9) << value;
@@ -509,7 +509,8 @@ const std::string ConfigInstance::Value_ToLine(const std::string& key, const Val
         return stringStream.str();
     }
 
-    return key + " = " + std::get<std::string>(value);
+    /* Explicit type prefix keeps values like "C:\\..." or "int:5" intact on re-load. */
+    return key + " = string:" + std::get<std::string>(value);
 }
 
 

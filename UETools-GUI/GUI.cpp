@@ -1,4 +1,5 @@
 #include "GUI.h"
+#include "imgui_internal.h"
 
 
 
@@ -24,6 +25,22 @@ ImGui::Viewport ImGui::GetViewport()
 }
 
 
+void ImGui::RecoverFromException(const ImGuiErrorRecoveryState* state)
+{
+	if (state == nullptr || ImGui::GetCurrentContext() == nullptr)
+		return;
+
+	/* Unbalanced stacks are expected here, don't treat them as user errors. */
+	ImGuiIO& io = ImGui::GetIO();
+	const bool enableAssert = io.ConfigErrorRecoveryEnableAssert;
+	io.ConfigErrorRecoveryEnableAssert = false;
+
+	ImGui::ErrorRecoveryTryToRecoverState(state);
+
+	io.ConfigErrorRecoveryEnableAssert = enableAssert;
+}
+
+
 ImDrawList* ImGui::GetDrawList()
 {
 	ImDrawList* iDrawList = ImGui::GetBackgroundDrawList();
@@ -33,20 +50,21 @@ ImDrawList* ImGui::GetDrawList()
 
 
 
-bool ImGui::Texture2D::Exists(const std::string& textureName)
+std::string ImGui::Texture2D::NormalizeName(const std::string& textureName)
 {
-	return ImTextures.contains(textureName);
+	return Utilities::String::ToUpperCase(textureName);
 }
 
-bool ImGui::Texture2D::Exists(const Window::TextureMetaData& textureMetaData)
+
+bool ImGui::Texture2D::Exists(const std::string& textureName)
 {
-	return Exists(textureMetaData.name);
+	return ImTextures.contains(NormalizeName(textureName));
 }
 
 
 ImTextureID ImGui::Texture2D::Get(const std::string& textureName)
 {
-	auto textureIterator = ImTextures.find(textureName);
+	auto textureIterator = ImTextures.find(NormalizeName(textureName));
 
 	if (textureIterator == ImTextures.end())
 		return (ImTextureID)0;
@@ -54,27 +72,30 @@ ImTextureID ImGui::Texture2D::Get(const std::string& textureName)
 	return textureIterator->second;
 }
 
-ImTextureID ImGui::Texture2D::Get(const Window::TextureMetaData& textureMetaData)
-{
-	return Get(textureMetaData.name);
-}
-
 
 void ImGui::Texture2D::Add(const std::string& textureName, ImTextureID iTextureId)
 {
-	if (ImTextures.contains(textureName))
+	const std::string normalizedName = NormalizeName(textureName);
+	if (ImTextures.contains(normalizedName))
 		return;
 
-	ImTextures.emplace(textureName, iTextureId);
+	ImTextures.emplace(normalizedName, iTextureId);
 }
 
-void ImGui::Texture2D::Add(const Window::TextureMetaData& textureMetaData, ImTextureID iTextureId)
+
+void ImGui::Texture2D::Clear(const std::function<void(ImTextureID)>& FnReleaseTexture)
 {
-	return Add(textureMetaData.name, iTextureId);
+	for (const auto& [textureName, iTextureId] : ImTextures)
+	{
+		if (FnReleaseTexture && IsValid(iTextureId))
+			FnReleaseTexture(iTextureId);
+	}
+
+	ImTextures.clear();
 }
 
 
-bool ImGui::Texture2D::IsValid(const ImTextureID& iTextureId)
+bool ImGui::Texture2D::IsValid(ImTextureID iTextureId)
 {
 	return iTextureId != (ImTextureID)0;
 }
@@ -113,11 +134,6 @@ bool ImGui::IconButton(const char* textureName, const char* text, const ImVec2& 
 	ImGui::PopID();
 
 	return isPressed;
-}
-
-bool ImGui::IconButton(const Window::TextureMetaData& textureMetaData, const char* text, const ImVec2& size)
-{
-	return IconButton(textureMetaData.name, text, size);
 }
 
 
@@ -485,7 +501,7 @@ void ImGui::TextCopyable(const char* fmt, ...)
 	static const ImVec2 bgPadding(2.0f, 1.0f);
 	ImVec2 bgMinPos = ImVec2(labelPos.x - bgPadding.x, labelPos.y - bgPadding.y);
 	ImVec2 bgMaxPos = ImVec2(labelPos.x + labelSize.x + bgPadding.x, labelPos.y + labelSize.y + bgPadding.y);
-	static ImU32 bgColor = IM_COL32(0, 0, 20, 75);
+	const ImU32 bgColor = IM_COL32(0, 0, 20, 75);
 	ImGui::GetWindowDrawList()->AddRectFilled(bgMinPos, bgMaxPos, bgColor, 2.0f);
 
 	ImGui::TextUnformatted(buffer);
@@ -794,7 +810,7 @@ bool ImGui::ObjectFilterModeComboBox(const char* label, E_ObjectFilterMode* v)
 
 
 
-int32_t ImGui::ImGuiKey_ToWinAPI(const ImGuiKey& key)
+int32_t ImGui::ImGuiKey_ToWinAPI(ImGuiKey key)
 {
 	switch (key)
 	{
@@ -890,7 +906,7 @@ int32_t ImGui::ImGuiKey_ToWinAPI(const ImGuiKey& key)
 	}
 }
 
-const char* ImGui::ImGuiKey_GetName(const ImGuiKey& key)
+const char* ImGui::ImGuiKey_GetName(ImGuiKey key)
 {
 	switch (key)
 	{
@@ -1081,27 +1097,27 @@ bool ImGui::IsKeyBindingPressed(KeyBinding* binding, bool waitForRelease)
 		return false;
 
 	if (binding->key == ImGuiKey_None)
-		return false;
-
-	int32_t keyCode = ImGuiKey_ToWinAPI(binding->key);
-	if (waitForRelease)
 	{
-		if (GetAsyncKeyState(keyCode) & 0x8000)
-		{
-			binding->isInUse = true;
-			while (GetAsyncKeyState(keyCode) & 0x8000)
-			{
-				Sleep(1);
-			}
-
-			binding->isInUse = false;
-			return true;
-		}
+		binding->wasDown = false;
+		return false;
 	}
-	else
-		return (GetAsyncKeyState(keyCode) & 1);
 
-	return false;
+	/* Polling was interrupted (focus lost, menu opened, etc.), previous state is stale. */
+	const uint64_t currentTick = GetTickCount64();
+	if (currentTick - binding->lastPollTick > KEYBINDING_POLL_TIMEOUT_MS)
+		binding->wasDown = false;
+
+	binding->lastPollTick = currentTick;
+
+	const int32_t keyCode = ImGuiKey_ToWinAPI(binding->key);
+	const bool isDown = (GetAsyncKeyState(keyCode) & 0x8000) != 0;
+	const bool wasDown = binding->wasDown;
+	binding->wasDown = isDown;
+
+	if (waitForRelease)
+		return wasDown && isDown == false; // Fire once the key is released.
+
+	return wasDown == false && isDown; // Fire once the key is pressed.
 }
 
 bool ImGui::IsKeyBindingDown(KeyBinding* binding)
@@ -1146,7 +1162,7 @@ bool ImGui::IsKeyBindingReleased(KeyBinding* binding)
 
 
 
-bool ImGui::IsMouseButtonDown(const E_MouseButton& mouseButton)
+bool ImGui::IsMouseButtonDown(E_MouseButton mouseButton)
 {
 	int32_t virtualKey = 0;
 	switch (mouseButton)
@@ -1170,9 +1186,9 @@ bool ImGui::IsMouseButtonDown(const E_MouseButton& mouseButton)
 
 
 
-void ImGui::SetFontScale(float fontScale)
+void ImGui::SetFontScale(float newFontScale)
 {
-	SetWindowFontScale(fontScale);
+	SetWindowFontScale(newFontScale);
 	fontScale = E_FontScale::Custom;
 }
 
@@ -1345,6 +1361,32 @@ void ImGui::TitleText(const char* fmt, ...)
 
 
 
+void ImGui::SetNextWindowInsideDisplay(const char* windowName)
+{
+	/*
+		Position must be corrected before Begin(): moving window after it has been started
+		shifts its frame & background, but not the contents that are already laid out.
+	*/
+	ImGuiWindow* window = ImGui::FindWindowByName(windowName);
+	if (window == nullptr) // Window doesn't exist yet (first use), nothing to correct.
+		return;
+
+	const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+	const ImVec2 windowPosition = window->Pos; // Already includes mouse dragging of current frame.
+	const ImVec2 windowSize = window->Size;
+
+	/* Window larger than display is pinned to top-left corner. */
+	const ImVec2 clampedPosition =
+	{
+		ImClamp(windowPosition.x, 0.0f, ImMax(0.0f, displaySize.x - windowSize.x)),
+		ImClamp(windowPosition.y, 0.0f, ImMax(0.0f, displaySize.y - windowSize.y))
+	};
+
+	if (clampedPosition.x != windowPosition.x || clampedPosition.y != windowPosition.y)
+		ImGui::SetNextWindowPos(clampedPosition, ImGuiCond_Always);
+}
+
+
 bool ImGui::BeginOverlay(const char* name, bool* p_open, bool isMenuActive, E_OverlayCorner defaultCorner)
 {
 	const float PADDING = 15.0f;
@@ -1367,7 +1409,11 @@ bool ImGui::BeginOverlay(const char* name, bool* p_open, bool isMenuActive, E_Ov
 		window_flags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoMouseInputs;
 	}
 
+	/* Window may end up partially off-screen after being dragged or resized (e.g. Interface Scale change). */
+	ImGui::SetNextWindowInsideDisplay(name);
+
 	bool isRendered = ImGui::Begin(name, p_open, window_flags);
+
 	if (isRendered)
 	{
 		const char* idPosition = std::strstr(name, "##");
@@ -1412,7 +1458,7 @@ bool GUI::StartWindowThread()
 
 
 
-void GUI::Init(const HMODULE& applicationModule)
+void GUI::Init(HMODULE applicationModule)
 {
 	/* Before creating a DirectWindow, we need to make it aware of our DLL HMODULE. */
 #if defined(API_D3D11)
@@ -1420,17 +1466,37 @@ void GUI::Init(const HMODULE& applicationModule)
 #elif defined(API_OPENGL3)
 	OpenWindow3::SetApplicationModule(applicationModule);
 #endif
-	StartWindowThread();
-
+	/* Configs must be loaded before window thread reads them (e.g. font settings). */
 	Features::Config::Load();
 	Features::Positions::Load();
 	Inputs::Config::Load();
 
+	StartWindowThread();
+
 	BackgroundTasks::Init();
 }
 
+
+void GUI::Shutdown()
+{
+	/* Workers may touch title objects and ImGui, stop them before anything is released. */
+	BackgroundTasks::Shutdown();
+
+	/* Title keeps running only after manual unload; on title exit its objects are already being destroyed. */
+	if (GetIsUnloadRequested() == false)
+		return;
+
+	__try
+	{
+		/* Camera actor stays in the world, but player must get his view back. */
+		if (Features::FreeCamera::IsEnabled())
+			Features::FreeCamera::Disable();
+	}
+	__except (EXCEPTION()) {}
+}
+
 #ifdef WAIT_FOR_TITLE_INIT
-void GUI::InitOnTitleInitialized(const HMODULE& applicationModule)
+void GUI::InitOnTitleInitialized(HMODULE applicationModule)
 {
 	while (Unreal::IsTitleInitialized() == false)
 		Sleep(100);
@@ -1444,6 +1510,8 @@ void GUI::InitOnTitleInitialized(const HMODULE& applicationModule)
 
 void GUI::Draw()
 {
+	Features::Menu::ApplyInterfaceScale();
+
 	ImGui::GetStyle().Alpha = Features::Menu::opacity;
 
 	if (GetIsMenuActive())
@@ -1501,9 +1569,9 @@ void GUI::Draw()
 
 			Templates::Menus::Debug::Draw();
 
-			Templates::Menus::World::Draw();
+			Templates::Menus::World::Draw_ThreadSafe();
 
-			Templates::Menus::Character::Draw();
+			Templates::Menus::Character::Draw_ThreadSafe();
 
 			Templates::Menus::FreeCamera::Draw();
 
@@ -1539,7 +1607,7 @@ void GUI::Draw()
 
 
 
-void GUI::PlayUISound(const E_Sound& soundToPlay)
+void GUI::PlayUISound(E_Sound soundToPlay)
 {
 	if (Features::Menu::enableSound == false)
 		return;
@@ -1575,14 +1643,8 @@ void GUI::PlayUISound(const E_Sound& soundToPlay)
 			break;
 	}
 
-	/*
-		Dedicate sound playback in to separate thread.
-		This prevents the main thread from blocking while Beep() is playing the sound.
-	*/
-	std::thread([=]()
-		{
-			Beep(soundFrequency, soundDuration);
-		}).detach();
+	/* Beep() blocks, so playback is done by dedicated background task (it's stopped before unload, unlike detached threads). */
+	BackgroundTasks::SoundPlayer::Play(soundFrequency, soundDuration);
 }
 
 
@@ -1593,6 +1655,30 @@ void GUI::PlayUISound(const E_Sound& soundToPlay)
 // ==============================
 // |        #Features			|
 // ==============================
+void Features::Menu::ApplyInterfaceScale()
+{
+	/* Unscaled style is captured once, scaling is always applied to it (ScaleAllSizes() isn't reversible). */
+	static const ImGuiStyle baseStyle = ImGui::GetStyle();
+	static float appliedScale = 1.0f;
+
+	interfaceScale = std::clamp(interfaceScale, INTERFACE_SCALE_MIN, INTERFACE_SCALE_MAX);
+	if (interfaceScale == appliedScale)
+		return;
+
+	ImGuiStyle& style = ImGui::GetStyle();
+	style = baseStyle;
+	style.ScaleAllSizes(interfaceScale);
+	style.FontScaleMain = baseStyle.FontScaleMain * interfaceScale;
+
+	/* ScaleAllSizes() truncates cursor scale (0.9 -> 0), which makes software cursor invisible below 1.0. */
+	style.MouseCursorScale = baseStyle.MouseCursorScale * interfaceScale;
+
+	appliedScale = interfaceScale;
+}
+
+
+
+
 template <typename T>
 inline void Features::Config::ReadFeatureFromConfig(ConfigInstance* featuresConfig, const std::string& entryName, T* featureValue)
 {
@@ -1617,6 +1703,7 @@ void Features::Config::Load()
 	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_enableSound", &Features::Menu::enableSound);
 	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_useVectorFont", &Features::Menu::useVectorFont);
 	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_opacity", &Features::Menu::opacity);
+	ReadFeatureFromConfig(&featuresConfig, "Features_Menu_interfaceScale", &Features::Menu::interfaceScale);
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_Debug_autoUpdate", &Features::Debug::autoUpdate);
 	ReadFeatureFromConfig(&featuresConfig, "Features_Debug_autoUpdateDelay", &Features::Debug::autoUpdateDelay);
@@ -1753,6 +1840,7 @@ void Features::Config::Save()
 	featuresConfig.SetKey("Features_Menu_enableSound", Features::Menu::enableSound);
 	featuresConfig.SetKey("Features_Menu_useVectorFont", Features::Menu::useVectorFont);
 	featuresConfig.SetKey("Features_Menu_opacity", Features::Menu::opacity);
+	featuresConfig.SetKey("Features_Menu_interfaceScale", Features::Menu::interfaceScale);
 
 	featuresConfig.SetKey("Features_Debug_autoUpdate", Features::Debug::autoUpdate);
 	featuresConfig.SetKey("Features_Debug_autoUpdateDelay", Features::Debug::autoUpdateDelay);
@@ -2327,11 +2415,17 @@ void Features::WidgetVisualisation::Draw()
 
 void Features::WidgetVisualisation::Draw_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Features::WidgetVisualisation::Draw();
 	}
-	__except (EXCEPTION()) {}
+	__except (EXCEPTION())
+	{
+		ImGui::RecoverFromException(&recoveryState);
+	}
 }
 
 
@@ -2663,17 +2757,9 @@ void Features::ActorTrace::Draw()
 			/* Inverse Normalize RGBA values set by color picker. */
 			ImU32 color = ImGui::ColorConvertFloat4ToU32(ImVec4(Features::ActorTrace::traceColor[0], Features::ActorTrace::traceColor[1], Features::ActorTrace::traceColor[2], Features::ActorTrace::traceColor[3]));
 
-			static float traceStartCircleRadius;
-			if (startPositionProjected)
-				traceStartCircleRadius = Features::ActorTrace::traceThickness * 1.5f;
-
-			static float traceEndCircleRadius;
-			static float traceCrossSize;
-			if (endPositionProjected)
-			{
-				traceEndCircleRadius = Features::ActorTrace::traceThickness * 1.75f;
-				traceCrossSize = 8.0f + (Features::ActorTrace::traceThickness * 0.5f);
-			}
+			const float traceStartCircleRadius = Features::ActorTrace::traceThickness * 1.5f;
+			const float traceEndCircleRadius = Features::ActorTrace::traceThickness * 1.75f;
+			const float traceCrossSize = 8.0f + (Features::ActorTrace::traceThickness * 0.5f);
 
 			/* Both start and end position are within player view. */
 			if (startPositionProjected && endPositionProjected)
@@ -2745,11 +2831,17 @@ void Features::ActorTrace::Draw()
 
 void Features::ActorTrace::Draw_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Features::ActorTrace::Draw();
 	}
-	__except (EXCEPTION()) {}
+	__except (EXCEPTION())
+	{
+		ImGui::RecoverFromException(&recoveryState);
+	}
 }
 
 
@@ -2793,10 +2885,10 @@ void Features::ActorsTracker::Draw()
 						Features::ActorsTracker::actorColor[3] * alphaModifier
 					};
 					ImU32 actorColor = Math::ColorFloat4_ToU32(colorWithAlphaModifier);
-					ImTextureID actorIcon = isValid ? ImGui::Texture2D::Get(Window::texturesCollection.T_Friendly) : ImGui::Texture2D::Get(Window::texturesCollection.T_Hostile);
+					ImTextureID actorIcon = isValid ? ImGui::Texture2D::Get("Friendly") : ImGui::Texture2D::Get("Hostile");
 
-					static float iconSize = 32.0f;
-					static float halfSize = iconSize * 0.5f;
+					const float iconSize = 32.0f;
+					const float halfSize = iconSize * 0.5f;
 
 					ImVec2 p_min = ImVec2(floorf(screenPosition.X - halfSize), floorf(screenPosition.Y - halfSize));
 					ImVec2 p_max = ImVec2(floorf(screenPosition.X + halfSize), floorf(screenPosition.Y + halfSize));
@@ -2846,11 +2938,17 @@ void Features::ActorsTracker::Draw()
 
 void Features::ActorsTracker::Draw_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Features::ActorsTracker::Draw();
 	}
-	__except (EXCEPTION()) {}
+	__except (EXCEPTION())
+	{
+		ImGui::RecoverFromException(&recoveryState);
+	}
 }
 
 
@@ -2961,11 +3059,17 @@ void Features::CollisionVisualizer::Draw()
 
 void Features::CollisionVisualizer::Draw_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Features::CollisionVisualizer::Draw();
 	}
-	__except (EXCEPTION()) {}
+	__except (EXCEPTION())
+	{
+		ImGui::RecoverFromException(&recoveryState);
+	}
 }
 #endif
 
@@ -3368,11 +3472,17 @@ void Features::Overlays::Draw()
 
 void Features::Overlays::Draw_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Features::Overlays::Draw();
 	}
-	__except (EXCEPTION()) {}
+	__except (EXCEPTION())
+	{
+		ImGui::RecoverFromException(&recoveryState);
+	}
 }
 
 
@@ -3389,6 +3499,9 @@ void BackgroundTasks::KeybindingsHandler::Worker()
 		{
 			if (ImGui::IsKeyBindingPressed(&Inputs::Keybindings::general_MenuOpenClose))
 				GUI::ToggleIsMenuActive();
+
+			if (ImGui::IsKeyBindingPressed(&Inputs::Keybindings::general_Unload))
+				GUI::RequestUnload();
 
 			if (GUI::GetIsMenuActive() == false)
 			{
@@ -3535,12 +3648,8 @@ void BackgroundTasks::KeybindingsHandler::Worker()
 
 						if (mouseControlExpected)
 						{
-							POINT screenSize = Utilities::Viewport::GetScreenSize();
-							POINT screenCenter = 
-							{ 
-								screenSize.x / 2, 
-								screenSize.y / 2 
-							};
+							/* Title window center, so mouse stays within title in windowed mode & on multi-monitor setups. */
+							POINT screenCenter = Utilities::Viewport::GetWindowCenter(Window::GetTargetWindow());
 
 							if (wasMouseControlActive == false)
 							{
@@ -3656,8 +3765,11 @@ void BackgroundTasks::KeybindingsHandler::Enable()
 {
 	if (thread == nullptr)
 	{
+		isEnabled = true; // Must be set before worker starts polling it.
 		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)BackgroundTasks::KeybindingsHandler::Worker, 0, 0, 0);
-		isEnabled = thread;
+
+		if (thread == nullptr)
+			isEnabled = false;
 	}
 }
 
@@ -3772,12 +3884,60 @@ void BackgroundTasks::DirectionalMovementHandler::Enable()
 {
 	if (thread == nullptr)
 	{
+		isEnabled = true; // Must be set before worker starts polling it.
 		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)BackgroundTasks::DirectionalMovementHandler::Worker, 0, 0, 0);
-		isEnabled = thread;
+
+		if (thread == nullptr)
+			isEnabled = false;
 	}
 }
 
 void BackgroundTasks::DirectionalMovementHandler::Disable()
+{
+	if (thread)
+	{
+		isEnabled = false;
+
+		WaitForSingleObject(thread, INFINITE);
+		CloseHandle(thread);
+
+		thread = nullptr;
+	}
+}
+
+
+void BackgroundTasks::SoundPlayer::Worker()
+{
+	while (isEnabled)
+	{
+		const uint32_t sound = pendingSound.exchange(0);
+		if (sound != 0)
+			Beep(sound >> 16, sound & 0xFFFF);
+		else
+			Sleep(Math::Seconds_ToMilliseconds(delay));
+	}
+}
+
+void BackgroundTasks::SoundPlayer::Play(uint16_t frequency, uint16_t duration)
+{
+	/* Only the latest sound is kept, older one is dropped if it wasn't played yet. */
+	pendingSound = (static_cast<uint32_t>(frequency) << 16) | duration;
+}
+
+
+void BackgroundTasks::SoundPlayer::Enable()
+{
+	if (thread == nullptr)
+	{
+		isEnabled = true; // Must be set before worker starts polling it.
+		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)BackgroundTasks::SoundPlayer::Worker, 0, 0, 0);
+
+		if (thread == nullptr)
+			isEnabled = false;
+	}
+}
+
+void BackgroundTasks::SoundPlayer::Disable()
 {
 	if (thread)
 	{
@@ -3815,8 +3975,11 @@ void BackgroundTasks::ConstructConsole::Enable()
 {
 	if (thread == nullptr)
 	{
+		isEnabled = true; // Must be set before worker starts polling it.
 		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)BackgroundTasks::ConstructConsole::Worker, 0, 0, 0);
-		isEnabled = thread;
+
+		if (thread == nullptr)
+			isEnabled = false;
 	}
 }
 
@@ -3838,7 +4001,7 @@ void BackgroundTasks::ConstructConsole::Disable()
 #ifdef TASK_CONSTRUCT_CHEATMANAGER
 void BackgroundTasks::ConstructCheatManager::Worker()
 {
-	while (thread)
+	while (isEnabled)
 	{
 		if (cheatManagerConstructed == false)
 		{
@@ -3856,8 +4019,11 @@ void BackgroundTasks::ConstructCheatManager::Enable()
 {
 	if (thread == nullptr)
 	{
+		isEnabled = true; // Must be set before worker starts polling it.
 		thread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)BackgroundTasks::ConstructCheatManager::Worker, 0, 0, 0);
-		isEnabled = thread;
+
+		if (thread == nullptr)
+			isEnabled = false;
 	}
 }
 
@@ -3878,6 +4044,8 @@ void BackgroundTasks::ConstructCheatManager::Disable()
 
 void BackgroundTasks::Init()
 {
+	BackgroundTasks::SoundPlayer::Enable();
+
 	BackgroundTasks::KeybindingsHandler::Enable();
 
 	BackgroundTasks::DirectionalMovementHandler::Enable();
@@ -3889,6 +4057,25 @@ void BackgroundTasks::Init()
 #ifdef TASK_CONSTRUCT_CHEATMANAGER
 	BackgroundTasks::ConstructCheatManager::Enable();
 #endif
+}
+
+
+void BackgroundTasks::Shutdown()
+{
+	BackgroundTasks::KeybindingsHandler::Disable();
+
+	BackgroundTasks::DirectionalMovementHandler::Disable();
+
+#ifdef TASK_CONSTRUCT_CONSOLE
+	BackgroundTasks::ConstructConsole::Disable();
+#endif
+
+#ifdef TASK_CONSTRUCT_CHEATMANAGER
+	BackgroundTasks::ConstructCheatManager::Disable();
+#endif
+
+	/* Last one, other tasks may still request sounds while stopping. */
+	BackgroundTasks::SoundPlayer::Disable();
 }
 
 
@@ -3920,6 +4107,7 @@ void Inputs::Config::Load()
 	}
 
 	ReadKeyBindingFromConfig(&keybindingsConfig, "general_MenuOpenClose", &Inputs::Keybindings::general_MenuOpenClose);
+	ReadKeyBindingFromConfig(&keybindingsConfig, "general_Unload", &Inputs::Keybindings::general_Unload);
 
 	ReadKeyBindingFromConfig(&keybindingsConfig, "debug_ActorTrace", &Inputs::Keybindings::debug_ActorTrace);
 
@@ -3968,6 +4156,7 @@ void Inputs::Config::Save()
 	ConfigInstance keybindingsConfig(PATH_CONFIG_KEYBINDINGS);
 	
 	keybindingsConfig.SetKey("general_MenuOpenClose", static_cast<int>(Inputs::Keybindings::general_MenuOpenClose.key));
+	keybindingsConfig.SetKey("general_Unload", static_cast<int>(Inputs::Keybindings::general_Unload.key));
 
 	keybindingsConfig.SetKey("debug_ActorTrace", static_cast<int>(Keybindings::debug_ActorTrace.key));
 
@@ -4399,8 +4588,8 @@ void DebugDraw::DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, u
 	bool capsuleTopTip_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, capsuleTopTip, &capsuleTopTip_Screen);
 	bool capsuleBottomTip_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, capsuleBottomTip, &capsuleBottomTip_Screen);
 
-	static int32_t capsuleSegments = 24;
-	static int32_t hemisphereSegments = 6; // Number of segments from tip to seam to approximate the spherical rounding.
+	const int32_t capsuleSegments = 24;
+	const int32_t hemisphereSegments = 6; // Number of segments from tip to seam to approximate the spherical rounding.
 	for (int32_t i = 0; i < capsuleSegments; i++)
 	{
 		/*
@@ -4499,9 +4688,9 @@ void DebugDraw::DrawSphereComponent(SDK::USphereComponent* sphereComponent, uint
 	SDK::FVector sphereUpVector = Math::Rotator_UpVector(sphereTransform.rotation);
 
 	/* Determine level of detail for volume. */
-	static int32_t numMeridians = 6; // Number of vertical rings (from pole to pole).
-	static int32_t numParallels = 4; // Number of horizontal rings (latitudes).
-	static int32_t sphereSegments = 32;
+	const int32_t numMeridians = 6; // Number of vertical rings (from pole to pole).
+	const int32_t numParallels = 4; // Number of horizontal rings (latitudes).
+	const int32_t sphereSegments = 32;
 
 	/* Draw Meridians (great circles passing through the poles). */
 	for (int32_t i = 0; i < numMeridians; ++i)
@@ -4612,7 +4801,7 @@ void DebugDraw::DrawBoxComponent(SDK::UBoxComponent* boxComponent, uint32_t draw
 		boxCorners_Project[i] = Unreal::PlayerController::ProjectWorldToScreen(playerController, boxCorners_Location[i], &boxCorners_Screen[i]);
 
 	/* Box edges as index pairs (12 edges). */
-	static int32_t boxEdges[12][2] = {
+	static const int32_t boxEdges[12][2] = {
 		{0,1}, {0,2}, {0,4}, // from c000
 		{7,3}, {7,5}, {7,6}, // from c111
 		{1,3}, {1,5},        // edges on -F face
@@ -4655,7 +4844,7 @@ void DebugDraw::DrawSplineComponent(SDK::USplineComponent* splineComponent, uint
 	Unreal::Transform splineTransform = Unreal::ActorComponent::GetTransform(splineComponent);
 
 	/* Number of segments per spline section for smoothness. */
-	static int32_t splineSegments = 16;
+	const int32_t splineSegments = 16;
 	for (int32_t pointIndex = 0; pointIndex < splinePointsCount - 1; ++pointIndex)
 	{
 		/* Get distances along the spline for this segment. */
@@ -4716,6 +4905,10 @@ void Templates::Functions::Draw(SDK::UObject* objectReference)
 		{
 			Features::Functions::functions = Unreal::Function::GetFunctions(objectReference);
 			Features::Functions::functionsOwner = objectReference;
+#ifdef FUNCTION_PARAMETERS
+			Features::Functions::parameterValues.clear();
+			Features::Functions::outputValues.clear();
+#endif
 			GUI::PlayActionSound(true);
 		}
 		ImGui::SameLine();
@@ -4742,7 +4935,7 @@ void Templates::Functions::Draw(SDK::UObject* objectReference)
 					ImGui::BeginDisabled(std::strcmp(Features::Functions::filterBuffer, function.name.c_str()) == 0);
 					if (ImGui::Button("Focus On"))
 					{
-						std::snprintf(Features::Functions::filterBuffer, sizeof(Features::Functions::filterBuffer), function.name.c_str());
+						std::snprintf(Features::Functions::filterBuffer, sizeof(Features::Functions::filterBuffer), "%s", function.name.c_str());
 						GUI::PlayActionSound(true);
 					}
 					ImGui::EndDisabled();
@@ -4751,12 +4944,80 @@ void Templates::Functions::Draw(SDK::UObject* objectReference)
 
 					ImGui::TextCopyable("Flags: %s", function.FlagsAsString().c_str());
 					ImGui::TextCopyable("Address: %s", memoryAddress.c_str());
+
+#ifdef FUNCTION_PARAMETERS
+					if (function.parameters.empty() == false)
+					{
+						ImGui::NewLine();
+						ImGui::Text("Parameters:");
+
+						for (const Unreal::Function::ParameterDataStructure& parameter : function.parameters)
+						{
+							if (parameter.isReturn || parameter.isInput == false)
+							{
+								const char* prefix = parameter.isReturn ? "Return" : "Out";
+
+								auto outputValue = Features::Functions::outputValues.find(parameter.reference);
+								if (outputValue != Features::Functions::outputValues.end())
+									ImGui::TextCopyable("%s: %s (%s) = %s", prefix, parameter.name.c_str(), parameter.typeName.c_str(), outputValue->second.c_str());
+								else
+									ImGui::TextDisabled("%s: %s (%s)", prefix, parameter.name.c_str(), parameter.typeName.c_str());
+							}
+							else
+							{
+								Unreal::Function::ParameterValue& value = Features::Functions::parameterValues[parameter.reference];
+								std::string label = std::format("{} ({})", parameter.name, parameter.typeName);
+
+								switch (parameter.kind)
+								{
+									case Unreal::Function::E_ParameterKind::Bool:
+										ImGui::Checkbox(label.c_str(), &value.boolValue);
+										break;
+
+									case Unreal::Function::E_ParameterKind::Byte:
+										ImGui::InputScalar(label.c_str(), ImGuiDataType_U8, &value.byteValue);
+										break;
+
+									case Unreal::Function::E_ParameterKind::Int:
+										ImGui::InputInt(label.c_str(), &value.intValue);
+										break;
+
+									case Unreal::Function::E_ParameterKind::Float:
+										ImGui::InputFloat(label.c_str(), &value.floatValue, 0.0f, 0.0f, "%.3f");
+										break;
+
+									case Unreal::Function::E_ParameterKind::Double:
+										ImGui::InputDouble(label.c_str(), &value.doubleValue, 0.0, 0.0, "%.6f");
+										break;
+
+									default:
+										ImGui::TextDisabled("%s - passed as zero", label.c_str());
+										break;
+								}
+							}
+						}
+					}
+#endif
 					
 					ImGui::NewLine();
 
 					if (ImGui::Button("Call"))
 					{
+#ifdef FUNCTION_PARAMETERS
+						std::vector<uint8_t> outParameters;
+						bool wasSuccessful = Unreal::Function::CallFunction_ThreadSafe(objectReference, function.reference, Features::Functions::parameterValues, &outParameters);
+
+						if (wasSuccessful)
+						{
+							for (const Unreal::Function::ParameterDataStructure& parameter : function.parameters)
+							{
+								if (parameter.isReturn || parameter.isInput == false)
+									Features::Functions::outputValues[parameter.reference] = Unreal::Function::ParameterToString(parameter.reference, outParameters);
+							}
+						}
+#else
 						bool wasSuccessful = Unreal::Function::CallFunction_ThreadSafe(objectReference, function.reference);
+#endif
 						GUI::PlayActionSound(wasSuccessful);
 					}
 					ImGui::TreePop();
@@ -5819,13 +6080,13 @@ void Templates::Menus::Debug::Sub_Actors()
 			ImGui::TitleText("From Presets");
 
 			ImGui::BigText("Light");
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_PointLight, "Point Light"))
+			if (ImGui::IconButton("Actor_PointLight", "Point Light"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::APointLight::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_SpotLight, "Spot Light"))
+			if (ImGui::IconButton("Actor_SpotLight", "Spot Light"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ASpotLight::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
@@ -5835,19 +6096,19 @@ void Templates::Menus::Debug::Sub_Actors()
 				ARectLight isn't present in older versions of the Engine (e.g. 4.19.0).
 				Comment out or remove related code.
 			*/
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_RectLight, "Rect Light"))
+			if (ImGui::IconButton("Actor_RectLight", "Rect Light"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ARectLight::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_DirectionalLight, "Directional Light"))
+			if (ImGui::IconButton("Actor_DirectionalLight", "Directional Light"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ADirectionalLight::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_SkyLight, "Sky Light"))
+			if (ImGui::IconButton("Actor_SkyLight", "Sky Light"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ASkyLight::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
@@ -5860,21 +6121,21 @@ void Templates::Menus::Debug::Sub_Actors()
 				ASkyAtmosphere isn't present in older versions of the Engine (e.g. 4.19.0).
 				Comment out or remove related code.
 			*/
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_SkyAtmosphere, "Sky Atmosphere"))
+			if (ImGui::IconButton("Actor_SkyAtmosphere", "Sky Atmosphere"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ASkyAtmosphere::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
 #ifndef UE5
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_AtmosphericFog, "Atmospheric Fog"))
+			if (ImGui::IconButton("Actor_AtmosphericFog", "Atmospheric Fog"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::AAtmosphericFog::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
 #endif
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_ExponentialHeightFog, "Exponential Height Fog"))
+			if (ImGui::IconButton("Actor_ExponentialHeightFog", "Exponential Height Fog"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::AExponentialHeightFog::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
@@ -5883,13 +6144,13 @@ void Templates::Menus::Debug::Sub_Actors()
 			ImGui::NewLine();
 
 			ImGui::BigText("Technical");
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_Camera, "Camera"))
+			if (ImGui::IconButton("Actor_Camera", "Camera"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ACameraActor::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_DefaultPawn, "Default Pawn"))
+			if (ImGui::IconButton("Actor_DefaultPawn", "Default Pawn"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ADefaultPawn::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
@@ -5898,19 +6159,19 @@ void Templates::Menus::Debug::Sub_Actors()
 			ImGui::NewLine();
 
 			ImGui::BigText("Other");
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_Decal, "Decal"))
+			if (ImGui::IconButton("Actor_Decal", "Decal"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ADecalActor::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_TextRender, "Text Render"))
+			if (ImGui::IconButton("Actor_TextRender", "Text Render"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ATextRenderActor::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
 			}
 			ImGui::SameLine();
-			if (ImGui::IconButton(Window::texturesCollection.T_Actor_TargetPoint, "Target Point"))
+			if (ImGui::IconButton("Actor_TargetPoint", "Target Point"))
 			{
 				bool wasSuccessfull = Unreal::Actor::Summon(SDK::ATargetPoint::StaticClass());
 				GUI::PlayActionSound(wasSuccessfull);
@@ -6587,13 +6848,16 @@ void Templates::Menus::Debug::Sub_Actors()
 
 void Templates::Menus::Debug::Sub_Actors_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Templates::Menus::Debug::Sub_Actors();
 	}
 	__except (EXCEPTION())
 	{
-		ImGui::PopID();
+		ImGui::RecoverFromException(&recoveryState);
 
 		ImGui::TitleText("Something Isn't Right!");
 		ImGui::Text("Consider updating the Actors list.");
@@ -7338,7 +7602,7 @@ void Templates::Menus::Debug::Sub_Actors_Kind(const Unreal::Actor::DataStructure
 							if (textRenderComponent)
 							{
 								std::string content = textRenderComponent->Text.ToString();
-								strcpy_s(textRenderContentBuffer, content.c_str());
+								strncpy_s(textRenderContentBuffer, content.c_str(), _TRUNCATE);
 								lastTextRenderContentSource = textRenderComponent;
 
 								GUI::PlayActionSound(true);
@@ -7922,13 +8186,16 @@ void Templates::Menus::Debug::Sub_Widgets()
 
 void Templates::Menus::Debug::Sub_Widgets_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Templates::Menus::Debug::Sub_Widgets();
 	}
 	__except (EXCEPTION())
 	{
-		ImGui::PopID();
+		ImGui::RecoverFromException(&recoveryState);
 
 		ImGui::TitleText("Something Isn't Right!");
 		ImGui::Text("Consider updating the Widgets list.");
@@ -8071,13 +8338,16 @@ void Templates::Menus::Debug::Sub_Objects()
 
 void Templates::Menus::Debug::Sub_Objects_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Templates::Menus::Debug::Sub_Objects();
 	}
 	__except (EXCEPTION())
 	{
-		ImGui::PopID();
+		ImGui::RecoverFromException(&recoveryState);
 
 		ImGui::TitleText("Something Isn't Right!");
 		ImGui::Text("Consider updating the Objects list.");
@@ -8679,13 +8949,16 @@ void Templates::Menus::World::Draw()
 
 void Templates::Menus::World::Draw_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Templates::Menus::World::Draw();
 	}
 	__except (EXCEPTION())
 	{
-		ImGui::PopID();
+		ImGui::RecoverFromException(&recoveryState);
 
 		ImGui::TitleText("Something Isn't Right!");
 		ImGui::Text("Fatal Error / Crash has been prevented.");
@@ -9326,13 +9599,16 @@ void Templates::Menus::Character::Draw()
 
 void Templates::Menus::Character::Draw_ThreadSafe()
 {
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
 	__try
 	{
 		Templates::Menus::Character::Draw();
 	}
 	__except (EXCEPTION())
 	{
-		ImGui::PopID();
+		ImGui::RecoverFromException(&recoveryState);
 
 		ImGui::TitleText("Something Isn't Right!");
 		ImGui::Text("Fatal Error / Crash has been prevented.");
@@ -9511,6 +9787,38 @@ void Templates::Menus::Settings::Draw()
 		{
 			Features::Config::Save();
 		}
+
+		ImGui::NewLine();
+
+		/* Scale is committed once editing is finished, otherwise slider would resize under the cursor while dragging. */
+		static float interfaceScaleInput = Features::Menu::interfaceScale;
+		static bool isInterfaceScaleEdited = false;
+
+		ImGui::Text("Interface Scale");
+		if (ImGui::SliderFloatEditable("##InterfaceScale", &interfaceScaleInput, Features::Menu::INTERFACE_SCALE_MIN, Features::Menu::INTERFACE_SCALE_MAX, "%.2f"))
+		{
+			isInterfaceScaleEdited = true;
+		}
+
+		if (isInterfaceScaleEdited && ImGui::IsItemActive() == false)
+		{
+			interfaceScaleInput = std::clamp(interfaceScaleInput, Features::Menu::INTERFACE_SCALE_MIN, Features::Menu::INTERFACE_SCALE_MAX);
+			Features::Menu::interfaceScale = interfaceScaleInput;
+			isInterfaceScaleEdited = false;
+
+			Features::Config::Save();
+		}
+
+		ImGui::NewLine();
+		ImGui::Separator();
+		ImGui::NewLine();
+
+		if (ImGui::Button("Unload UETools"))
+		{
+			GUI::RequestUnload();
+		}
+
+		ImGui::KeyBindingInput("Key Binding##Unload", &Inputs::Keybindings::general_Unload);
 
 		ImGui::EndMenu();
 	}

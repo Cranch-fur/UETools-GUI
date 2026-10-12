@@ -120,6 +120,16 @@
 
 #define SIZE_BUFFER_CONSOLE 2048
 
+#define KEYBINDING_POLL_TIMEOUT_MS 250
+/*
+	If a key binding wasn't polled for longer than that, its previous key state is considered stale.
+*/
+
+#define FUNCTION_PARAMETERS_SIZE_MAX 0x10000
+/*
+	Sanity limit for parameters buffer allocated when calling UFunction.
+*/
+
 
 
 
@@ -151,4 +161,11 @@
 	#define COLLISION_VISUALIZER
 
 	Enables everything related to collision visualization (e.g. Draw Collision).
+*/
+
+/*
+	#define FUNCTION_PARAMETERS
+
+	Enables parameters inspection for Functions (types, editing of Bool / Byte / Int / Float / Double parameters before call).
+	Isn't compatible with older versions of the Engine (< 4.25) as they describe parameters with UProperty instead of FProperty.
 */

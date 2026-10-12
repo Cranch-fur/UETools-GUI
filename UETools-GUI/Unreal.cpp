@@ -134,7 +134,7 @@ bool Unreal::InputSettings::AssignConsoleBindings()
 	if (bindingsNum > 1)
 		InputSettings->ConsoleKeys[1].KeyName = SDK::UKismetStringLibrary::Conv_StringToName(L"F10");
 	if (bindingsNum > 2)
-		InputSettings->ConsoleKeys[2].KeyName = SDK::UKismetStringLibrary::Conv_StringToName(L"¸");
+		InputSettings->ConsoleKeys[2].KeyName = SDK::UKismetStringLibrary::Conv_StringToName(L"\u0451");
 
 	return true;
 }
@@ -890,11 +890,24 @@ bool Unreal::PlayerController::ProjectWorldToScreen(SDK::APlayerController* play
 
 	SDK::APlayerCameraManager* playerCameraManager = playerControllerReference->PlayerCameraManager;
 
-	SDK::FMinimalViewInfo cameraPOV;
-	if (PlayerCameraManager::GetPOV(playerCameraManager, &cameraPOV) == false)
-		return false;
+	/*
+		POV is read in place: FMinimalViewInfo holds post process settings and copying it for every projected point is wasteful.
+		CameraCachePrivate isn't present in older versions of the Engine (e.g. 4.19.0). Use playerCameraManager->CameraCache.POV instead.
+	*/
+	const SDK::FMinimalViewInfo& cameraPOV = playerCameraManager->CameraCachePrivate.POV;
+	const SDK::FVector2D viewportSize = Math::GetViewportSize();
 
-	return Math::ProjectWorldToScreen(cameraPOV.Location, cameraPOV.Rotation, cameraPOV.FOV, worldLocation, outScreenLocation);
+	/* Projection is rebuilt only when camera or viewport changes (typically once per frame instead of once per point). */
+	thread_local Math::ViewProjection cachedViewProjection;
+	thread_local bool hasCachedViewProjection = false;
+
+	if (hasCachedViewProjection == false || cachedViewProjection.IsBuiltFrom(cameraPOV.Location, cameraPOV.Rotation, cameraPOV.FOV, viewportSize) == false)
+	{
+		cachedViewProjection = Math::MakeViewProjection(cameraPOV.Location, cameraPOV.Rotation, cameraPOV.FOV, viewportSize);
+		hasCachedViewProjection = true;
+	}
+
+	return Math::ProjectWorldToScreen(cachedViewProjection, worldLocation, outScreenLocation);
 }
 
 
@@ -2351,7 +2364,7 @@ std::vector<SDK::UObject*> Unreal::Object::GetAllDefaultOfClass(const SDK::TSubc
 }
 std::vector<SDK::UObject*> Unreal::Object::GetAllDefaultOfClass(const SDK::TSubclassOf<SDK::UObject>& objectClass)
 {
-	static const std::vector<SDK::TSubclassOf<SDK::UObject>> excludeClasses = {};
+	const std::vector<SDK::TSubclassOf<SDK::UObject>> excludeClasses = {};
 	return GetAllDefaultOfClass(objectClass, excludeClasses);
 }
 std::vector<SDK::UObject*> Unreal::Object::GetAllOfClass(const SDK::TSubclassOf<SDK::UObject>& objectClass, const std::vector<SDK::TSubclassOf<SDK::UObject>>& excludeClasses)
@@ -2390,7 +2403,7 @@ std::vector<SDK::UObject*> Unreal::Object::GetAllOfClass(const SDK::TSubclassOf<
 }
 std::vector<SDK::UObject*> Unreal::Object::GetAllOfClass(const SDK::TSubclassOf<SDK::UObject>& objectClass)
 {
-	static const std::vector<SDK::TSubclassOf<SDK::UObject>> excludeClasses = {};
+	const std::vector<SDK::TSubclassOf<SDK::UObject>> excludeClasses = {};
 	return GetAllOfClass(objectClass, excludeClasses);
 }
 
@@ -2430,7 +2443,7 @@ std::vector<SDK::UObject*> Unreal::Object::GetAllDefault(const std::vector<SDK::
 }
 std::vector<SDK::UObject*> Unreal::Object::GetAllDefault()
 {
-	static const std::vector<SDK::TSubclassOf<SDK::UObject>> excludeClasses = {};
+	const std::vector<SDK::TSubclassOf<SDK::UObject>> excludeClasses = {};
 	return GetAllDefault(excludeClasses);
 }
 std::vector<SDK::UObject*> Unreal::Object::GetAll(const std::vector<SDK::TSubclassOf<SDK::UObject>>& excludeClasses)
@@ -2468,7 +2481,7 @@ std::vector<SDK::UObject*> Unreal::Object::GetAll(const std::vector<SDK::TSubcla
 }
 std::vector<SDK::UObject*> Unreal::Object::GetAll()
 {
-	static const std::vector<SDK::TSubclassOf<SDK::UObject>> excludeClasses = {};
+	const std::vector<SDK::TSubclassOf<SDK::UObject>> excludeClasses = {};
 	return GetAll(excludeClasses);
 }
 
@@ -2883,6 +2896,9 @@ std::vector<Unreal::Function::DataStructure> Unreal::Function::GetFunctions(SDK:
 					function.reference = uFunction;
 					function.flags = static_cast<uint32_t>(uFunction->FunctionFlags);
 					function.name = uFunction->GetName();
+#ifdef FUNCTION_PARAMETERS
+					function.parameters = GetParameters(uFunction);
+#endif
 
 					outCollection.push_back(function);
 				}
@@ -2896,14 +2912,255 @@ std::vector<Unreal::Function::DataStructure> Unreal::Function::GetFunctions(SDK:
 }
 
 
+#ifdef FUNCTION_PARAMETERS
+Unreal::Function::E_ParameterKind Unreal::Function::GetParameterKind(SDK::FField* field)
+{
+	if (field == nullptr || field->ClassPrivate == nullptr)
+		return E_ParameterKind::Unsupported;
+
+	const uint64_t castFlags = field->ClassPrivate->CastFlags;
+	const SDK::FProperty* property = static_cast<SDK::FProperty*>(field);
+
+	/* Element size is verified as well, so unexpected layout is never written into. */
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::BoolProperty)) != 0)
+		return E_ParameterKind::Bool;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::ByteProperty)) != 0 && property->ElementSize == sizeof(uint8_t))
+		return E_ParameterKind::Byte;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::IntProperty)) != 0 && property->ElementSize == sizeof(int32_t))
+		return E_ParameterKind::Int;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::FloatProperty)) != 0 && property->ElementSize == sizeof(float))
+		return E_ParameterKind::Float;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::DoubleProperty)) != 0 && property->ElementSize == sizeof(double))
+		return E_ParameterKind::Double;
+
+	return E_ParameterKind::Unsupported;
+}
+
+
+std::string Unreal::Function::ParameterToString(SDK::FProperty* property, const std::vector<uint8_t>& parameters)
+{
+	if (property == nullptr || property->ClassPrivate == nullptr)
+		return "Unknown";
+
+	if (property->Offset < 0 || static_cast<size_t>(property->Offset) + property->ElementSize > parameters.size())
+		return "Out Of Bounds";
+
+	const uint8_t* source = parameters.data() + property->Offset;
+
+	switch (GetParameterKind(property))
+	{
+		case E_ParameterKind::Bool:
+		{
+			const SDK::FBoolProperty* boolProperty = static_cast<SDK::FBoolProperty*>(property);
+			const size_t byteIndex = static_cast<size_t>(boolProperty->Offset) + boolProperty->ByteOffset;
+			if (byteIndex >= parameters.size())
+				return "Out Of Bounds";
+
+			return (parameters[byteIndex] & boolProperty->FieldMask) != 0 ? "True" : "False";
+		}
+
+		case E_ParameterKind::Byte:
+			return std::to_string(*source);
+
+		case E_ParameterKind::Int:
+		{
+			int32_t value = 0;
+			std::memcpy(&value, source, sizeof(value));
+			return std::to_string(value);
+		}
+
+		case E_ParameterKind::Float:
+		{
+			float value = 0.0f;
+			std::memcpy(&value, source, sizeof(value));
+			return std::format("{:.3f}", value);
+		}
+
+		case E_ParameterKind::Double:
+		{
+			double value = 0.0;
+			std::memcpy(&value, source, sizeof(value));
+			return std::format("{:.6f}", value);
+		}
+
+		default:
+			break;
+	}
+
+	/* Display-only types (can't be provided by user, but can be returned). */
+	const uint64_t castFlags = property->ClassPrivate->CastFlags;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::ObjectProperty)) != 0 && property->ElementSize == sizeof(SDK::UObject*))
+	{
+		SDK::UObject* objectReference = nullptr;
+		std::memcpy(&objectReference, source, sizeof(objectReference));
+
+		if (objectReference == nullptr)
+			return "None";
+
+		if (Unreal::Object::IsValid(objectReference) == false)
+			return "Invalid Object";
+
+		return objectReference->GetFullName();
+	}
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::StrProperty)) != 0 && property->ElementSize == sizeof(SDK::FString))
+		return "\"" + reinterpret_cast<const SDK::FString*>(source)->ToString() + "\"";
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::NameProperty)) != 0 && property->ElementSize == sizeof(SDK::FName))
+		return reinterpret_cast<const SDK::FName*>(source)->ToString();
+
+	return "Not Displayable";
+}
+
+
+std::vector<Unreal::Function::ParameterDataStructure> Unreal::Function::GetParameters(SDK::UFunction* functionReference)
+{
+	std::vector<Function::ParameterDataStructure> outCollection;
+
+	if (functionReference == nullptr)
+		return outCollection;
+
+	const uint64_t FLAG_PARM = static_cast<uint64_t>(SDK::EPropertyFlags::Parm);
+	const uint64_t FLAG_OUTPARM = static_cast<uint64_t>(SDK::EPropertyFlags::OutParm);
+	const uint64_t FLAG_RETURNPARM = static_cast<uint64_t>(SDK::EPropertyFlags::ReturnParm);
+	const uint64_t FLAG_REFERENCEPARM = static_cast<uint64_t>(SDK::EPropertyFlags::ReferenceParm);
+
+	for (SDK::FField* field = functionReference->ChildProperties; field != nullptr; field = field->Next)
+	{
+		SDK::FProperty* property = static_cast<SDK::FProperty*>(field);
+
+		/* Blueprint functions also keep their local variables there. */
+		if ((property->PropertyFlags & FLAG_PARM) == 0)
+			continue;
+
+		Function::ParameterDataStructure parameter;
+		parameter.reference = property;
+		parameter.name = property->Name.ToString();
+
+		if (property->ClassPrivate)
+		{
+			parameter.typeName = property->ClassPrivate->Name.ToString();
+			parameter.kind = GetParameterKind(property);
+
+			const std::string SUFFIX = "Property";
+			if (parameter.typeName.size() > SUFFIX.size() && parameter.typeName.ends_with(SUFFIX))
+				parameter.typeName.resize(parameter.typeName.size() - SUFFIX.size());
+		}
+
+		/* Same rule as UE uses: reference parameters are inputs, other out parameters are outputs. */
+		parameter.isReturn = (property->PropertyFlags & FLAG_RETURNPARM) != 0;
+		parameter.isInput = (parameter.isReturn == false) && (((property->PropertyFlags & FLAG_OUTPARM) == 0) || ((property->PropertyFlags & FLAG_REFERENCEPARM) != 0));
+
+		outCollection.push_back(parameter);
+	}
+
+	return outCollection;
+}
+#endif
+
+
+#ifdef FUNCTION_PARAMETERS
+bool Unreal::Function::CallFunction(SDK::UObject* objectReference, SDK::UFunction* functionReference, const std::unordered_map<void*, Function::ParameterValue>& parameterValues, std::vector<uint8_t>* outParameters)
+#else
 bool Unreal::Function::CallFunction(SDK::UObject* objectReference, SDK::UFunction* functionReference)
+#endif
 {
 	if (objectReference == nullptr || functionReference == nullptr)
 		return false;
 
-	objectReference->ProcessEvent(functionReference, nullptr);
+	/* Function reads parameters (and writes return value) through that buffer, zeroed memory is a valid default for UE types. */
+	const int32_t parametersSize = functionReference->Size;
+	if (parametersSize < 0 || parametersSize > FUNCTION_PARAMETERS_SIZE_MAX)
+		return false;
+
+	std::vector<uint8_t> parameters(static_cast<size_t>(parametersSize), 0);
+
+#ifdef FUNCTION_PARAMETERS
+	for (SDK::FField* field = functionReference->ChildProperties; field != nullptr && parameterValues.empty() == false; field = field->Next)
+	{
+		auto parameterValue = parameterValues.find(field);
+		if (parameterValue == parameterValues.end())
+			continue;
+
+		/* Kind is re-evaluated from property itself, user provided data is never trusted for memory layout. */
+		const E_ParameterKind kind = GetParameterKind(field);
+		if (kind == E_ParameterKind::Unsupported)
+			continue;
+
+		SDK::FProperty* property = static_cast<SDK::FProperty*>(field);
+		if (property->Offset < 0 || static_cast<size_t>(property->Offset) + property->ElementSize > parameters.size())
+			continue;
+
+		uint8_t* destination = parameters.data() + property->Offset;
+		const Function::ParameterValue& value = parameterValue->second;
+
+		switch (kind)
+		{
+			case E_ParameterKind::Bool:
+			{
+				/* Bool may be a bitfield, so value is applied through FieldMask instead of plain write. */
+				SDK::FBoolProperty* boolProperty = static_cast<SDK::FBoolProperty*>(property);
+				const size_t byteIndex = static_cast<size_t>(boolProperty->Offset) + boolProperty->ByteOffset;
+				if (byteIndex >= parameters.size())
+					break;
+
+				if (value.boolValue)
+					parameters[byteIndex] |= boolProperty->FieldMask;
+				else
+					parameters[byteIndex] &= static_cast<uint8_t>(~boolProperty->FieldMask);
+				break;
+			}
+
+			case E_ParameterKind::Byte:
+				std::memcpy(destination, &value.byteValue, sizeof(value.byteValue));
+				break;
+
+			case E_ParameterKind::Int:
+				std::memcpy(destination, &value.intValue, sizeof(value.intValue));
+				break;
+
+			case E_ParameterKind::Float:
+				std::memcpy(destination, &value.floatValue, sizeof(value.floatValue));
+				break;
+
+			case E_ParameterKind::Double:
+				std::memcpy(destination, &value.doubleValue, sizeof(value.doubleValue));
+				break;
+
+			default:
+				break;
+		}
+	}
+#endif
+
+	objectReference->ProcessEvent(functionReference, parameters.empty() ? nullptr : parameters.data());
+
+#ifdef FUNCTION_PARAMETERS
+	if (outParameters)
+		*outParameters = parameters;
+#endif
+
+	return true;
 }
 
+#ifdef FUNCTION_PARAMETERS
+bool Unreal::Function::CallFunction_ThreadSafe(SDK::UObject* objectReference, SDK::UFunction* functionReference, const std::unordered_map<void*, Function::ParameterValue>& parameterValues, std::vector<uint8_t>* outParameters)
+{
+	__try
+	{
+		return CallFunction(objectReference, functionReference, parameterValues, outParameters);
+	}
+	__except (EXCEPTION())
+	{
+		return false;
+	}
+}
+#else
 bool Unreal::Function::CallFunction_ThreadSafe(SDK::UObject* objectReference, SDK::UFunction* functionReference)
 {
 	__try
@@ -2915,6 +3172,7 @@ bool Unreal::Function::CallFunction_ThreadSafe(SDK::UObject* objectReference, SD
 		return false;
 	}
 }
+#endif
 
 
 std::vector<Unreal::Function::DataStructure> Unreal::Function::FilterByName(const std::vector<Function::DataStructure>& functionsCollection, const std::string& filter, bool caseSensitive)

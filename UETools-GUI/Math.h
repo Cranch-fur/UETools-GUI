@@ -44,6 +44,30 @@ public:
 	static SDK::FTransform Unreal_ToFTransform(const Unreal::Transform& unrealTransform);
 
 
+	/* Camera data prepared for projection; build it once and reuse it for every projected point. */
+	struct ViewProjection
+	{
+		/* Source data the projection was built from. */
+		SDK::FVector cameraLocation;
+		SDK::FRotator cameraRotation;
+		float fieldOfView = 0.0f;
+		SDK::FVector2D viewportSize;
+
+		SDK::FVector axisForward;
+		SDK::FVector axisRight;
+		SDK::FVector axisUp;
+		SDK::FVector2D viewportCenter;
+		float screenFactor = 0.0f; // Distance (in pixels) from camera to projection plane.
+
+		bool IsBuiltFrom(const SDK::FVector& location, const SDK::FRotator& rotation, float fov, const SDK::FVector2D& viewport) const;
+	};
+
+	static ViewProjection MakeViewProjection(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& viewportSize);
+
+	/* Client area size of the title window (falls back to screen size). */
+	static SDK::FVector2D GetViewportSize();
+
+	static bool ProjectWorldToScreen(const ViewProjection& viewProjection, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation);
 	static bool ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector2D& viewportSize, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation);
 	static bool ProjectWorldToScreen(const SDK::FVector& cameraLocation, const SDK::FRotator& cameraRotation, float fieldOfView, const SDK::FVector& worldLocation, SDK::FVector2D* outScreenLocation);
 
@@ -88,11 +112,11 @@ public:
 	static const uint32_t uint32MAX = UINT32_MAX;
 	static const uint32_t uint32MIN = 0;
 
-	static const int32_t int64MAX = INT64_MAX;
-	static const int32_t int64MIN = INT64_MIN;
+	static const int64_t int64MAX = INT64_MAX;
+	static const int64_t int64MIN = INT64_MIN;
 
-	static const int64_t uint64MAX = UINT64_MAX;
-	static const int64_t uint64MIN = 0;
+	static const uint64_t uint64MAX = UINT64_MAX;
+	static const uint64_t uint64MIN = 0;
 
 	static constexpr float floatMAX = 3.402823466e+38F;
 	static constexpr float floatMIN = -3.402823466e+38F;

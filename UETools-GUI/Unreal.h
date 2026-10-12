@@ -8,6 +8,8 @@
 #include "Math.h"
 #include "Utilities.h"
 
+#include <unordered_map>
+
 
 
 
@@ -1133,11 +1135,53 @@ namespace Unreal
 	class Function
 	{
 	public:
+#ifdef FUNCTION_PARAMETERS
+		/* Parameter types that can be edited through interface; everything else is passed as zero. */
+		enum class E_ParameterKind
+		{
+			Unsupported,
+			Bool,
+			Byte,
+			Int,
+			Float,
+			Double
+		};
+
+		struct ParameterDataStructure
+		{
+			SDK::FProperty* reference = nullptr;
+			std::string name;
+			std::string typeName; // Property class name without "Property" suffix (e.g. "Bool", "Float", "Object").
+
+			E_ParameterKind kind = E_ParameterKind::Unsupported;
+			bool isInput = false;
+			bool isReturn = false;
+		};
+
+		/* User provided value; only the field matching parameter kind is used. */
+		struct ParameterValue
+		{
+			bool boolValue = false;
+			uint8_t byteValue = 0;
+			int32_t intValue = 0;
+			float floatValue = 0.0f;
+			double doubleValue = 0.0;
+		};
+
+		static E_ParameterKind GetParameterKind(SDK::FField* field);
+
+		/* Readable value of parameter stored in parameters buffer (e.g. return value after call). */
+		static std::string ParameterToString(SDK::FProperty* property, const std::vector<uint8_t>& parameters);
+#endif
+
 		struct DataStructure
 		{
 			SDK::UFunction* reference;
 			uint32_t flags;
 			std::string name;
+#ifdef FUNCTION_PARAMETERS
+			std::vector<ParameterDataStructure> parameters;
+#endif
 			
 
 			std::string FlagsAsString() const
@@ -1218,8 +1262,22 @@ namespace Unreal
 
 		static std::vector<Function::DataStructure> GetFunctions(SDK::UObject* objectReference, SDK::EFunctionFlags hasFlags = SDK::EFunctionFlags::None);
 
+#ifdef FUNCTION_PARAMETERS
+		static std::vector<Function::ParameterDataStructure> GetParameters(SDK::UFunction* functionReference);
+#endif
+
+#ifdef FUNCTION_PARAMETERS
+		/*
+			Not provided parameters are zeroed; parameterValues maps parameter property of the function to its value.
+			outParameters receives parameters buffer after call (return value & out parameters).
+		*/
+		static bool CallFunction(SDK::UObject* objectReference, SDK::UFunction* functionReference, const std::unordered_map<void*, Function::ParameterValue>& parameterValues = {}, std::vector<uint8_t>* outParameters = nullptr);
+		static bool CallFunction_ThreadSafe(SDK::UObject* objectReference, SDK::UFunction* functionReference, const std::unordered_map<void*, Function::ParameterValue>& parameterValues = {}, std::vector<uint8_t>* outParameters = nullptr);
+#else
+		/* Parameters are zeroed. */
 		static bool CallFunction(SDK::UObject* objectReference, SDK::UFunction* functionReference);
 		static bool CallFunction_ThreadSafe(SDK::UObject* objectReference, SDK::UFunction* functionReference);
+#endif
 
 
 		static std::vector<Function::DataStructure> FilterByName(const std::vector<Function::DataStructure>& functionsCollection, const std::string& filter, bool caseSensitive);
@@ -1229,7 +1287,7 @@ namespace Unreal
 
 
 #ifdef WAIT_FOR_TITLE_INIT
-	static bool IsTitleInitialized()
+	inline bool IsTitleInitialized()
 	{
 		if (SDK::UObject::GObjects == nullptr || SDK::UObject::GObjects->Num() == 0)
 			return false;

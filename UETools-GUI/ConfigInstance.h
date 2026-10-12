@@ -42,13 +42,13 @@ private:
 
     static const std::string Trim(const std::string& text);
     static const bool IsLineCommentOrEmpty(const std::string& line);
-    static const bool ReadFloat(const std::string& text, const size_t& inPos, size_t* outPos, float* outValue);
+    static const bool ReadFloat(const std::string& text, size_t inPos, size_t* outPos, float* outValue);
 
     static const std::optional<std::pair<std::string, std::string>> SplitKeyValue(const std::string& line);
     static const std::optional<Value> ParseValueWithOptionalType(const std::string& rawValue);
 
     static const std::string String_ToLower(const std::string& text);
-    static const std::string Float_ToString(const float& value);
+    static const std::string Float_ToString(float value);
     static const std::string Value_ToLine(const std::string& key, const Value& value);
 
     static const std::optional<bool> TryParseBool(const std::string& text);

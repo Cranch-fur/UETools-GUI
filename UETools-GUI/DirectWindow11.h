@@ -13,15 +13,8 @@
 
 
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 class DirectWindow11 : public Window
 {
-private:
-    /* Win32 window procedure for the overlay window. */
-    static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-
 private:
     static inline ID3D11RenderTargetView* renderTargetView = nullptr;
 public:
@@ -112,13 +105,19 @@ private:
     /* Releases all Direct3D resources. */
     static void CleanupDevice();
 
+    /* Recreates swap chain buffers & render target for new overlay size. */
+    static void Resize(UINT width, UINT height);
+
+    /* Clears overlay, optionally renders ImGui draw data and presents. */
+    static bool Present(bool renderDrawData);
+
 
 public:
     static bool CreateTexture(const std::string& textureName, const std::vector<uint8_t>& pixels, int32_t width, int32_t height);
 
 
 public:
-    /* Creates the overlay window and starts the render loop. */
+    /* Creates the overlay window and starts the render loop (see Window::Run()). */
     static void Create();
 };
 #endif

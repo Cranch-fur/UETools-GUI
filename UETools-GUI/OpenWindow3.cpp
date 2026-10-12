@@ -6,47 +6,6 @@
 
 
 
-LRESULT WINAPI OpenWindow3::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam) != 0)
-    {
-        return true;
-    }
-
-    switch (msg)
-    {
-        case WM_SIZE:
-        {
-            return 0;
-        }
-
-        case WM_SYSCOMMAND:
-        {
-            if ((wParam & 0xfff0) == SC_KEYMENU)
-            {
-                return 0;
-            }
-            break;
-        }
-
-        case WM_DESTROY:
-        {
-            PostQuitMessage(0);
-            return 0;
-        }
-
-        default:
-        {
-            break;
-        }
-    }
-
-    return DefWindowProcW(hWnd, msg, wParam, lParam);
-}
-
-
-
-
 bool OpenWindow3::CreateDevice(HWND hWnd)
 {
     hDC = GetDC(hWnd);
@@ -147,224 +106,51 @@ bool OpenWindow3::CreateTexture(const std::string& textureName, const std::vecto
 
 
 
+bool OpenWindow3::Present(bool renderDrawData)
+{
+    if (renderDrawData)
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+    }
+
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    if (renderDrawData)
+    {
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+
+    SwapBuffers(hDC);
+    return true;
+}
+
+
+
+
 void OpenWindow3::Create()
 {
-    ImGui_ImplWin32_EnableDpiAwareness();
+    RenderBackend backend;
+    backend.useBackgroundBrush = false;
 
-    if (hTargetWindow == nullptr)
-    {
-        GetWindow();
-    }
+    backend.FnCreateDevice = CreateDevice;
+    backend.FnCleanupDevice = CleanupDevice;
 
-    WNDCLASSEXW wc = {};
-    wc.cbSize = sizeof(WNDCLASSEXW);
-    wc.hbrBackground = nullptr;
-    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-    wc.hIconSm = LoadIconW(nullptr, IDI_APPLICATION);
-    wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpfnWndProc = WndProc;
-    wc.lpszClassName = L"UETools-GUI";
-    wc.style = CS_VREDRAW | CS_HREDRAW;
+    backend.FnInitImGui = []() { return ImGui_ImplOpenGL3_Init("#version 130"); };
+    backend.FnShutdownImGui = ImGui_ImplOpenGL3_Shutdown;
+    backend.FnNewFrame = ImGui_ImplOpenGL3_NewFrame;
 
-    RegisterClassExW(&wc);
+    backend.FnPresent = Present;
 
-    const HWND hwnd = CreateWindowExW(
-        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE,
-        wc.lpszClassName, L"UETools-GUI", WS_POPUP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
-        nullptr, nullptr, wc.hInstance, nullptr
-    );
-
-    SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
-
-    const MARGINS margin = { -1, 0, 0, 0 };
-    DwmExtendFrameIntoClientArea(hwnd, &margin);
-
-    if (CreateDevice(hwnd) == false)
-    {
-        CleanupDevice(hwnd);
-        UnregisterClassW(wc.lpszClassName, wc.hInstance);
-        return;
-    }
-
-    ShowWindow(hwnd, SW_SHOWDEFAULT);
-    UpdateWindow(hwnd);
-
-    /* IMGUI SETUP */
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    ImGui::StyleColorsDark();
-
-    const HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-    MONITORINFO info = {};
-    info.cbSize = sizeof(MONITORINFO);
-    GetMonitorInfoW(monitor, &info);
-
-    const int monitorHeight = info.rcMonitor.bottom - info.rcMonitor.top;
-
-    ImFontConfig cfg;
-    ImFontConfig* pCfg = nullptr;
-
-    if (monitorHeight > 1080)
-    {
-        const float fScale = 2.0f;
-        cfg.SizePixels = 13.0f * fScale;
-        pCfg = &cfg;
-    }
-
-    Features::Menu::fontBitmap = io.Fonts->AddFontDefault(pCfg);
-    Features::Menu::fontVector = io.Fonts->AddFontDefaultVector(pCfg);
-
-    io.FontDefault = Features::Menu::useVectorFont ? Features::Menu::fontVector : Features::Menu::fontBitmap;
-
-    io.IniFilename = nullptr;
-
-    ImGui_ImplWin32_Init(hwnd);
-    ImGui_ImplOpenGL3_Init("#version 130");
-
-    InitializeTextures(OpenWindow3::CreateTexture);
-
-    bInit = true;
-
-    /* RENDER LOOP */
-    bool bDone = false;
-    while (bDone == false)
-    {
-        MSG msg;
-
-        while (PeekMessageW(&msg, nullptr, 0U, 0U, PM_REMOVE) != 0)
+    backend.FnCreateTexture = CreateTexture;
+    backend.FnReleaseTexture = [](ImTextureID iTextureId)
         {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
+            /* OpenGL context is still current at that point. */
+            GLuint texture = static_cast<GLuint>((uintptr_t)iTextureId);
+            glDeleteTextures(1, &texture);
+        };
 
-            if (msg.message == WM_QUIT)
-            {
-                bDone = true;
-            }
-        }
-
-        if ((IsWindowAlive() == false) && (bTargetSet == true))
-        {
-            bDone = true;
-        }
-
-        if (bDone == true)
-        {
-            break;
-        }
-
-        if (hTargetWindow == nullptr)
-        {
-            continue;
-        }
-
-        bool isMenuActive = GUI::GetIsMenuActive();
-        static bool lastIsMenuActive = !isMenuActive;
-
-        bool isInFocus = IsWindowFocus(hwnd) && bTargetSet;
-        GUI::SetIsTitleInFocus(isInFocus);
-
-#ifdef INACTIVE_ZERO_SIZE
-        MoveWindow(hwnd, (isInFocus == false || isMenuActive == false));
-#else
-        MoveWindow(hwnd, (isInFocus == false));
-#endif
-
-        if (isInFocus == false)
-        {
-            lastIsMenuActive = !isMenuActive;
-
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-            SwapBuffers(hDC);
-
-            continue;
-        }
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
-
-        GUI::Draw();
-
-        ImGui::EndFrame();
-
-        if (isMenuActive != lastIsMenuActive)
-        {
-            if (isMenuActive == true)
-            {
-                LONG ex = GetWindowLongW(hwnd, GWL_EXSTYLE);
-                ex &= ~WS_EX_TRANSPARENT;
-                ex &= ~WS_EX_NOACTIVATE;
-                ex |= (WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW);
-                SetWindowLongW(hwnd, GWL_EXSTYLE, ex);
-                SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-
-                DWORD gameTid = GetWindowThreadProcessId(hTargetWindow, nullptr);
-                DWORD myTid = GetCurrentThreadId();
-
-                AttachThreadInput(myTid, gameTid, TRUE);
-                SetForegroundWindow(hwnd);
-                SetActiveWindow(hwnd);
-                SetFocus(hwnd);
-                AttachThreadInput(myTid, gameTid, FALSE);
-
-                if (GetCapture() != hwnd)
-                {
-                    SetCapture(hwnd);
-                }
-
-                io.MouseDrawCursor = true;
-            }
-            else
-            {
-                LONG ex = GetWindowLongW(hwnd, GWL_EXSTYLE);
-                ex |= WS_EX_TRANSPARENT;
-                ex &= ~WS_EX_NOACTIVATE;
-                ex |= (WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW);
-                SetWindowLongW(hwnd, GWL_EXSTYLE, ex);
-                SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-
-                if (GetCapture() == hwnd)
-                {
-                    ReleaseCapture();
-                }
-
-                io.MouseDrawCursor = false;
-
-                if (IsWindow(hTargetWindow) != 0)
-                {
-                    SetForegroundWindow(hTargetWindow);
-                }
-            }
-
-            lastIsMenuActive = isMenuActive;
-        }
-
-        ImGui::Render();
-        glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        SwapBuffers(hDC);
-    }
-
-    /* SHUTDOWN */
-    bInit = false;
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
-
-    CleanupDevice(hwnd);
-    DestroyWindow(hwnd);
-    UnregisterClassW(wc.lpszClassName, wc.hInstance);
-
-    CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(FreeLibrary), GetApplicationModule(), 0, nullptr);
+    Run(backend);
 }
 #endif

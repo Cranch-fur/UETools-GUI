@@ -1,9 +1,10 @@
-﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36401.2 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UETools-GUI", "UETools-GUI\UETools-GUI.vcxproj", "{85A8B952-04EB-4FC8-8AA4-DE40FAB41C24}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UETools-Injector", "UETools-Injector\UETools-Injector.vcxproj", "{C7F1E2A3-5B4D-4E6F-9A8B-1C2D3E4F5A6B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +22,14 @@ Global
 		{85A8B952-04EB-4FC8-8AA4-DE40FAB41C24}.Release|x64.Build.0 = Release|x64
 		{85A8B952-04EB-4FC8-8AA4-DE40FAB41C24}.Release|x86.ActiveCfg = Release|Win32
 		{85A8B952-04EB-4FC8-8AA4-DE40FAB41C24}.Release|x86.Build.0 = Release|Win32
+		{C7F1E2A3-5B4D-4E6F-9A8B-1C2D3E4F5A6B}.Debug|x64.ActiveCfg = Debug|x64
+		{C7F1E2A3-5B4D-4E6F-9A8B-1C2D3E4F5A6B}.Debug|x64.Build.0 = Debug|x64
+		{C7F1E2A3-5B4D-4E6F-9A8B-1C2D3E4F5A6B}.Debug|x86.ActiveCfg = Debug|Win32
+		{C7F1E2A3-5B4D-4E6F-9A8B-1C2D3E4F5A6B}.Debug|x86.Build.0 = Debug|Win32
+		{C7F1E2A3-5B4D-4E6F-9A8B-1C2D3E4F5A6B}.Release|x64.ActiveCfg = Release|x64
+		{C7F1E2A3-5B4D-4E6F-9A8B-1C2D3E4F5A6B}.Release|x64.Build.0 = Release|x64
+		{C7F1E2A3-5B4D-4E6F-9A8B-1C2D3E4F5A6B}.Release|x86.ActiveCfg = Release|Win32
+		{C7F1E2A3-5B4D-4E6F-9A8B-1C2D3E4F5A6B}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

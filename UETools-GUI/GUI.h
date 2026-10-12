@@ -13,14 +13,21 @@
 #include "Math.h"
 
 #include <thread>
+#include <atomic>
 
 
 
 
 
+
+struct ImGuiErrorRecoveryState;
 
 namespace ImGui
 {
+	/* Restores ImGui stacks (windows, IDs, trees, etc.) after an SEH exception interrupted drawing. */
+	void RecoverFromException(const ImGuiErrorRecoveryState* state);
+
+
 	struct Viewport
 	{
 		ImGuiViewport* iViewport;
@@ -30,7 +37,6 @@ namespace ImGui
 	Viewport GetViewport();
 
 
-	static ImDrawList* drawList;
 	ImDrawList* GetDrawList();
 
 
@@ -39,21 +45,22 @@ namespace ImGui
 	private:
 		static inline std::unordered_map<std::string, ImTextureID> ImTextures;
 
+		/* Resource compiler stores resource names in upper case, so names are compared case-insensitively. */
+		static std::string NormalizeName(const std::string& textureName);
+
 	public:
+		/* Texture name is a resource name from PNG section of UETools-GUI.rc (e.g. "Friendly"). */
 		static bool Exists(const std::string& textureName);
-		static bool Exists(const Window::TextureMetaData& textureMetaData);
-
 		static ImTextureID Get(const std::string& textureName);
-		static ImTextureID Get(const Window::TextureMetaData& textureMetaData);
-
 		static void Add(const std::string& textureName, ImTextureID iTextureId);
-		static void Add(const Window::TextureMetaData& textureMetaData, ImTextureID iTextureId);
 
-		static bool IsValid(const ImTextureID& iTextureId);
+		/* Releases every texture through backend specific function and empties the collection. */
+		static void Clear(const std::function<void(ImTextureID)>& FnReleaseTexture);
+
+		static bool IsValid(ImTextureID iTextureId);
 	};
 
 	bool IconButton(const char* textureName, const char* text, const ImVec2& size = { 96.0f, 96.0f });
-	bool IconButton(const Window::TextureMetaData& textureMetaData, const char* text, const ImVec2& size = { 96.0f, 96.0f });
 
 
 	class Color
@@ -227,13 +234,13 @@ namespace ImGui
 	* @param key - ImGui key to be converted.
 	* @return The corresponding WinAPI virtual-key code, or 0 if unsupported.
 	*/
-	static int32_t ImGuiKey_ToWinAPI(const ImGuiKey& key);
+	int32_t ImGuiKey_ToWinAPI(ImGuiKey key);
 	/*
 	* @brief Using pre-determined table, returns a human-readable name for a given ImGui key.
 	* @param key - ImGui key to get the name of.
 	* @return The key name as a string.
 	*/
-	static const char* ImGuiKey_GetName(const ImGuiKey& key);
+	const char* ImGuiKey_GetName(ImGuiKey key);
 
 
 	struct KeyBinding
@@ -241,6 +248,9 @@ namespace ImGui
 		ImGuiKey key = ImGuiKey_None;
 		bool isDetermined = true;
 		bool isInUse = false;
+
+		bool wasDown = false; // Key state observed on previous poll.
+		uint64_t lastPollTick = 0; // GetTickCount64() of previous poll.
 	};
 	/*
 	* @brief Renders a key binding input control in ImGui.
@@ -264,7 +274,7 @@ namespace ImGui
 		Middle,
 		Right
 	};
-	bool IsMouseButtonDown(const E_MouseButton& mouseButton);
+	bool IsMouseButtonDown(E_MouseButton mouseButton);
 
 
 	enum E_FontScale
@@ -278,55 +288,55 @@ namespace ImGui
 		Title,
 		Custom
 	};
-	static inline E_FontScale fontScale = E_FontScale::Regular;
+	inline E_FontScale fontScale = E_FontScale::Regular;
 
 	/*
 	* @brief Sets the font scale to the specified value.
 	* @param fontScale - scale factor.
 	*/
-	static void SetFontScale(float fontScale);
+	void SetFontScale(float fontScale);
 	/*
 	* @brief Sets the font scale to the specified type.
 	* @param fontScale - E_FontScale type.
 	*/
-	static void SetFontScale(E_FontScale fontScale);
+	void SetFontScale(E_FontScale fontScale);
 
 	/*
 	* @brief Sets the font scale to 0.5x.
 	*/
-	static void SetFontTiny();
+	void SetFontTiny();
 	/*
 	* @brief Sets the font scale to 0.75x.
 	*/
-	static void SetFontLittle();
+	void SetFontLittle();
 	/*
 	* @brief Sets the font scale to 0.9x.
 	*/
-	static void SetFontSmall();
+	void SetFontSmall();
 	/*
 	* @brief Sets the font scale to 1.0x.
 	*/
-	static void SetFontRegular();
+	void SetFontRegular();
 	/*
 	* @brief Sets the font scale to 1.1x.
 	*/
-	static void SetFontBig();
+	void SetFontBig();
 	/*
 	* @brief Sets the font scale to 1.25x.
 	*/
-	static void SetFontLarge();
+	void SetFontLarge();
 	/*
 	* @brief Sets the font scale to 1.5x.
 	*/
-	static void SetFontTitle();
+	void SetFontTitle();
 
 
-	static void TinyText(const char* fmt, ...);
-	static void LittleText(const char* fmt, ...);
-	static void SmallText(const char* fmt, ...);
-	static void BigText(const char* fmt, ...);
-	static void LargeText(const char* fmt, ...);
-	static void TitleText(const char* fmt, ...);
+	void TinyText(const char* fmt, ...);
+	void LittleText(const char* fmt, ...);
+	void SmallText(const char* fmt, ...);
+	void BigText(const char* fmt, ...);
+	void LargeText(const char* fmt, ...);
+	void TitleText(const char* fmt, ...);
 
 
 
@@ -334,7 +344,7 @@ namespace ImGui
 	/*
 	* @brief New Line + Separator + New Line.
 	*/
-	static void CategorySeparator()
+	inline void CategorySeparator()
 	{
 		ImGui::NewLine();
 		ImGui::Separator();
@@ -345,9 +355,9 @@ namespace ImGui
 	/*
 	* @brief Prints pre-determined number of spaces to expand menu horizontally.
 	*/
-	static void MenuSpacer()
+	inline void MenuSpacer()
 	{
-		static const char* menuSpacer = "                                                                                               ";
+		const char* menuSpacer = "                                                                                               ";
 		ImGui::TextUnformatted(menuSpacer, menuSpacer + 95);
 	}
 
@@ -362,6 +372,12 @@ namespace ImGui
 		BottomRight = 3,
 		None = -1
 	};
+
+	/*
+	* @brief Keeps window with given name inside display area; must be called before ImGui::Begin() of that window.
+	* @param windowName - Name of the window, exactly as passed to ImGui::Begin().
+	*/
+	void SetNextWindowInsideDisplay(const char* windowName);
 
 	/*
 	* @brief Creates a scalable overlay window.
@@ -390,9 +406,26 @@ public:
 	}
 	static bool StartWindowThread();
 
+	/* Stops background tasks and restores title state; must be called before the module is unloaded. */
+	static void Shutdown();
+
 
 private:
-	static inline bool isTitleInFocus = false;
+	static inline std::atomic<bool> isUnloadRequested = false;
+public:
+	static bool GetIsUnloadRequested()
+	{
+		return isUnloadRequested;
+	}
+	/* Asks overlay to shut down and unload the module from the title process. */
+	static void RequestUnload()
+	{
+		isUnloadRequested = true;
+	}
+
+
+private:
+	static inline std::atomic<bool> isTitleInFocus = false;
 public:
 	static bool GetIsTitleInFocus()
 	{
@@ -405,7 +438,7 @@ public:
 
 
 private:
-	static inline bool isMenuActive = false;
+	static inline std::atomic<bool> isMenuActive = false;
 public:
 	static bool GetIsMenuActive()
 	{
@@ -459,13 +492,13 @@ public:
 	* @brief Initializes the GUI system. Should be called to start ImGui and create the menu.
 	* @param applicationModule - Handle of the current (this) DLL module.
 	*/
-	static void Init(const HMODULE& applicationModule);
+	static void Init(HMODULE applicationModule);
 #ifdef WAIT_FOR_TITLE_INIT
 	/*
 	* @brief Initializes the GUI system once general Unreal Engine subsystems are up and running. Should be called to start ImGui and create the menu.
 	* @param applicationModule - Handle of the current (this) DLL module.
 	*/
-	static void InitOnTitleInitialized(const HMODULE& applicationModule);
+	static void InitOnTitleInitialized(HMODULE applicationModule);
 #endif
 
 
@@ -488,7 +521,7 @@ public:
 		ACTION_SUCCESS,
 		ACTION_ERROR
 	};
-	static void PlayUISound(const E_Sound& soundToPlay);
+	static void PlayUISound(E_Sound soundToPlay);
 	static void PlayActionSound(bool wasSuccessfull)
 	{
 		PlayUISound(wasSuccessfull ? E_Sound::ACTION_SUCCESS : E_Sound::ACTION_ERROR);
@@ -548,6 +581,13 @@ namespace Features
 		static inline bool useVectorFont = true;
 
 		static inline float opacity = 1.0f;
+
+		static constexpr float INTERFACE_SCALE_MIN = 0.5f;
+		static constexpr float INTERFACE_SCALE_MAX = 2.0f;
+		static inline float interfaceScale = 1.0f;
+
+		/* Scales style sizes & fonts by interfaceScale; does nothing if scale hasn't changed since last call. */
+		static void ApplyInterfaceScale();
 	};
 
 
@@ -620,6 +660,14 @@ namespace Features
 	public:
 		static inline std::vector<Unreal::Function::DataStructure> functions;
 		static inline SDK::UObject* functionsOwner;
+
+#ifdef FUNCTION_PARAMETERS
+		/* User provided values of parameters, keyed by parameter property. */
+		static inline std::unordered_map<void*, Unreal::Function::ParameterValue> parameterValues;
+
+		/* Return value & out parameters received on last call, keyed by parameter property. */
+		static inline std::unordered_map<void*, std::string> outputValues;
+#endif
 
 		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
 		static inline char filterBuffer[filterBufferSize] = {};
@@ -1112,7 +1160,7 @@ namespace BackgroundTasks
 	class KeybindingsHandler
 	{
 	private:
-		static inline bool isEnabled = false;
+		static inline std::atomic<bool> isEnabled = false;
 
 		static inline float delay = 0.001f;
 
@@ -1127,7 +1175,7 @@ namespace BackgroundTasks
 	class DirectionalMovementHandler
 	{
 	private:
-		static inline bool isEnabled = false;
+		static inline std::atomic<bool> isEnabled = false;
 
 		static inline float& delay = Features::DirectionalMovement::delay;
 
@@ -1139,11 +1187,31 @@ namespace BackgroundTasks
 		static void Disable();
 	};
 
+	class SoundPlayer
+	{
+	private:
+		static inline std::atomic<bool> isEnabled = false;
+
+		/* Pending sound packed as (frequency << 16) | duration; 0 if there's none. */
+		static inline std::atomic<uint32_t> pendingSound = 0;
+
+		static inline float delay = 0.01f;
+
+		static inline HANDLE thread = nullptr;
+		static void Worker();
+
+	public:
+		static void Play(uint16_t frequency, uint16_t duration);
+
+		static void Enable();
+		static void Disable();
+	};
+
 #ifdef TASK_CONSTRUCT_CONSOLE
 	class ConstructConsole
 	{
 	private:
-		static inline bool isEnabled = false;
+		static inline std::atomic<bool> isEnabled = false;
 
 		static inline bool consoleConstructed = false;
 		static inline bool consoleBindingsAssigned = false;
@@ -1163,7 +1231,7 @@ namespace BackgroundTasks
 	class ConstructCheatManager
 	{
 	private:
-		static inline bool isEnabled = false;
+		static inline std::atomic<bool> isEnabled = false;
 
 		static inline bool cheatManagerConstructed = false;
 
@@ -1178,7 +1246,8 @@ namespace BackgroundTasks
 	};
 #endif
 
-	static void Init();
+	void Init();
+	void Shutdown();
 }
 
 
@@ -1205,6 +1274,7 @@ namespace Inputs
 	{
 	public:
 		static inline ImGui::KeyBinding general_MenuOpenClose{ ImGuiKey_Insert };
+		static inline ImGui::KeyBinding general_Unload;
 
 
 		static inline ImGui::KeyBinding debug_ActorTrace;

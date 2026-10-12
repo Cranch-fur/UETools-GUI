@@ -19,13 +19,56 @@
 
 class Window
 {
+public:
+    /* Rendering API specific part of the overlay; everything else (window, ImGui, render loop) is shared. */
+    struct RenderBackend
+    {
+        /* Overlay window class gets solid black background brush. */
+        bool useBackgroundBrush = false;
+
+        std::function<bool(HWND)> FnCreateDevice;
+        std::function<void(HWND)> FnCleanupDevice;
+
+        std::function<bool()> FnInitImGui;
+        std::function<void()> FnShutdownImGui;
+        std::function<void()> FnNewFrame;
+
+        /* Clears overlay and presents it; ImGui draw data is rendered only if renderDrawData is true. Returns false if nothing was presented. */
+        std::function<bool(bool)> FnPresent;
+
+        /* Optional, called on WM_SIZE with new client size. */
+        std::function<void(UINT, UINT)> FnResize;
+
+        std::function<bool(const std::string&, const std::vector<uint8_t>&, int32_t, int32_t)> FnCreateTexture;
+        std::function<void(ImTextureID)> FnReleaseTexture;
+    };
+
+
 protected:
+    static inline const wchar_t* overlayClassName = L"UETools-GUI";
+
+    static inline RenderBackend renderBackend;
+
     static inline bool bInit = false;
 
     static inline HWND hTargetWindow = nullptr;
     static inline bool bTargetSet = false;
 
     static inline DWORD dTargetPID = 0;
+
+    /* Client area size of the target window, updated each frame by MoveWindow(). */
+    static inline POINT targetWindowSize = { 0, 0 };
+
+
+public:
+    static HWND GetTargetWindow()
+    {
+        return hTargetWindow;
+    }
+    static POINT GetTargetWindowSize()
+    {
+        return targetWindowSize;
+    }
 
 
 protected:
@@ -35,7 +78,7 @@ public:
     {
         return applicationModule;
     }
-    static void SetApplicationModule(const HMODULE& newApplicationModule)
+    static void SetApplicationModule(HMODULE newApplicationModule)
     {
         applicationModule = newApplicationModule;
     }
@@ -43,7 +86,7 @@ public:
 
 protected:
     /* Setter function used to define the target window. */
-    static void SetTargetWindow(const HWND& hWindow);
+    static void SetTargetWindow(HWND hWindow);
 
     /* Callback function that retrieves the main window of the process. */
     static BOOL CALLBACK EnumWind(HWND hWindow, LPARAM lParam);
@@ -52,57 +95,37 @@ protected:
     static void GetWindow();
 
     /* Moves the overlay on top of the targeted window. */
-    static void MoveWindow(const HWND& hWindow, const bool& forceInvalidSize = false);
+    static void MoveWindow(HWND hWindow, bool forceInvalidSize = false);
 
     /* Checks if the overlay window or the targeted window is in focus. */
-    static bool IsWindowFocus(const HWND& hWindow);
+    static bool IsWindowFocus(HWND hWindow);
 
     /* Checks if a window is valid for targeting. */
-    static bool IsWindowValid(const HWND& hWindow);
+    static bool IsWindowValid(HWND hWindow);
 
     /* Checks if a window is cloaked (hidden by DWM). */
-    static bool IsWindowCloaked(const HWND& hWindow);
+    static bool IsWindowCloaked(HWND hWindow);
 
     /* Checks if the targeted window has been closed. */
     static bool IsWindowAlive();
 
-    
-public:
-    struct TextureMetaData 
-    {
-        int32_t resourceId;
-        const char* name;
-    };
+    /* Switches overlay between click-through (menu closed) and interactive (menu open) modes. */
+    static void SetOverlayInteractive(HWND hWindow, bool isInteractive);
 
-    struct TextureCollection
-    {
-        /* Texture must be defined in resource.h & imported in UETools-GUI.rc. */
-        TextureMetaData T_Placeholder =                { Placeholder, "Placeholder" };
-        TextureMetaData T_Friendly =                   { Friendly, "Friendly" };
-        TextureMetaData T_Hostile =                    { Hostile, "Hostile" };
-        TextureMetaData T_Actor =                      { Actor_Base, "Actor_Base" };
-        TextureMetaData T_Actor_PointLight =           { Actor_PointLight, "Actor_PointLight" };
-        TextureMetaData T_Actor_SpotLight =            { Actor_SpotLight, "Actor_SpotLight" };
-        TextureMetaData T_Actor_RectLight =            { Actor_RectLight, "Actor_RectLight" };
-        TextureMetaData T_Actor_DirectionalLight =     { Actor_DirectionalLight, "Actor_DirectionalLight" };
-        TextureMetaData T_Actor_SkyLight =             { Actor_SkyLight, "Actor_SkyLight" };
-        TextureMetaData T_Actor_SkyAtmosphere =        { Actor_SkyAtmosphere, "Actor_SkyAtmosphere" };
-        TextureMetaData T_Actor_AtmosphericFog =       { Actor_AtmosphericFog, "Actor_AtmosphericFog" };
-        TextureMetaData T_Actor_ExponentialHeightFog = { Actor_ExponentialHeightFog, "Actor_ExponentialHeightFog" };
-        TextureMetaData T_Actor_Camera =               { Actor_Camera, "Actor_Camera" };
-        TextureMetaData T_Actor_Pawn =                 { Actor_Pawn, "Actor_Pawn" };
-        TextureMetaData T_Actor_DefaultPawn =          { Actor_DefaultPawn, "Actor_DefaultPawn" };
-        TextureMetaData T_Actor_Decal =                { Actor_Decal, "Actor_Decal" };
-        TextureMetaData T_Actor_TextRender =           { Actor_TextRender, "Actor_TextRender" };
-        TextureMetaData T_Actor_TargetPoint =          { Actor_TargetPoint, "Actor_TargetPoint" };
-
-        const TextureMetaData* begin() const { return reinterpret_cast<const TextureMetaData*>(this); }
-        const TextureMetaData* end() const { return begin() + (sizeof(*this) / sizeof(TextureMetaData)); }
-    };
-
-    static inline const TextureCollection texturesCollection;
 
 protected:
+    /* Win32 window procedure for the overlay window. */
+    static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+    /* Creates the overlay window, runs the render loop and unloads the module once it's over. */
+    static void Run(const RenderBackend& backend);
+
+    
+protected:
+    /*
+        Loads every PNG resource of the module as a texture named after its resource name.
+        New texture only needs a file in Textures folder and a line in PNG section of UETools-GUI.rc.
+    */
     static void InitializeTextures(const std::function<bool(const std::string&, const std::vector<uint8_t>&, int32_t, int32_t)>& FnCreateTexture);
 };
 

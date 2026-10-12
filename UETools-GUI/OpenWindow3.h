@@ -15,15 +15,8 @@
 
 
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 class OpenWindow3 : public Window
 {
-private:
-    /* Win32 window procedure for the overlay window. */
-    static LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-
 private:
     static inline HDC hDC = nullptr;
 public:
@@ -69,13 +62,16 @@ private:
     /* Releases all OpenGL resources. */
     static void CleanupDevice(HWND hWnd);
 
+    /* Clears overlay, optionally renders ImGui draw data and swaps buffers. */
+    static bool Present(bool renderDrawData);
+
 
 public:
     static bool CreateTexture(const std::string& textureName, const std::vector<uint8_t>& pixels, int32_t width, int32_t height);
 
 
 public:
-    /* Creates the overlay window and starts the render loop. */
+    /* Creates the overlay window and starts the render loop (see Window::Run()). */
     static void Create();
 };
 #endif

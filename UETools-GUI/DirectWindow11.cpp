@@ -6,53 +6,6 @@
 
 
 
-LRESULT WINAPI DirectWindow11::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam) != 0)
-    {
-        return true;
-    }
-
-    switch (msg)
-    {
-        case WM_SIZE:
-        {
-            if ((GetDevice() != nullptr) && (wParam != SIZE_MINIMIZED))
-            {
-                InvalidateRenderTargetView();
-                GetSwapChain()->ResizeBuffers(0, static_cast<UINT>(LOWORD(lParam)), static_cast<UINT>(HIWORD(lParam)), DXGI_FORMAT_UNKNOWN, 0);
-                CreateRenderTargetView();
-            }
-            return 0;
-        }
-
-        case WM_SYSCOMMAND:
-        {
-            if ((wParam & 0xfff0) == SC_KEYMENU)
-            {
-                return 0;
-            }
-            break;
-        }
-
-        case WM_DESTROY:
-        {
-            PostQuitMessage(0);
-            return 0;
-        }
-
-        default:
-        {
-            break;
-        }
-    }
-
-    return DefWindowProcW(hWnd, msg, wParam, lParam);
-}
-
-
-
-
 bool DirectWindow11::CreateRenderTargetView()
 {
     ID3D11Texture2D* backBuffer = nullptr;
@@ -175,8 +128,11 @@ bool DirectWindow11::CreateTexture(const std::string& textureName, const std::ve
     srvDesc.Texture2D.MipLevels = desc.MipLevels;
     srvDesc.Texture2D.MostDetailedMip = 0;
 
-    GetDevice()->CreateShaderResourceView(pTexture, &srvDesc, &out_srv);
+    const HRESULT createShaderResourceViewResult = GetDevice()->CreateShaderResourceView(pTexture, &srvDesc, &out_srv);
     pTexture->Release();
+
+    if (FAILED(createShaderResourceViewResult) || out_srv == nullptr)
+        return false;
 
     ImGui::Texture2D::Add(textureName, (ImTextureID)out_srv);
     return true;
@@ -185,224 +141,73 @@ bool DirectWindow11::CreateTexture(const std::string& textureName, const std::ve
 
 
 
-void DirectWindow11::Create()
+void DirectWindow11::Resize(UINT width, UINT height)
 {
-    ImGui_ImplWin32_EnableDpiAwareness();
-
-    if (hTargetWindow == nullptr)
+    if (GetDevice() == nullptr)
     {
-        GetWindow();
-    }
-
-    WNDCLASSEXW wc = {};
-    wc.cbSize = sizeof(WNDCLASSEXW);
-    wc.hbrBackground = static_cast<HBRUSH>(CreateSolidBrush(RGB(0, 0, 0)));
-    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-    wc.hIconSm = LoadIconW(nullptr, IDI_APPLICATION);
-    wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpfnWndProc = WndProc;
-    wc.lpszClassName = L"UETools-GUI";
-    wc.style = CS_VREDRAW | CS_HREDRAW;
-
-    RegisterClassExW(&wc);
-
-    const HWND hwnd = CreateWindowExW(
-        WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE,
-        wc.lpszClassName, L"UETools-GUI", WS_POPUP, 0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
-        nullptr, nullptr, wc.hInstance, nullptr
-    );
-
-    SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
-
-    const MARGINS margin = { -1, 0, 0, 0 };
-    DwmExtendFrameIntoClientArea(hwnd, &margin);
-
-    if (CreateDevice(hwnd) == false)
-    {
-        CleanupDevice();
-        UnregisterClassW(wc.lpszClassName, wc.hInstance);
         return;
     }
 
-    ShowWindow(hwnd, SW_SHOWDEFAULT);
-    UpdateWindow(hwnd);
+    InvalidateRenderTargetView();
 
-    /* IMGUI SETUP */
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    ImGui::StyleColorsDark();
-
-    const HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-    MONITORINFO info = {};
-    info.cbSize = sizeof(MONITORINFO);
-    GetMonitorInfoW(monitor, &info);
-
-    const int monitorHeight = info.rcMonitor.bottom - info.rcMonitor.top;
-
-    ImFontConfig cfg;
-    ImFontConfig* pCfg = nullptr;
-
-    if (monitorHeight > 1080)
+    /* Overlay is shrunk to 0x0 when title loses focus; keep buffers and skip render target until it's restored. */
+    if ((width == 0) || (height == 0))
     {
-        const float fScale = 2.0f;
-        cfg.SizePixels = 13.0f * fScale;
-        pCfg = &cfg;
+        return;
     }
 
-    Features::Menu::fontBitmap = io.Fonts->AddFontDefault(pCfg);
-    Features::Menu::fontVector = io.Fonts->AddFontDefaultVector(pCfg);
-
-    io.FontDefault = Features::Menu::useVectorFont ? Features::Menu::fontVector : Features::Menu::fontBitmap;
-
-    io.IniFilename = nullptr;
-
-    ImGui_ImplWin32_Init(hwnd);
-    ImGui_ImplDX11_Init(GetDevice(), GetDeviceContext());
-
-    InitializeTextures(DirectWindow11::CreateTexture);
-
-    bInit = true;
-
-    /* RENDER LOOP */
-    bool bDone = false;
-    while (bDone == false)
+    if (SUCCEEDED(GetSwapChain()->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0)))
     {
-        static const float colorTransparent[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-        MSG msg;
+        CreateRenderTargetView();
+    }
+}
 
-        while (PeekMessageW(&msg, nullptr, 0U, 0U, PM_REMOVE) != 0)
-        {
-            TranslateMessage(&msg);
-            DispatchMessageW(&msg);
+bool DirectWindow11::Present(bool renderDrawData)
+{
+    if (renderTargetView == nullptr)
+    {
+        return false;
+    }
 
-            if (msg.message == WM_QUIT)
-            {
-                bDone = true;
-            }
-        }
+    const float colorTransparent[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-        if ((IsWindowAlive() == false) && (bTargetSet == true))
-        {
-            bDone = true;
-        }
+    GetDeviceContext()->OMSetRenderTargets(1, &renderTargetView, nullptr);
+    GetDeviceContext()->ClearRenderTargetView(renderTargetView, colorTransparent);
 
-        if (bDone == true)
-        {
-            break;
-        }
-
-        if (hTargetWindow == nullptr)
-        {
-            continue;
-        }
-
-        bool isMenuActive = GUI::GetIsMenuActive();
-        static bool lastIsMenuActive = !isMenuActive;
-
-        bool isInFocus = IsWindowFocus(hwnd) && bTargetSet;
-        GUI::SetIsTitleInFocus(isInFocus);
-
-#ifdef INACTIVE_ZERO_SIZE
-        MoveWindow(hwnd, (isInFocus == false || isMenuActive == false));
-#else
-        MoveWindow(hwnd, (isInFocus == false));
-#endif
-
-        if (isInFocus == false)
-        {
-            lastIsMenuActive = !isMenuActive;
-
-            GetDeviceContext()->OMSetRenderTargets(1, &renderTargetView, nullptr);
-            GetDeviceContext()->ClearRenderTargetView(renderTargetView, colorTransparent);
-            GetSwapChain()->Present(DXGI_SWAP_EFFECT_SEQUENTIAL, 0x0);
-
-            continue;
-        }
-
-        ImGui_ImplDX11_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
-
-        GUI::Draw();
-
-        ImGui::EndFrame();
-
-        if (isMenuActive != lastIsMenuActive)
-        {
-            if (isMenuActive == true)
-            {
-                LONG ex = GetWindowLongW(hwnd, GWL_EXSTYLE);
-                ex &= ~WS_EX_TRANSPARENT;
-                ex &= ~WS_EX_NOACTIVATE;
-                ex |= (WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW);
-                SetWindowLongW(hwnd, GWL_EXSTYLE, ex);
-                SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-
-                DWORD gameTid = GetWindowThreadProcessId(hTargetWindow, nullptr);
-                DWORD myTid = GetCurrentThreadId();
-
-                AttachThreadInput(myTid, gameTid, TRUE);
-                SetForegroundWindow(hwnd);
-                SetActiveWindow(hwnd);
-                SetFocus(hwnd);
-                AttachThreadInput(myTid, gameTid, FALSE);
-
-                if (GetCapture() != hwnd)
-                {
-                    SetCapture(hwnd);
-                }
-
-                io.MouseDrawCursor = true;
-            }
-            else
-            {
-                LONG ex = GetWindowLongW(hwnd, GWL_EXSTYLE);
-                ex |= WS_EX_TRANSPARENT;
-                ex &= ~WS_EX_NOACTIVATE;
-                ex |= (WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW);
-                SetWindowLongW(hwnd, GWL_EXSTYLE, ex);
-                SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-
-                if (GetCapture() == hwnd)
-                {
-                    ReleaseCapture();
-                }
-
-                io.MouseDrawCursor = false;
-
-                if (IsWindow(hTargetWindow) != 0)
-                {
-                    SetForegroundWindow(hTargetWindow);
-                }
-            }
-
-            lastIsMenuActive = isMenuActive;
-        }
-
-        ImGui::Render();
-        GetDeviceContext()->OMSetRenderTargets(1, &renderTargetView, nullptr);
-        GetDeviceContext()->ClearRenderTargetView(renderTargetView, colorTransparent);
+    if (renderDrawData)
+    {
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-        GetSwapChain()->Present(DXGI_SWAP_EFFECT_SEQUENTIAL, 0x0);
     }
 
-    /* SHUTDOWN */
-    bInit = false;
+    GetSwapChain()->Present(1, 0); // VSync interval 1.
+    return true;
+}
 
-    ImGui_ImplDX11_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
 
-    CleanupDevice();
-    DestroyWindow(hwnd);
-    UnregisterClassW(wc.lpszClassName, wc.hInstance);
 
-    CreateThread(nullptr, 0, reinterpret_cast<LPTHREAD_START_ROUTINE>(FreeLibrary), GetApplicationModule(), 0, nullptr);
+
+void DirectWindow11::Create()
+{
+    RenderBackend backend;
+    backend.useBackgroundBrush = true;
+
+    backend.FnCreateDevice = CreateDevice;
+    backend.FnCleanupDevice = [](HWND) { CleanupDevice(); };
+
+    backend.FnInitImGui = []() { return ImGui_ImplDX11_Init(GetDevice(), GetDeviceContext()); };
+    backend.FnShutdownImGui = ImGui_ImplDX11_Shutdown;
+    backend.FnNewFrame = ImGui_ImplDX11_NewFrame;
+
+    backend.FnPresent = Present;
+    backend.FnResize = Resize;
+
+    backend.FnCreateTexture = CreateTexture;
+    backend.FnReleaseTexture = [](ImTextureID iTextureId)
+        {
+            if (ID3D11ShaderResourceView* shaderResourceView = (ID3D11ShaderResourceView*)(uintptr_t)iTextureId)
+                shaderResourceView->Release();
+        };
+
+    Run(backend);
 }
 #endif
