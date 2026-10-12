@@ -23,7 +23,7 @@ Build Configuration: Release
 1. Download and extract the repository, or clone it via Git.
 2. Generate a Dumper-7 SDK for the target title. Pre-compiled Dumper-7 can be found in [Releases](https://github.com/Cranch-fur/UETools-GUI/releases).
 > [!TIP]
-> Dynamic Link Libraries (DLLs) can be loaded into a target process using tools such as [Cheat Engine](https://www.cheatengine.org/) and [System Informer](https://systeminformer.sourceforge.io/downloads) (formerly Process Hacker). Always make sure your actions comply with the title's EULA and all applicable laws.
+> Dynamic Link Libraries (DLLs) can be loaded into a target process using tools such as UETools-Injector (bundled with the main project), [Cheat Engine](https://www.cheatengine.org/), and [System Informer](https://systeminformer.sourceforge.io/downloads) (formerly Process Hacker). Always make sure your actions comply with the title's EULA and all applicable laws.
 3. Replace the contents of `..\SDKs\Dumper7` with the contents of the newly generated, title-specific "CppSDK".
 4. Build `UETools-GUI.dll` and load it into the target title process.
 > [!TIP]
