@@ -1286,6 +1286,69 @@ namespace Unreal
 
 
 
+#ifdef OBJECT_PROPERTIES
+	class Property
+	{
+	public:
+		/* Property types simple enough to edit through interface; everything else is read-only. */
+		enum class E_PropertyKind
+		{
+			Unsupported,
+			Bool,
+			Byte,
+			Int,
+			Float,
+			Double
+		};
+
+		struct DataStructure
+		{
+			SDK::FProperty* reference = nullptr;
+			std::string name;
+			std::string typeName; // Property class name without "Property" suffix (e.g. "Bool", "Float", "Object").
+
+			E_PropertyKind kind = E_PropertyKind::Unsupported;
+
+
+			std::string MemoryAddressAsString() const
+			{
+				if (reference == nullptr)
+					return "nullptr";
+
+				return std::format("{:p}", static_cast<void*>(reference));
+			}
+		};
+
+		/* Holds a value of an editable property; only the field matching the kind is used. */
+		struct PropertyValue
+		{
+			bool boolValue = false;
+			uint8_t byteValue = 0;
+			int32_t intValue = 0;
+			float floatValue = 0.0f;
+			double doubleValue = 0.0;
+		};
+
+		static E_PropertyKind GetPropertyKind(SDK::FField* field);
+
+		/* Reads a simple-type property value straight from the live object; false if the type isn't editable. */
+		static bool GetValue(SDK::UObject* objectReference, SDK::FProperty* property, PropertyValue* outValue);
+
+		/* Writes a simple-type property value straight into the live object; false if the type isn't editable. */
+		static bool SetValue(SDK::UObject* objectReference, SDK::FProperty* property, const PropertyValue& value);
+
+		/* Readable value of any property (editable or display-only) read from the live object. */
+		static std::string ValueToString(SDK::UObject* objectReference, SDK::FProperty* property);
+
+		static std::vector<Property::DataStructure> GetProperties(SDK::UObject* objectReference);
+
+		static std::vector<Property::DataStructure> FilterByName(const std::vector<Property::DataStructure>& propertiesCollection, const std::string& filter, bool caseSensitive);
+	};
+#endif
+
+
+
+
 #ifdef WAIT_FOR_TITLE_INIT
 	inline bool IsTitleInitialized()
 	{

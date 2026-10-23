@@ -3201,3 +3201,277 @@ std::vector<Unreal::Function::DataStructure> Unreal::Function::FilterByName(cons
 
 	return outCollection;
 }
+
+
+
+
+#ifdef OBJECT_PROPERTIES
+Unreal::Property::E_PropertyKind Unreal::Property::GetPropertyKind(SDK::FField* field)
+{
+	if (field == nullptr || field->ClassPrivate == nullptr)
+		return E_PropertyKind::Unsupported;
+
+	const uint64_t castFlags = field->ClassPrivate->CastFlags;
+	const SDK::FProperty* property = static_cast<SDK::FProperty*>(field);
+
+	/* Element size is verified as well, so an unexpected layout is never read from or written into. */
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::BoolProperty)) != 0)
+		return E_PropertyKind::Bool;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::ByteProperty)) != 0 && property->ElementSize == sizeof(uint8_t))
+		return E_PropertyKind::Byte;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::IntProperty)) != 0 && property->ElementSize == sizeof(int32_t))
+		return E_PropertyKind::Int;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::FloatProperty)) != 0 && property->ElementSize == sizeof(float))
+		return E_PropertyKind::Float;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::DoubleProperty)) != 0 && property->ElementSize == sizeof(double))
+		return E_PropertyKind::Double;
+
+	return E_PropertyKind::Unsupported;
+}
+
+
+/* Verifies the property lies within the object & returns a pointer to its value, or nullptr. */
+static uint8_t* GetPropertyValuePtr(SDK::UObject* objectReference, SDK::FProperty* property)
+{
+	if (objectReference == nullptr || property == nullptr)
+		return nullptr;
+
+	if (property->Offset < 0)
+		return nullptr;
+
+	/* Property comes from the object's own class hierarchy, so its offset fits within the object. */
+	if (objectReference->Class != nullptr)
+	{
+		const int32_t objectSize = objectReference->Class->Size;
+		if (objectSize > 0 && static_cast<size_t>(property->Offset) + property->ElementSize > static_cast<size_t>(objectSize))
+			return nullptr;
+	}
+
+	return reinterpret_cast<uint8_t*>(objectReference) + property->Offset;
+}
+
+
+bool Unreal::Property::GetValue(SDK::UObject* objectReference, SDK::FProperty* property, PropertyValue* outValue)
+{
+	if (outValue == nullptr)
+		return false;
+
+	uint8_t* valuePtr = GetPropertyValuePtr(objectReference, property);
+	if (valuePtr == nullptr)
+		return false;
+
+	switch (GetPropertyKind(property))
+	{
+		case E_PropertyKind::Bool:
+		{
+			/* Bool may be a bitfield, so the value is read through FieldMask. */
+			const SDK::FBoolProperty* boolProperty = static_cast<SDK::FBoolProperty*>(property);
+			outValue->boolValue = (valuePtr[boolProperty->ByteOffset] & boolProperty->FieldMask) != 0;
+			return true;
+		}
+
+		case E_PropertyKind::Byte:
+			outValue->byteValue = *valuePtr;
+			return true;
+
+		case E_PropertyKind::Int:
+			std::memcpy(&outValue->intValue, valuePtr, sizeof(outValue->intValue));
+			return true;
+
+		case E_PropertyKind::Float:
+			std::memcpy(&outValue->floatValue, valuePtr, sizeof(outValue->floatValue));
+			return true;
+
+		case E_PropertyKind::Double:
+			std::memcpy(&outValue->doubleValue, valuePtr, sizeof(outValue->doubleValue));
+			return true;
+
+		default:
+			return false;
+	}
+}
+
+
+bool Unreal::Property::SetValue(SDK::UObject* objectReference, SDK::FProperty* property, const PropertyValue& value)
+{
+	uint8_t* valuePtr = GetPropertyValuePtr(objectReference, property);
+	if (valuePtr == nullptr)
+		return false;
+
+	/* Kind is re-evaluated from the property itself, user provided data is never trusted for memory layout. */
+	switch (GetPropertyKind(property))
+	{
+		case E_PropertyKind::Bool:
+		{
+			/* Bool may be a bitfield, so the value is applied through FieldMask instead of a plain write. */
+			const SDK::FBoolProperty* boolProperty = static_cast<SDK::FBoolProperty*>(property);
+			if (value.boolValue)
+				valuePtr[boolProperty->ByteOffset] |= boolProperty->FieldMask;
+			else
+				valuePtr[boolProperty->ByteOffset] &= static_cast<uint8_t>(~boolProperty->FieldMask);
+			return true;
+		}
+
+		case E_PropertyKind::Byte:
+			std::memcpy(valuePtr, &value.byteValue, sizeof(value.byteValue));
+			return true;
+
+		case E_PropertyKind::Int:
+			std::memcpy(valuePtr, &value.intValue, sizeof(value.intValue));
+			return true;
+
+		case E_PropertyKind::Float:
+			std::memcpy(valuePtr, &value.floatValue, sizeof(value.floatValue));
+			return true;
+
+		case E_PropertyKind::Double:
+			std::memcpy(valuePtr, &value.doubleValue, sizeof(value.doubleValue));
+			return true;
+
+		default:
+			return false;
+	}
+}
+
+
+std::string Unreal::Property::ValueToString(SDK::UObject* objectReference, SDK::FProperty* property)
+{
+	if (property == nullptr || property->ClassPrivate == nullptr)
+		return "Unknown";
+
+	uint8_t* valuePtr = GetPropertyValuePtr(objectReference, property);
+	if (valuePtr == nullptr)
+		return "Out Of Bounds";
+
+	switch (GetPropertyKind(property))
+	{
+		case E_PropertyKind::Bool:
+		{
+			const SDK::FBoolProperty* boolProperty = static_cast<SDK::FBoolProperty*>(property);
+			return (valuePtr[boolProperty->ByteOffset] & boolProperty->FieldMask) != 0 ? "True" : "False";
+		}
+
+		case E_PropertyKind::Byte:
+			return std::to_string(*valuePtr);
+
+		case E_PropertyKind::Int:
+		{
+			int32_t value = 0;
+			std::memcpy(&value, valuePtr, sizeof(value));
+			return std::to_string(value);
+		}
+
+		case E_PropertyKind::Float:
+		{
+			float value = 0.0f;
+			std::memcpy(&value, valuePtr, sizeof(value));
+			return std::format("{:.3f}", value);
+		}
+
+		case E_PropertyKind::Double:
+		{
+			double value = 0.0;
+			std::memcpy(&value, valuePtr, sizeof(value));
+			return std::format("{:.6f}", value);
+		}
+
+		default:
+			break;
+	}
+
+	/* Display-only types (shown as text, not editable). */
+	const uint64_t castFlags = property->ClassPrivate->CastFlags;
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::ObjectProperty)) != 0 && property->ElementSize == sizeof(SDK::UObject*))
+	{
+		SDK::UObject* propertyObject = nullptr;
+		std::memcpy(&propertyObject, valuePtr, sizeof(propertyObject));
+
+		if (propertyObject == nullptr)
+			return "None";
+
+		if (Unreal::Object::IsValid(propertyObject) == false)
+			return "Invalid Object";
+
+		return propertyObject->GetFullName();
+	}
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::StrProperty)) != 0 && property->ElementSize == sizeof(SDK::FString))
+		return "\"" + reinterpret_cast<const SDK::FString*>(valuePtr)->ToString() + "\"";
+
+	if ((castFlags & static_cast<uint64_t>(SDK::EClassCastFlags::NameProperty)) != 0 && property->ElementSize == sizeof(SDK::FName))
+		return reinterpret_cast<const SDK::FName*>(valuePtr)->ToString();
+
+	return "Not Displayable";
+}
+
+
+std::vector<Unreal::Property::DataStructure> Unreal::Property::GetProperties(SDK::UObject* objectReference)
+{
+	std::vector<Property::DataStructure> outCollection;
+
+	if (objectReference == nullptr || objectReference->Class == nullptr)
+		return outCollection;
+
+	/* Properties live in ChildProperties (as FFields) of the class and all of its super structs. */
+	SDK::UStruct* currentClass = objectReference->Class;
+	while (currentClass)
+	{
+		for (SDK::FField* field = currentClass->ChildProperties; field != nullptr; field = field->Next)
+		{
+			if (field->ClassPrivate == nullptr)
+				continue;
+
+			SDK::FProperty* property = static_cast<SDK::FProperty*>(field);
+
+			Property::DataStructure propertyData;
+			propertyData.reference = property;
+			propertyData.name = field->Name.ToString();
+			propertyData.typeName = field->ClassPrivate->Name.ToString();
+			propertyData.kind = GetPropertyKind(field);
+
+			const std::string SUFFIX = "Property";
+			if (propertyData.typeName.size() > SUFFIX.size() && propertyData.typeName.ends_with(SUFFIX))
+				propertyData.typeName.resize(propertyData.typeName.size() - SUFFIX.size());
+
+			outCollection.push_back(propertyData);
+		}
+
+		currentClass = currentClass->SuperStruct;
+	}
+
+	return outCollection;
+}
+
+
+std::vector<Unreal::Property::DataStructure> Unreal::Property::FilterByName(const std::vector<Property::DataStructure>& propertiesCollection, const std::string& filter, bool caseSensitive)
+{
+	std::vector<Property::DataStructure> outCollection;
+	size_t filterLength = filter.length();
+
+	for (const Property::DataStructure& property : propertiesCollection)
+	{
+		bool matchFilters = filterLength == 0;
+
+		if (matchFilters == false)
+		{
+			if (caseSensitive)
+				matchFilters = property.name.find(filter) != std::string::npos;
+			else
+			{
+				std::string filterLowerCase = Utilities::String::ToLowerCase(filter);
+				matchFilters = Utilities::String::ToLowerCase(property.name).find(filterLowerCase) != std::string::npos;
+			}
+		}
+
+		if (matchFilters)
+			outCollection.push_back(property);
+	}
+
+	return outCollection;
+}
+#endif

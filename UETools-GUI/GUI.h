@@ -677,6 +677,25 @@ namespace Features
 
 
 
+#ifdef OBJECT_PROPERTIES
+	class Properties
+	{
+	public:
+		static inline std::vector<Unreal::Property::DataStructure> properties;
+		static inline SDK::UObject* propertiesOwner;
+
+		/* Edited values of simple-type properties, keyed by property; refreshed from live memory while not edited. */
+		static inline std::unordered_map<void*, Unreal::Property::PropertyValue> values;
+
+		static inline const size_t filterBufferSize = SIZE_BUFFER_SEARCHFILTER;
+		static inline char filterBuffer[filterBufferSize] = {};
+		static inline bool filterCaseSensitive = false;
+	};
+#endif
+
+
+
+
 	class ActorsList
 	{
 	public:
@@ -1367,6 +1386,14 @@ namespace Templates
 	public:
 		static void Draw(SDK::UObject* objectReference);
 	};
+
+#ifdef OBJECT_PROPERTIES
+	class Properties
+	{
+	public:
+		static void Draw(SDK::UObject* objectReference);
+	};
+#endif
 
 	class LocationRotationScale
 	{

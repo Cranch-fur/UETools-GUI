@@ -5034,6 +5034,97 @@ void Templates::Functions::Draw(SDK::UObject* objectReference)
 
 
 
+#ifdef OBJECT_PROPERTIES
+void Templates::Properties::Draw(SDK::UObject* objectReference)
+{
+	ImGui::TitleText("Properties");
+	if (ImGui::TreeNode("Details##Properties"))
+	{
+		if (ImGui::Button("Update##Properties"))
+		{
+			Features::Properties::properties = Unreal::Property::GetProperties(objectReference);
+			Features::Properties::propertiesOwner = objectReference;
+			Features::Properties::values.clear();
+			GUI::PlayActionSound(true);
+		}
+		ImGui::SameLine();
+		ImGui::Spacing();
+		ImGui::SameLine();
+		ImGui::InputText("Search Filter##Properties", Features::Properties::filterBuffer, Features::Properties::filterBufferSize);
+		ImGui::SameLine();
+		ImGui::Spacing();
+		ImGui::SameLine();
+		ImGui::Checkbox("Case Sensitive##Properties", &Features::Properties::filterCaseSensitive);
+
+		ImGui::NewLine();
+
+		if (objectReference == Features::Properties::propertiesOwner)
+		{
+			std::vector<Unreal::Property::DataStructure> filteredProperties = Unreal::Property::FilterByName(Features::Properties::properties, Features::Properties::filterBuffer, Features::Properties::filterCaseSensitive);
+			for (const Unreal::Property::DataStructure& property : filteredProperties)
+			{
+				std::string memoryAddress = property.MemoryAddressAsString();
+				ImGui::PushID(memoryAddress.c_str());
+
+				std::string label = std::format("{} ({})", property.name, property.typeName);
+
+				if (property.kind == Unreal::Property::E_PropertyKind::Unsupported)
+				{
+					/* Display-only: show the live value as read-only, copyable text. */
+					ImGui::TextCopyable("%s = %s", label.c_str(), Unreal::Property::ValueToString(objectReference, property.reference).c_str());
+				}
+				else
+				{
+					Unreal::Property::PropertyValue& value = Features::Properties::values[property.reference];
+
+					/* Keep the widget in sync with live memory unless the user is editing this very field. */
+					if (ImGui::GetActiveID() != ImGui::GetID(label.c_str()))
+						Unreal::Property::GetValue(objectReference, property.reference, &value);
+
+					bool changed = false;
+					switch (property.kind)
+					{
+						case Unreal::Property::E_PropertyKind::Bool:
+							changed = ImGui::Checkbox(label.c_str(), &value.boolValue);
+							break;
+
+						case Unreal::Property::E_PropertyKind::Byte:
+							changed = ImGui::InputScalar(label.c_str(), ImGuiDataType_U8, &value.byteValue);
+							break;
+
+						case Unreal::Property::E_PropertyKind::Int:
+							changed = ImGui::InputInt(label.c_str(), &value.intValue);
+							break;
+
+						case Unreal::Property::E_PropertyKind::Float:
+							changed = ImGui::InputFloat(label.c_str(), &value.floatValue, 0.0f, 0.0f, "%.3f");
+							break;
+
+						case Unreal::Property::E_PropertyKind::Double:
+							changed = ImGui::InputDouble(label.c_str(), &value.doubleValue, 0.0, 0.0, "%.6f");
+							break;
+
+						default:
+							break;
+					}
+
+					/* Write straight into the live object the moment the value is committed. */
+					if (changed)
+						Unreal::Property::SetValue(objectReference, property.reference, value);
+				}
+
+				ImGui::PopID();
+			}
+		}
+
+		ImGui::TreePop();
+	}
+}
+#endif
+
+
+
+
 void Templates::LocationRotationScale::Draw(SDK::AActor* actorReference)
 {
 	static SDK::AActor* locationSource = nullptr;
@@ -6832,6 +6923,12 @@ void Templates::Menus::Debug::Sub_Actors()
 
 					Templates::Functions::Draw(actor.reference);
 
+#ifdef OBJECT_PROPERTIES
+					ImGui::NewLine();
+
+					Templates::Properties::Draw(actor.reference);
+#endif
+
 					ImGui::NewLine();
 
 					Templates::Menus::Debug::Sub_Actors_Components(actor);
@@ -7800,6 +7897,12 @@ void Templates::Menus::Debug::Sub_Actors_Components(const Unreal::Actor::DataStr
 
 					Templates::Functions::Draw(component.reference);
 
+#ifdef OBJECT_PROPERTIES
+					ImGui::NewLine();
+
+					Templates::Properties::Draw(component.reference);
+#endif
+
 				}
 				
 				ImGui::NewLine();
@@ -8173,6 +8276,12 @@ void Templates::Menus::Debug::Sub_Widgets()
 					ImGui::NewLine();
 
 					Templates::Functions::Draw(widget.reference);
+
+#ifdef OBJECT_PROPERTIES
+					ImGui::NewLine();
+
+					Templates::Properties::Draw(widget.reference);
+#endif
 				}
 				
 				ImGui::NewLine();
@@ -8325,6 +8434,12 @@ void Templates::Menus::Debug::Sub_Objects()
 					ImGui::NewLine();
 
 					Templates::Functions::Draw(object.reference);
+
+#ifdef OBJECT_PROPERTIES
+					ImGui::NewLine();
+
+					Templates::Properties::Draw(object.reference);
+#endif
 				}
 
 				ImGui::NewLine();

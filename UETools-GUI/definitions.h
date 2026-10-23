@@ -169,3 +169,10 @@
 	Enables parameters inspection for Functions (types, editing of Bool / Byte / Int / Float / Double parameters before call).
 	Isn't compatible with older versions of the Engine (< 4.25) as they describe parameters with UProperty instead of FProperty.
 */
+
+/*
+	#define OBJECT_PROPERTIES
+
+	Enables listing & inspection of an Object's variables (properties), with live editing of Bool / Byte / Int / Float / Double values.
+	Isn't compatible with older versions of the Engine (< 4.25) as they describe properties with UProperty instead of FProperty.
+*/
