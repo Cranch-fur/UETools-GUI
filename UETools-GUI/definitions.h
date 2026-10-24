@@ -28,7 +28,7 @@
 #define PATH_CONFIG_POSITIONS "UETools\\Positions.cfg"
 #define PATH_CONFIG_KEYBINDINGS "UETools\\Keybindings.cfg"
 #define PATH_CONFIG_CONSOLEHISTORY "UETools\\ConsoleHistory.cfg"
-#define PATH_CONFIG_CONSOLEDICTIONARY "UETools\\ConsoleDictionary.cfg"
+#define PATH_CONFIG_BINDINGS "UETools\\Bindings.cfg"
 
 #ifdef ENABLE_LOGGING
 	#define PATH_LOG_GENERAL "UETools\\General.log"
@@ -134,7 +134,7 @@
 
 #define CONSOLE_SUGGEST_DEVELOPMENT_COMMANDS false
 /*
-	If true, development-only commands (tagged [dev] in the dictionary) are listed in console suggestions.
+	If true, development-only commands (E_Requirement::Development in ConsoleDictionary::ENTRIES) are listed in console suggestions.
 	They're stripped from Shipping builds, so they're hidden by default.
 */
 
@@ -193,16 +193,4 @@
 
 	Enables listing & inspection of an Object's variables (properties), with live editing of Bool / Byte / Int / Float / Double values.
 	Isn't compatible with older versions of the Engine (< 4.25) as they describe properties with UProperty instead of FProperty.
-*/
-
-/*
-	#define ACTOR_HIGHLIGHT
-
-	Enables outlining the bounds of the Actor hovered in Actors List (with its name above).
-*/
-
-/*
-	#define ACTOR_GIZMO
-
-	Enables Live Edit for Actors: a gizmo with move arrows and scale handles, dragged with the mouse while the menu is open.
 */

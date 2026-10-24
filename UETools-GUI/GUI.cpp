@@ -1470,7 +1470,7 @@ void GUI::Init(HMODULE applicationModule)
 	Features::Config::Load();
 	Features::Positions::Load();
 	Features::BootlegConsole::LoadHistory();
-	Features::ConsoleDictionary::Load();
+	Features::Bindings::Load();
 	Inputs::Config::Load();
 
 	StartWindowThread();
@@ -1577,6 +1577,8 @@ void GUI::Draw()
 
 			Templates::Menus::FreeCamera::Draw();
 
+			Templates::Menus::Bindings::Draw();
+
 			Templates::Menus::Settings::Draw();
 
 			ImGui::Text(" | ");
@@ -1593,15 +1595,13 @@ void GUI::Draw()
 
 	Templates::Menus::BootlegConsole::DrawSuggestions();
 
+	Features::Bindings::ExecuteQueued();
+
 	Features::ActorTrace::Draw_ThreadSafe();
 
-#ifdef ACTOR_HIGHLIGHT
 	Features::ActorHighlight::Draw_ThreadSafe();
-#endif
 
-#ifdef ACTOR_GIZMO
 	Features::ActorGizmo::Draw_ThreadSafe();
-#endif
 
 	if (Features::ActorsTracker::enabled)
 		Features::ActorsTracker::Draw_ThreadSafe();
@@ -1829,9 +1829,7 @@ void Features::Config::Load()
 	ReadFeatureFromConfig(&featuresConfig, "Features_ActorsTracker_showDistance", &Features::ActorsTracker::showDistance);
 	ReadFeatureFromConfig(&featuresConfig, "Features_ActorsTracker_fadeOnCloseup", &Features::ActorsTracker::fadeOnCloseup);
 	
-#ifdef ACTOR_HIGHLIGHT
 	ReadFeatureFromConfig(&featuresConfig, "Features_ActorHighlight_enabled", &Features::ActorHighlight::enabled);
-#endif
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_FreeCamera_forceFreezePlayer", &Features::FreeCamera::forceFreezePlayer);
 
@@ -1932,9 +1930,7 @@ void Features::Config::Save()
 	featuresConfig.SetKey("Features_ActorsTracker_showDistance", Features::ActorsTracker::showDistance);
 	featuresConfig.SetKey("Features_ActorsTracker_checkValidness", Features::ActorsTracker::fadeOnCloseup);
 	
-#ifdef ACTOR_HIGHLIGHT
 	featuresConfig.SetKey("Features_ActorHighlight_enabled", Features::ActorHighlight::enabled);
-#endif
 
 	featuresConfig.SetKey("Features_FreeCamera_forceFreezePlayer", Features::FreeCamera::forceFreezePlayer);
 
@@ -2978,7 +2974,6 @@ void Features::ActorsTracker::Draw_ThreadSafe()
 
 
 
-#ifdef ACTOR_HIGHLIGHT
 void Features::ActorHighlight::SetHovered(SDK::AActor* actorReference, const std::string& label)
 {
 	hoveredActor = actorReference;
@@ -3047,12 +3042,10 @@ void Features::ActorHighlight::Draw_ThreadSafe()
 		ImGui::RecoverFromException(&recoveryState);
 	}
 }
-#endif
 
 
 
 
-#ifdef ACTOR_GIZMO
 bool Features::ActorGizmo::IsEditing(SDK::AActor* actorReference)
 {
 	return actorReference != nullptr && target == actorReference;
@@ -3373,7 +3366,6 @@ void Features::ActorGizmo::Draw_ThreadSafe()
 		ImGui::RecoverFromException(&recoveryState);
 	}
 }
-#endif
 
 
 
@@ -3853,122 +3845,6 @@ std::string Features::ConsoleDictionary::Entry::DisplayText() const
 }
 
 
-std::vector<Features::ConsoleDictionary::Entry> Features::ConsoleDictionary::ParseLines(const std::vector<std::string>& lines)
-{
-	std::vector<Entry> result;
-
-	for (const std::string& rawLine : lines)
-	{
-		/* Trim surrounding whitespace. */
-		size_t begin = rawLine.find_first_not_of(" \t\r\n");
-		if (begin == std::string::npos)
-			continue;
-		size_t end = rawLine.find_last_not_of(" \t\r\n");
-		std::string line = rawLine.substr(begin, end - begin + 1);
-
-		/* Skip comment lines. */
-		if (line.rfind("#", 0) == 0 || line.rfind("//", 0) == 0)
-			continue;
-
-		Entry entry{};
-
-		/* Optional trailing description after "//". */
-		size_t descPos = line.find("//");
-		if (descPos != std::string::npos)
-		{
-			std::string descPart = line.substr(descPos + 2);
-			size_t db = descPart.find_first_not_of(" \t");
-			size_t de = descPart.find_last_not_of(" \t");
-			if (db != std::string::npos)
-				entry.description = descPart.substr(db, de - db + 1);
-
-			line = line.substr(0, descPos);
-			size_t e2 = line.find_last_not_of(" \t");
-			line = (e2 == std::string::npos) ? "" : line.substr(0, e2 + 1);
-
-			if (line.empty())
-				continue;
-		}
-
-		/* Development-only marker: "[dev]" anywhere on the line (case insensitive). */
-		std::string lowered = Utilities::String::ToLowerCase(line);
-		size_t devPos = lowered.find("[dev]");
-		if (devPos != std::string::npos)
-		{
-			entry.developmentOnly = true;
-			line.erase(devPos, 5);
-
-			/* Re-trim after removing the tag. */
-			size_t b = line.find_first_not_of(" \t");
-			size_t e = line.find_last_not_of(" \t");
-			line = (b == std::string::npos) ? "" : line.substr(b, e - b + 1);
-
-			if (line.empty())
-				continue;
-		}
-
-		/* Everything from the first '{' onward is a free-form hint (supports multiple arguments). */
-		size_t hintPos = line.find('{');
-		if (hintPos != std::string::npos)
-		{
-			std::string commandPart = line.substr(0, hintPos);
-			size_t commandEnd = commandPart.find_last_not_of(" \t");
-
-			entry.command = (commandEnd == std::string::npos) ? "" : commandPart.substr(0, commandEnd + 1);
-			entry.hint = line.substr(hintPos);
-		}
-		else
-		{
-			entry.command = line;
-		}
-
-		if (entry.command.empty())
-			continue;
-
-		result.push_back(entry);
-	}
-
-	return result;
-}
-
-
-void Features::ConsoleDictionary::Load()
-{
-	FileInstance file(PATH_CONFIG_CONSOLEDICTIONARY);
-
-	std::vector<std::string> lines;
-	if (file.ReadLines(&lines) == false) // File doesn't exist yet: seed it with defaults so it's ready to edit.
-	{
-		entries = DEFAULT_ENTRIES;
-		Save();
-		return;
-	}
-
-	entries = ParseLines(lines); // Respect user edits as-is (an intentionally empty file disables suggestions).
-}
-
-
-void Features::ConsoleDictionary::Save()
-{
-	std::vector<std::string> lines;
-
-	for (const Entry& entry : entries)
-	{
-		std::string line = entry.DisplayText();
-		if (entry.developmentOnly)
-			line += " [dev]";
-
-		if (entry.description.empty() == false)
-			line += "  // " + entry.description;
-
-		lines.push_back(line);
-	}
-
-	FileInstance file(PATH_CONFIG_CONSOLEDICTIONARY);
-	file.SaveLines(lines);
-}
-
-
 std::vector<const Features::ConsoleDictionary::Entry*> Features::ConsoleDictionary::Match(const std::string& prefix)
 {
 	std::vector<const Entry*> result;
@@ -3977,7 +3853,7 @@ std::vector<const Features::ConsoleDictionary::Entry*> Features::ConsoleDictiona
 		return result;
 
 	std::string loweredPrefix = Utilities::String::ToLowerCase(prefix);
-	for (const Entry& entry : entries)
+	for (const Entry& entry : ENTRIES)
 	{
 		std::string loweredCommand = Utilities::String::ToLowerCase(entry.command);
 		if (loweredCommand.rfind(loweredPrefix, 0) == 0) // Command starts with the typed prefix.
@@ -4078,6 +3954,9 @@ void BackgroundTasks::KeybindingsHandler::Worker()
 {
 	while (isEnabled)
 	{
+		/* Console bindings track focus & menu state themselves (held keys get released when either changes). */
+		Features::Bindings::Poll();
+
 		/* Following inputs are only processed while title window is in focus. */
 		if (GUI::GetIsTitleInFocus())
 		{
@@ -7234,7 +7113,6 @@ void Templates::Menus::Debug::Sub_Actors()
 			Features::ActorsList::Filter();
 		}
 
-#ifdef ACTOR_HIGHLIGHT
 		if (ImGui::Checkbox("Highlight on Hover##Actors", &Features::ActorHighlight::enabled))
 		{
 			Features::Config::Save();
@@ -7244,7 +7122,6 @@ void Templates::Menus::Debug::Sub_Actors()
 		ImGui::SameLine();
 		ImGui::Spacing();
 		ImGui::SameLine();
-#endif
 
 #ifdef COLLISION_VISUALIZER
 		bool isUnlimitedFilterDistance = Features::ActorsList::filterDistance == 0.0f;
@@ -7515,10 +7392,8 @@ void Templates::Menus::Debug::Sub_Actors()
 			bool isTreeNodeOpen = ImGui::TreeNode(actor.objectName.c_str());
 			ImGui::PopStyleColor();
 
-#ifdef ACTOR_HIGHLIGHT
 			if (ImGui::IsItemHovered())
 				Features::ActorHighlight::SetHovered(actor.reference, actor.objectName);
-#endif
 
 			if (isTreeNodeOpen)
 			{
@@ -7560,7 +7435,6 @@ void Templates::Menus::Debug::Sub_Actors()
 				{
 					Templates::LocationRotationScale::Draw(actor.reference);
 
-#ifdef ACTOR_GIZMO
 					bool isLiveEditing = Features::ActorGizmo::IsEditing(actor.reference);
 					if (ImGui::Checkbox("Live Edit##ActorGizmo", &isLiveEditing))
 					{
@@ -7571,7 +7445,6 @@ void Templates::Menus::Debug::Sub_Actors()
 					ImGui::QuestionMarkHint("Shows a gizmo on the Actor while the menu is open (any tab).\n"
 						"Arrows - move along world axes. Squares - scale along local axes. Center square - uniform scale.\n"
 						"Hold Ctrl to snap. One Actor at a time; it has to be Movable to change location.");
-#endif
 				}
 
 				ImGui::NewLine();
@@ -10833,6 +10706,135 @@ void Templates::Menus::Settings::Draw()
 
 
 
+void Templates::Menus::Bindings::Draw()
+{
+	if (ImGui::BeginMenu("Bindings"))
+	{
+		ImGui::TitleText("New Binding");
+
+		ImGui::KeyBindingInput("Key:##BindingsForm", &Features::Bindings::formKey);
+		ImGui::SameLine();
+		ImGui::Spacing();
+		ImGui::SameLine();
+
+		static const char* modeNames[] = { "Press", "Press / Release", "Toggle" };
+		ImGui::SetNextItemWidth(150.0f);
+		ImGui::Combo("Mode##BindingsForm", &Features::Bindings::formMode, modeNames, IM_ARRAYSIZE(modeNames));
+		ImGui::SameLine();
+		ImGui::QuestionMarkHint(
+			"Press - command on key press.\n"
+			"Press / Release - first command on press, second on release.\n"
+			"Toggle - first command on odd presses, second on even ones.\n"
+			"Several commands can be chained with \"|\". Bindings only fire while the menu is closed.\n\n"
+			"Console equivalents:\n"
+			"Bind \"F\" \"stat fps | stat unit\"\n"
+			"Bind \"F\" \"command on press\" \"command on release\"\n"
+			"BindToggle \"F\" \"command 1\" \"command 2\"\n"
+			"UnBind \"F\"");
+
+		Features::Bindings::E_BindMode formMode = static_cast<Features::Bindings::E_BindMode>(Features::Bindings::formMode);
+		bool hasSecondCommand = formMode != Features::Bindings::E_BindMode::Press;
+
+		/* "###" keeps input IDs stable while labels change with the mode. */
+		const char* firstLabel = (formMode == Features::Bindings::E_BindMode::Toggle) ? "First Command###BindingsFormA" :
+			(hasSecondCommand ? "Press Command###BindingsFormA" : "Command###BindingsFormA");
+
+		ImGui::SetNextItemWidth(400.0f);
+		ImGui::InputText(firstLabel, Features::Bindings::formCommandA, Features::Bindings::formCommandSize);
+
+		if (hasSecondCommand)
+		{
+			const char* secondLabel = (formMode == Features::Bindings::E_BindMode::Toggle) ? "Second Command###BindingsFormB" : "Release Command###BindingsFormB";
+
+			ImGui::SetNextItemWidth(400.0f);
+			ImGui::InputText(secondLabel, Features::Bindings::formCommandB, Features::Bindings::formCommandSize);
+		}
+
+		bool canBind = Features::Bindings::formKey.key != ImGuiKey_None && Features::Bindings::formCommandA[0] != '\0' &&
+			(hasSecondCommand == false || Features::Bindings::formCommandB[0] != '\0');
+
+		ImGui::BeginDisabled(canBind == false);
+		if (ImGui::Button("Bind##BindingsForm"))
+		{
+			bool wasBound = Features::Bindings::Set(Features::Bindings::formKey.key, formMode, Features::Bindings::formCommandA, Features::Bindings::formCommandB);
+			GUI::PlayActionSound(wasBound);
+
+			if (wasBound)
+			{
+				Features::Bindings::formKey.key = ImGuiKey_None;
+				Features::Bindings::formCommandA[0] = '\0';
+				Features::Bindings::formCommandB[0] = '\0';
+			}
+		}
+		ImGui::EndDisabled();
+
+		ImGui::NewLine();
+		ImGui::TitleText("Bindings");
+
+		std::vector<Features::Bindings::Binding> bindings = Features::Bindings::GetAll();
+		if (bindings.empty())
+		{
+			ImGui::TextDisabled("No keys are bound. Use the form above or Bind / BindToggle console commands.");
+		}
+		else if (ImGui::BeginTable("BindingsTable", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit))
+		{
+			ImGui::TableSetupColumn("Key");
+			ImGui::TableSetupColumn("Mode");
+			ImGui::TableSetupColumn("Commands");
+			ImGui::TableSetupColumn("##Actions");
+			ImGui::TableHeadersRow();
+
+			for (const Features::Bindings::Binding& binding : bindings)
+			{
+				ImGui::PushID(static_cast<int>(binding.key));
+				ImGui::TableNextRow();
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::TextUnformatted(ImGui::ImGuiKey_GetName(binding.key));
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::TextUnformatted(Features::Bindings::GetModeName(binding.mode));
+
+				ImGui::TableSetColumnIndex(2);
+				if (binding.mode == Features::Bindings::E_BindMode::Press)
+				{
+					ImGui::TextUnformatted(binding.commandA.c_str());
+				}
+				else
+				{
+					/* Toggle: the command that runs on the next press is marked. */
+					bool isToggle = binding.mode == Features::Bindings::E_BindMode::Toggle;
+					ImGui::Text("1: %s%s", binding.commandA.c_str(), (isToggle && binding.toggleState == false) ? "  <- next" : "");
+					ImGui::Text("2: %s%s", binding.commandB.c_str(), (isToggle && binding.toggleState) ? "  <- next" : "");
+				}
+
+				ImGui::TableSetColumnIndex(3);
+				if (ImGui::Button("Edit"))
+				{
+					Features::Bindings::formKey.key = binding.key;
+					Features::Bindings::formMode = static_cast<int32_t>(binding.mode);
+					std::snprintf(Features::Bindings::formCommandA, Features::Bindings::formCommandSize, "%s", binding.commandA.c_str());
+					std::snprintf(Features::Bindings::formCommandB, Features::Bindings::formCommandSize, "%s", binding.commandB.c_str());
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Unbind"))
+				{
+					GUI::PlayActionSound(Features::Bindings::Remove(binding.key));
+				}
+
+				ImGui::PopID();
+			}
+
+			ImGui::EndTable();
+		}
+
+		ImGui::EndMenu();
+	}
+}
+
+
+
+
 std::vector<std::string> Features::ConsoleCustomCommands::Tokenize(const std::string& text)
 {
 	std::vector<std::string> tokens;
@@ -10843,6 +10845,18 @@ std::vector<std::string> Features::ConsoleCustomCommands::Tokenize(const std::st
 		size_t begin = text.find_first_not_of(" \t", position);
 		if (begin == std::string::npos)
 			break;
+
+		/* Quoted argument keeps spaces & "|" (e.g. Bind F "stat fps | stat unit"). */
+		if (text[begin] == '"')
+		{
+			size_t closing = text.find('"', begin + 1);
+			if (closing == std::string::npos) // Unterminated quote: take the rest.
+				closing = text.size();
+
+			tokens.push_back(text.substr(begin + 1, closing - begin - 1));
+			position = closing + 1;
+			continue;
+		}
 
 		size_t end = text.find_first_of(" \t", begin);
 		if (end == std::string::npos)
@@ -10874,11 +10888,26 @@ bool Features::ConsoleCustomCommands::Execute(const std::string& commandLine)
 	bool anyExecuted = false;
 	bool allSucceeded = true;
 
+	/* "|" outside of quotes separates commands (quoted ones belong to an argument, e.g. a bound command list). */
+	auto FindSeparator = [&commandLine](size_t from)
+	{
+		bool isQuoted = false;
+		for (size_t i = from; i < commandLine.size(); ++i)
+		{
+			if (commandLine[i] == '"')
+				isQuoted = !isQuoted;
+			else if (commandLine[i] == '|' && isQuoted == false)
+				return i;
+		}
+
+		return std::string::npos;
+	};
+
 	/* Same "|" separation as the engine console; each segment is routed on its own. */
 	size_t start = 0;
 	while (start <= commandLine.size())
 	{
-		size_t separator = commandLine.find('|', start);
+		size_t separator = FindSeparator(start);
 		std::string segment = commandLine.substr(start, (separator == std::string::npos) ? std::string::npos : separator - start);
 		start = (separator == std::string::npos) ? commandLine.size() + 1 : separator + 1;
 
@@ -10940,6 +10969,241 @@ bool Features::ConsoleCustomCommands::HostTimescale(const std::vector<std::strin
 
 
 
+bool Features::ConsoleCustomCommands::Bind(const std::vector<std::string>& arguments)
+{
+	/* Bind "Key" "Command" - on press; Bind "Key" "Command" "Command" - #1 on press, #2 on release. */
+	if (arguments.size() != 2 && arguments.size() != 3)
+		return false;
+
+	ImGuiKey key = Bindings::ParseKey(arguments[0]);
+	if (arguments.size() == 2)
+		return Bindings::Set(key, Bindings::E_BindMode::Press, arguments[1], "");
+
+	return Bindings::Set(key, Bindings::E_BindMode::PressRelease, arguments[1], arguments[2]);
+}
+
+
+bool Features::ConsoleCustomCommands::BindToggle(const std::vector<std::string>& arguments)
+{
+	/* BindToggle "Key" "Command" "Command" - #1 on odd presses, #2 on even ones. */
+	if (arguments.size() != 3)
+		return false;
+
+	return Bindings::Set(Bindings::ParseKey(arguments[0]), Bindings::E_BindMode::Toggle, arguments[1], arguments[2]);
+}
+
+
+bool Features::ConsoleCustomCommands::UnBind(const std::vector<std::string>& arguments)
+{
+	if (arguments.size() != 1)
+		return false;
+
+	return Bindings::Remove(Bindings::ParseKey(arguments[0]));
+}
+
+
+
+
+const char* Features::Bindings::GetModeName(E_BindMode mode)
+{
+	switch (mode)
+	{
+	case E_BindMode::Press:        return "Press";
+	case E_BindMode::PressRelease: return "Press / Release";
+	case E_BindMode::Toggle:       return "Toggle";
+	default:                       return "?";
+	}
+}
+
+
+ImGuiKey Features::Bindings::ParseKey(const std::string& name)
+{
+	std::string loweredName = Utilities::String::ToLowerCase(name);
+
+	for (int32_t keyIndex = ImGuiKey_NamedKey_BEGIN; keyIndex < ImGuiKey_NamedKey_END; ++keyIndex)
+	{
+		ImGuiKey key = static_cast<ImGuiKey>(keyIndex);
+
+		/* Only keys that can be polled through GetAsyncKeyState(). */
+		if (ImGui::ImGuiKey_ToWinAPI(key) == 0)
+			continue;
+
+		/* Both UETools short names ("PgUp", "Num1") and ImGui names ("PageUp", "Keypad1") are accepted. */
+		if (Utilities::String::ToLowerCase(ImGui::ImGuiKey_GetName(key)) == loweredName ||
+			Utilities::String::ToLowerCase(ImGui::GetKeyName(key)) == loweredName)
+			return key;
+	}
+
+	return ImGuiKey_None;
+}
+
+
+bool Features::Bindings::Set(ImGuiKey key, E_BindMode mode, const std::string& commandA, const std::string& commandB)
+{
+	if (key == ImGuiKey_None || commandA.empty())
+		return false;
+
+	if (mode != E_BindMode::Press && commandB.empty())
+		return false;
+
+	{
+		std::lock_guard<std::mutex> lock(mutex);
+
+		Binding binding{};
+		binding.key = key;
+		binding.mode = mode;
+		binding.commandA = commandA;
+		binding.commandB = (mode == E_BindMode::Press) ? "" : commandB;
+		binding.isDown = false;
+		binding.toggleState = false;
+
+		/* Binding an already bound key replaces it. */
+		auto bindingIterator = std::find_if(bindings.begin(), bindings.end(), [key](const Binding& existing) { return existing.key == key; });
+		if (bindingIterator != bindings.end())
+			*bindingIterator = binding;
+		else
+			bindings.push_back(binding);
+	}
+
+	Save();
+	return true;
+}
+
+
+bool Features::Bindings::Remove(ImGuiKey key)
+{
+	bool wasRemoved = false;
+
+	{
+		std::lock_guard<std::mutex> lock(mutex);
+
+		auto bindingIterator = std::find_if(bindings.begin(), bindings.end(), [key](const Binding& existing) { return existing.key == key; });
+		if (bindingIterator != bindings.end())
+		{
+			bindings.erase(bindingIterator);
+			wasRemoved = true;
+		}
+	}
+
+	if (wasRemoved)
+		Save();
+
+	return wasRemoved;
+}
+
+
+std::vector<Features::Bindings::Binding> Features::Bindings::GetAll()
+{
+	std::lock_guard<std::mutex> lock(mutex);
+	return bindings;
+}
+
+
+std::string Features::Bindings::ToCommandLine(const Binding& binding)
+{
+	std::string line = (binding.mode == E_BindMode::Toggle) ? "BindToggle" : "Bind";
+	line += " \"" + std::string(ImGui::ImGuiKey_GetName(binding.key)) + "\" \"" + binding.commandA + "\"";
+
+	if (binding.mode != E_BindMode::Press)
+		line += " \"" + binding.commandB + "\"";
+
+	return line;
+}
+
+
+void Features::Bindings::Poll()
+{
+	/* Bound commands only fire during gameplay (title in focus, menu closed); keys held at that moment count as released. */
+	bool isActive = GUI::GetIsTitleInFocus() && GUI::GetIsMenuActive() == false;
+
+	std::lock_guard<std::mutex> lock(mutex);
+	for (Binding& binding : bindings)
+	{
+		int32_t keyCode = ImGui::ImGuiKey_ToWinAPI(binding.key);
+		bool isDown = isActive && keyCode != 0 && (GetAsyncKeyState(keyCode) & 0x8000) != 0;
+		if (isDown == binding.isDown)
+			continue;
+
+		binding.isDown = isDown;
+
+		if (isDown)
+		{
+			if (binding.mode == E_BindMode::Toggle)
+			{
+				queue.push_back(binding.toggleState ? binding.commandB : binding.commandA);
+				binding.toggleState = !binding.toggleState;
+			}
+			else
+			{
+				queue.push_back(binding.commandA);
+			}
+		}
+		else if (binding.mode == E_BindMode::PressRelease)
+		{
+			queue.push_back(binding.commandB);
+		}
+	}
+}
+
+
+void Features::Bindings::ExecuteQueued()
+{
+	std::vector<std::string> pendingCommands;
+
+	{
+		std::lock_guard<std::mutex> lock(mutex);
+		pendingCommands.swap(queue);
+	}
+
+	/* Executed outside the lock: a bound command may itself call Bind / UnBind. */
+	for (const std::string& commandLine : pendingCommands)
+		Features::ConsoleCustomCommands::Execute(commandLine);
+}
+
+
+void Features::Bindings::Load()
+{
+	FileInstance file(PATH_CONFIG_BINDINGS);
+
+	std::vector<std::string> lines;
+	if (file.ReadLines(&lines) == false)
+		return;
+
+	isLoading = true;
+	for (const std::string& line : lines)
+	{
+		std::vector<std::string> tokens = ConsoleCustomCommands::Tokenize(line);
+		if (tokens.empty())
+			continue;
+
+		/* Only binding commands are accepted from the file, nothing is forwarded to the title. */
+		std::string loweredName = Utilities::String::ToLowerCase(tokens[0]);
+		if (loweredName != "bind" && loweredName != "bindtoggle")
+			continue;
+
+		if (const ConsoleCustomCommands::Command* command = ConsoleCustomCommands::Find(tokens[0]))
+			command->handler(std::vector<std::string>(tokens.begin() + 1, tokens.end()));
+	}
+	isLoading = false;
+}
+
+
+void Features::Bindings::Save()
+{
+	if (isLoading)
+		return;
+
+	std::vector<std::string> lines;
+	for (const Binding& binding : GetAll())
+		lines.push_back(ToCommandLine(binding));
+
+	FileInstance file(PATH_CONFIG_BINDINGS);
+	file.SaveLines(lines);
+}
+
+
+
+
 void Features::BootlegConsole::RefreshSuggestions()
 {
 	suggestions.clear();
@@ -10983,14 +11247,14 @@ void Features::BootlegConsole::RefreshSuggestions()
 			continue;
 
 		/* Development-only commands are hidden unless explicitly enabled. */
-		if (entry->developmentOnly && CONSOLE_SUGGEST_DEVELOPMENT_COMMANDS == false)
+		if (entry->Requires(ConsoleDictionary::E_Requirement::Development) && CONSOLE_SUGGEST_DEVELOPMENT_COMMANDS == false)
 			continue;
 
 		Suggestion suggestion{};
 		suggestion.insertText = entry->command;
 		suggestion.displayText = entry->DisplayText();
 		suggestion.description = entry->description;
-		suggestion.developmentOnly = entry->developmentOnly;
+		suggestion.requirements = entry->requirements;
 		suggestions.push_back(suggestion);
 	}
 }
@@ -11194,6 +11458,10 @@ void Templates::Menus::BootlegConsole::DrawSuggestions()
 {
 	Features::BootlegConsole::suggestionsKeepOpen = false;
 
+	/* Visibility is refreshed by Draw() only while the menu is open: drop it once the menu is closed. */
+	if (GUI::GetIsMenuActive() == false)
+		Features::BootlegConsole::suggestionsVisible = false;
+
 	if (Features::BootlegConsole::suggestionsVisible == false)
 		return;
 
@@ -11205,7 +11473,7 @@ void Templates::Menus::BootlegConsole::DrawSuggestions()
 	if (visibleCount > SIZE_CONSOLE_AUTOCOMPLETE_MAX_VISIBLE)
 		visibleCount = SIZE_CONSOLE_AUTOCOMPLETE_MAX_VISIBLE;
 
-	/* Measure columns: command (+hint+[dev]) on the left, dimmed description on the right. */
+	/* Measure columns: command (+hint) on the left, dimmed description on the right. */
 	float commandColumnWidth = 0.0f;
 	float descriptionWidth = 0.0f;
 	for (const Features::BootlegConsole::Suggestion& entry : suggestions)
@@ -11246,18 +11514,47 @@ void Templates::Menus::BootlegConsole::DrawSuggestions()
 			ImGui::PushID(i);
 
 			bool isSelected = (i == Features::BootlegConsole::suggestionIndex);
-			/* Tint: history -> grey, development-only -> pink, UETools custom -> cyan. */
-			bool isTinted = entry.fromHistory || entry.developmentOnly || entry.isCustom;
+			/*
+				Tint: history -> grey, Cheat Manager -> orange, development-only -> pink, UETools custom -> cyan.
+				Cheat Manager + development-only -> left half orange, right half pink.
+			*/
+			bool isCheatManagerOnly = Features::ConsoleDictionary::HasRequirement(entry.requirements, Features::ConsoleDictionary::E_Requirement::CheatManager);
+			bool isDevelopmentOnly = Features::ConsoleDictionary::HasRequirement(entry.requirements, Features::ConsoleDictionary::E_Requirement::Development);
+
+			bool isSplitTint = entry.fromHistory == false && isCheatManagerOnly && isDevelopmentOnly;
+			bool isTinted = isSplitTint == false && (entry.fromHistory || isCheatManagerOnly || isDevelopmentOnly || entry.isCustom);
 			if (isTinted)
 			{
-				const ImVec4& tint = entry.fromHistory ? ImGui::LinearColor::Grey : (entry.developmentOnly ? ImGui::LinearColor::Pink : ImGui::LinearColor::Cyan);
+				const ImVec4& tint = entry.fromHistory ? ImGui::LinearColor::Grey :
+					(isCheatManagerOnly ? ImGui::LinearColor::Orange : (isDevelopmentOnly ? ImGui::LinearColor::Pink : ImGui::LinearColor::Cyan));
 				ImGui::PushStyleColor(ImGuiCol_Text, tint);
 			}
 
-			bool isClicked = ImGui::Selectable(entry.displayText.c_str(), isSelected, ImGuiSelectableFlags_SpanAvailWidth);
+			ImVec2 labelPosition = ImGui::GetCursorScreenPos();
+
+			/* Split tint: the selectable only provides the row, the label is drawn manually in two clipped halves. */
+			bool isClicked = isSplitTint
+				? ImGui::Selectable("##Suggestion", isSelected, ImGuiSelectableFlags_SpanAvailWidth, ImVec2(0.0f, ImGui::GetTextLineHeight()))
+				: ImGui::Selectable(entry.displayText.c_str(), isSelected, ImGuiSelectableFlags_SpanAvailWidth);
 
 			if (isTinted)
 				ImGui::PopStyleColor();
+
+			if (isSplitTint)
+			{
+				ImDrawList* windowDrawList = ImGui::GetWindowDrawList();
+				float labelWidth = ImGui::CalcTextSize(entry.displayText.c_str()).x;
+				float labelHeight = ImGui::GetTextLineHeight();
+				float splitX = labelPosition.x + labelWidth * 0.5f;
+
+				windowDrawList->PushClipRect(labelPosition, ImVec2(splitX, labelPosition.y + labelHeight), true);
+				windowDrawList->AddText(labelPosition, ImGui::Color::Orange, entry.displayText.c_str());
+				windowDrawList->PopClipRect();
+
+				windowDrawList->PushClipRect(ImVec2(splitX, labelPosition.y), ImVec2(labelPosition.x + labelWidth, labelPosition.y + labelHeight), true);
+				windowDrawList->AddText(labelPosition, ImGui::Color::Pink, entry.displayText.c_str());
+				windowDrawList->PopClipRect();
+			}
 
 			if (isClicked)
 			{

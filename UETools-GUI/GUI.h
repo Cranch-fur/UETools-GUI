@@ -14,6 +14,7 @@
 
 #include <thread>
 #include <atomic>
+#include <mutex>
 
 
 
@@ -72,6 +73,7 @@ namespace ImGui
 		static inline ImU32 Cyan = IM_COL32(77, 204, 204, 255);
 		static inline ImU32 Yellow = IM_COL32(255, 214, 51, 255);
 		static inline ImU32 Pink = IM_COL32(255, 140, 199, 255);
+		static inline ImU32 Orange = IM_COL32(255, 153, 51, 255);
 		static inline ImU32 Grey = IM_COL32(158, 158, 158, 255);
 		static inline ImU32 White = IM_COL32(255, 255, 255, 255);
 		static inline ImU32 Black = IM_COL32(0, 0, 0, 255);
@@ -87,6 +89,7 @@ namespace ImGui
 		static inline ImVec4 Cyan = ImGui::ColorConvertU32ToFloat4(Color::Cyan);
 		static inline ImVec4 Yellow = ImGui::ColorConvertU32ToFloat4(Color::Yellow);
 		static inline ImVec4 Pink = ImGui::ColorConvertU32ToFloat4(Color::Pink);
+		static inline ImVec4 Orange = ImGui::ColorConvertU32ToFloat4(Color::Orange);
 		static inline ImVec4 Grey = ImGui::ColorConvertU32ToFloat4(Color::Grey);
 		static inline ImVec4 White = ImGui::ColorConvertU32ToFloat4(Color::White);
 		static inline ImVec4 Black = ImGui::ColorConvertU32ToFloat4(Color::Black);
@@ -863,7 +866,6 @@ namespace Features
 
 
 
-#ifdef ACTOR_GIZMO
 	class ActorGizmo
 	{
 	public:
@@ -905,12 +907,10 @@ namespace Features
 		static inline SDK::FVector dragStartLocation;
 		static inline SDK::FVector dragStartScale;
 	};
-#endif
 
 
 
 
-#ifdef ACTOR_HIGHLIGHT
 	class ActorHighlight
 	{
 	public:
@@ -930,7 +930,6 @@ namespace Features
 		static inline std::string hoveredLabel;
 		static inline int32_t hoveredFrame = -1;
 	};
-#endif
 
 
 
@@ -1233,20 +1232,31 @@ namespace Features
 	class ConsoleDictionary
 	{
 	public:
+		enum class E_Requirement
+		{
+			None = 0,
+			CheatManager = 1 << 0,
+			Development = 1 << 1 
+		};
+
+		friend constexpr E_Requirement operator|(E_Requirement A, E_Requirement B) { return static_cast<E_Requirement>(static_cast<uint8_t>(A) | static_cast<uint8_t>(B)); }
+		friend constexpr E_Requirement operator&(E_Requirement A, E_Requirement B) { return static_cast<E_Requirement>(static_cast<uint8_t>(A) & static_cast<uint8_t>(B)); }
+
+		static constexpr bool HasRequirement(E_Requirement requirements, E_Requirement requirement) { return (requirements & requirement) != E_Requirement::None; }
+
 		struct Entry
 		{
 			std::string command;
 			std::string hint; // Free-form argument hint, e.g. "{x} {y} {z}" ("" = none).
 			std::string description;
-			bool developmentOnly = false;
+			E_Requirement requirements;
 
 			std::string DisplayText() const;
+			bool Requires(E_Requirement requirement) const { return HasRequirement(requirements, requirement); }
 		};
 
-		static inline std::vector<Entry> entries;
-
-		/* Built-in command set, used to seed the dictionary file on first run. */
-		static inline const std::vector<Entry> DEFAULT_ENTRIES =
+		/* Built-in console command dictionary (autocomplete suggestions). */
+		static inline const std::vector<Entry> ENTRIES =
 		{
 			/* Performance & timing stats. */
 			{ "stat FPS",                  "",              "Show frame rate (FPS)" },
@@ -1256,33 +1266,185 @@ namespace Features
 			{ "stat Hitches",              "",              "Highlight frame hitches" },
 			{ "stat NamedEvents",          "",              "Emit profiler named events" },
 			{ "stat Summary",              "",              "General performance summary" },
-			{ "stat Game",                 "",              "Gameplay tick timings", true },
-			{ "stat Engine",               "",              "Engine frame timings", true },
-			{ "stat SceneRendering",       "",              "Scene rendering breakdown", true },
-			{ "stat GPU",                  "",              "GPU pass timings", true },
-			{ "stat Memory",               "",              "Memory usage breakdown", true },
+			{ "stat Game",                 "",              "Gameplay tick timings", E_Requirement::Development },
+			{ "stat Engine",               "",              "Engine frame timings", E_Requirement::Development },
+			{ "stat SceneRendering",       "",              "Scene rendering breakdown", E_Requirement::Development },
+			{ "stat GPU",                  "",              "GPU pass timings", E_Requirement::Development },
+			{ "stat Memory",               "",              "Memory usage breakdown", E_Requirement::Development },
 			{ "stat Levels",               "",              "Loaded & streaming levels" },
-			{ "stat ColorList",            "",              "Named color reference", true },
+			{ "stat ColorList",            "",              "Named color reference", E_Requirement::Development },
 			{ "stat AI",                   "",              "AI system timings" },
-			{ "stat Anim",                 "",              "Animation timings", true },
-			{ "stat Physics",              "",              "Physics simulation timings", true },
-			{ "stat Audio",                "",              "Audio system stats", true },
+			{ "stat Anim",                 "",              "Animation timings", E_Requirement::Development },
+			{ "stat Physics",              "",              "Physics simulation timings", E_Requirement::Development },
+			{ "stat Audio",                "",              "Audio system stats", E_Requirement::Development },
 			{ "stat ColorList",            "",              "List named engine colors" },
-			{ "stat None",                 "",              "Hide all stat overlays", true },
+			{ "stat None",                 "",              "Hide all stat overlays", E_Requirement::Development },
 
 			/* View modes & visualization. */
-			{ "showdebug",                 "{category}",    "Toggle on-screen debug info", true },
-			{ "viewmode Lit",              "",              "Default lit view", true },
-			{ "viewmode Unlit",            "",              "Unlit view (no lighting)", true },
-			{ "viewmode Wireframe",        "",              "Wireframe geometry view", true },
-			{ "viewmode DetailLighting",   "",              "Detail lighting only", true },
-			{ "viewmode LightComplexity",  "",              "Light overdraw heatmap", true },
-			{ "viewmode ShaderComplexity", "",              "Shader cost heatmap", true },
+			{ "showdebug",                 "{category}",    "Toggle on-screen debug info", E_Requirement::Development },
+			{ "viewmode Lit",              "",              "Default lit view", E_Requirement::Development },
+			{ "viewmode Unlit",            "",              "Unlit view (no lighting)", E_Requirement::Development },
+			{ "viewmode Wireframe",        "",              "Wireframe geometry view", E_Requirement::Development },
+			{ "viewmode DetailLighting",   "",              "Detail lighting only", E_Requirement::Development },
+			{ "viewmode LightComplexity",  "",              "Light overdraw heatmap", E_Requirement::Development },
+			{ "viewmode ShaderComplexity", "",              "Shader cost heatmap", E_Requirement::Development },
 			{ "prevviewmode",              "",              "Cycle to previous view mode" },
 			{ "nextviewmode",              "",              "Cycle to next view mode" },
-			{ "show Collision",            "",              "Toggle collision drawing", true },
-			{ "show Bounds",               "",              "Toggle actor bounds", true },
-			{ "FreezeRendering",           "",              "Freeze render culling", true },
+			{ "FreezeRendering",           "",              "Freeze render culling", E_Requirement::Development },
+
+			/* Show flags: post processing. */
+			{ "show PostProcessing",       "",              "Toggle all post processing" },
+			{ "show Bloom",                "",              "Bloom" },
+			{ "show LocalExposure",        "",              "Local exposure (UE 5.1+)" },
+			{ "show Tonemapper",           "",              "Tonemapper" },
+			{ "show ToneCurve",            "",              "Tonemapper tone curve" },
+			{ "show EyeAdaptation",        "",              "Auto exposure" },
+			{ "show ColorGrading",         "",              "Color grading" },
+			{ "show AntiAliasing",         "",              "Anti-aliasing" },
+			{ "show TemporalAA",           "",              "Temporal anti-aliasing" },
+			{ "show ScreenPercentage",     "",              "Screen percentage upscale" },
+			{ "show DepthOfField",         "",              "Depth of field" },
+			{ "show MotionBlur",           "",              "Motion blur" },
+			{ "show LensFlares",           "",              "Lens flares" },
+			{ "show Vignette",             "",              "Vignette" },
+			{ "show Grain",                "",              "Film grain" },
+			{ "show SceneColorFringe",     "",              "Chromatic aberration" },
+			{ "show CameraImperfections",  "",              "Bloom, flares, fringe, vignette" },
+			{ "show AmbientCubemap",       "",              "Ambient cubemap" },
+			{ "show LightShafts",          "",              "Light shafts" },
+			{ "show PostProcessMaterial",  "",              "Post process materials" },
+			{ "show SeparateTranslucency", "",              "Separate translucency pass" },
+			{ "show Refraction",           "",              "Refraction" },
+			{ "show DirectLighting",       "",              "Direct lighting" },
+			{ "show DirectionalLights",    "",              "Directional lights" },
+			{ "show PointLights",          "",              "Point lights" },
+			{ "show SpotLights",           "",              "Spot lights" },
+			{ "show RectLights",           "",              "Rect lights" },
+			{ "show SkyLighting",          "",              "Sky light" },
+			{ "show DeferredLighting",     "",              "Deferred lighting pass (UE5)" },
+			{ "show GlobalIllumination",   "",              "Global illumination" },
+			{ "show LumenGlobalIllumination", "",           "Lumen GI (UE 5.0+)" },
+			{ "show LumenReflections",     "",              "Lumen reflections (UE 5.0+)" },
+			{ "show ReflectionEnvironment", "",             "Reflection captures" },
+			{ "show ScreenSpaceReflections", "",            "Screen space reflections" },
+			{ "show AmbientOcclusion",     "",              "Screen space AO" },
+			{ "show DistanceFieldAO",      "",              "Distance field AO" },
+			{ "show DynamicShadows",       "",              "Dynamic shadows" },
+			{ "show ContactShadows",       "",              "Contact shadows" },
+			{ "show CapsuleShadows",       "",              "Capsule shadows" },
+			{ "show RayTracedDistanceFieldShadows", "",     "Distance field shadows" },
+			{ "show LightFunctions",       "",              "Light functions" },
+			{ "show TexturedLightProfiles", "",             "IES light profiles" },
+			{ "show VolumetricLightmap",   "",              "Volumetric lightmap" },
+			{ "show IndirectLightingCache", "",             "Indirect lighting cache" },
+			{ "show SubsurfaceScattering", "",              "Subsurface scattering" },
+			{ "show Diffuse",              "",              "Diffuse lighting" },
+			{ "show Specular",             "",              "Specular lighting" },
+			{ "show PathTracing",          "",              "Path tracer (UE 4.22+, ray tracing)" },
+			{ "show Rendering",            "",              "Toggle all world rendering" },
+			{ "show StaticMeshes",         "",              "Static meshes" },
+			{ "show SkeletalMeshes",       "",              "Skeletal meshes" },
+			{ "show NaniteMeshes",         "",              "Nanite meshes (UE 5.0+)" },
+			{ "show InstancedStaticMeshes", "",             "Instanced static meshes" },
+			{ "show InstancedFoliage",     "",              "Foliage" },
+			{ "show InstancedGrass",       "",              "Landscape grass" },
+			{ "show Landscape",            "",              "Landscape" },
+			{ "show BSP",                  "",              "BSP geometry" },
+			{ "show Decals",               "",              "Decals" },
+			{ "show Materials",            "",              "Materials (off = default)" },
+			{ "show Translucency",         "",              "Translucency" },
+			{ "show Particles",            "",              "Cascade particles" },
+			{ "show Niagara",              "",              "Niagara particles" },
+			{ "show HeterogeneousVolumes", "",              "Heterogeneous volumes (UE 5.2+)" },
+			{ "show TextRender",           "",              "Text render components" },
+			{ "show WidgetComponents",     "",              "3D widget components" },
+			{ "show Paper2DSprites",       "",              "Paper2D sprites" },
+			{ "show MediaPlanes",          "",              "Media planes" },
+			{ "show DistanceCulledPrimitives", "",          "Draw distance-culled primitives" },
+			{ "show PrecomputedVisibility", "",             "Precomputed visibility culling" },
+			{ "show CameraInterpolation",  "",              "Camera interpolation" },
+			{ "show StereoRendering",      "",              "Stereo (VR) rendering" },
+			{ "show HMDDistortion",        "",              "HMD lens distortion" },
+			{ "show Fog",                  "",              "Height fog" },
+			{ "show VolumetricFog",        "",              "Volumetric fog" },
+			{ "show Atmosphere",           "",              "Sky atmosphere" },
+			{ "show Cloud",                "",              "Volumetric clouds" },
+			{ "show Collision",            "",              "Collision shapes", E_Requirement::Development },
+			{ "show CollisionPawn",        "",              "Pawn collision", E_Requirement::Development },
+			{ "show CollisionVisibility",  "",              "Visibility collision", E_Requirement::Development },
+			{ "show Bounds",               "",              "Primitive bounds", E_Requirement::Development },
+			{ "show Wireframe",            "",              "Wireframe overlay", E_Requirement::Development },
+			{ "show Volumes",              "",              "Volume actors", E_Requirement::Development },
+			{ "show Splines",              "",              "Spline components", E_Requirement::Development },
+			{ "show Constraints",          "",              "Physics constraints", E_Requirement::Development },
+			{ "show MassProperties",       "",              "Physics mass properties", E_Requirement::Development },
+			{ "show Navigation",           "",              "Navigation mesh", E_Requirement::Development },
+			{ "show Brushes",              "",              "BSP brushes", E_Requirement::Development },
+			{ "show BSPSplit",             "",              "BSP splits", E_Requirement::Development },
+			{ "show BillboardSprites",     "",              "Editor sprites", E_Requirement::Development },
+			{ "show Bones",                "",              "Skeletal bones", E_Requirement::Development },
+			{ "show LOD",                  "",              "LOD transitions", E_Requirement::Development },
+			{ "show LightRadius",          "",              "Light radius", E_Requirement::Development },
+			{ "show LightInfluences",      "",              "Light influences", E_Requirement::Development },
+			{ "show ShadowFrustums",       "",              "Shadow frustums", E_Requirement::Development },
+			{ "show CameraFrustums",       "",              "Camera frustums", E_Requirement::Development },
+			{ "show AudioRadius",          "",              "Audio radius", E_Requirement::Development },
+			{ "show ForceFeedbackRadius",  "",              "Force feedback radius", E_Requirement::Development },
+			{ "show StreamingBounds",      "",              "Texture streaming bounds", E_Requirement::Development },
+			{ "show ShaderComplexity",     "",              "Shader cost heatmap", E_Requirement::Development },
+			{ "show ShaderComplexityWithQuadOverdraw", "",  "Shader cost incl. quad overdraw", E_Requirement::Development },
+			{ "show QuadOverdraw",         "",              "Quad overdraw", E_Requirement::Development },
+			{ "show LightComplexity",      "",              "Light overdraw heatmap", E_Requirement::Development },
+			{ "show StationaryLightOverlap", "",            "Stationary light overlap", E_Requirement::Development },
+			{ "show LightMapDensity",      "",              "Lightmap density", E_Requirement::Development },
+			{ "show LODColoration",        "",              "LOD coloration", E_Requirement::Development },
+			{ "show HLODColoration",       "",              "HLOD coloration", E_Requirement::Development },
+			{ "show LevelColoration",      "",              "Level coloration", E_Requirement::Development },
+			{ "show PropertyColoration",   "",              "Property coloration", E_Requirement::Development },
+			{ "show PrimitiveDistanceAccuracy", "",         "Primitive distance accuracy", E_Requirement::Development },
+			{ "show MeshUVDensityAccuracy", "",             "Mesh UV density accuracy", E_Requirement::Development },
+			{ "show MaterialTextureScaleAccuracy", "",      "Material texture scale accuracy", E_Requirement::Development },
+			{ "show RequiredTextureResolution", "",         "Required texture resolution", E_Requirement::Development },
+			{ "show VertexColors",         "",              "Vertex colors", E_Requirement::Development },
+			{ "show GBufferHints",         "",              "GBuffer hints", E_Requirement::Development },
+			{ "show PhysicalMaterialMasks", "",             "Physical material masks", E_Requirement::Development },
+			{ "show VectorFields",         "",              "Vector fields", E_Requirement::Development },
+			{ "show OnScreenDebug",        "",              "On-screen debug messages", E_Requirement::Development },
+			{ "show DebugAI",              "",              "AI debug", E_Requirement::Development },
+			{ "show VisLog",               "",              "Visual logger", E_Requirement::Development },
+			{ "show GameplayDebug",        "",              "Gameplay debugger", E_Requirement::Development },
+			{ "show VisualizeSenses",      "",              "AI perception senses", E_Requirement::Development },
+			{ "show OcclusionMeshes",      "",              "Occlusion meshes", E_Requirement::Development },
+			{ "show PrecomputedVisibilityCells", "",        "Visibility cells", E_Requirement::Development },
+			{ "show VolumeLightingSamples", "",             "Volume lighting samples", E_Requirement::Development },
+			{ "show HISMCOcclusionBounds", "",              "HISM occlusion bounds", E_Requirement::Development },
+			{ "show HISMCClusterTree",     "",              "HISM cluster tree", E_Requirement::Development },
+			{ "show PhysicsField",         "",              "Physics field", E_Requirement::Development },
+			{ "show ServerDrawDebug",      "",              "Server debug draw", E_Requirement::Development },
+			{ "show OverrideDiffuseAndSpecular", "",        "Override diffuse & specular", E_Requirement::Development },
+			{ "show LightingOnlyOverride", "",              "Lighting only", E_Requirement::Development },
+			{ "show ReflectionOverride",   "",              "Reflection override", E_Requirement::Development },
+			{ "show TestImage",            "",              "Test image", E_Requirement::Development },
+			{ "show RayTracingDebug",      "",              "Ray tracing debug", E_Requirement::Development },
+			{ "show VirtualTexturePrimitives", "",          "Virtual texture primitives", E_Requirement::Development },
+			{ "show VisualizeBuffer",      "",              "Buffer visualization", E_Requirement::Development },
+			{ "show VisualizeHDR",         "",              "HDR histogram", E_Requirement::Development },
+			{ "show VisualizeDOF",         "",              "Depth of field layers", E_Requirement::Development },
+			{ "show VisualizeMotionBlur",  "",              "Motion blur vectors", E_Requirement::Development },
+			{ "show VisualizeSSR",         "",              "SSR visualization", E_Requirement::Development },
+			{ "show VisualizeSSS",         "",              "Subsurface visualization", E_Requirement::Development },
+			{ "show VisualizeShadingModels", "",            "Shading models", E_Requirement::Development },
+			{ "show VisualizeOutOfBoundsPixels", "",        "Out of bounds pixels", E_Requirement::Development },
+			{ "show VisualizeLightCulling", "",             "Light culling", E_Requirement::Development },
+			{ "show VisualizeDistanceFieldAO", "",          "Distance field AO", E_Requirement::Development },
+			{ "show VisualizeMeshDistanceFields", "",       "Mesh distance fields", E_Requirement::Development },
+			{ "show VisualizeGlobalDistanceField", "",      "Global distance field", E_Requirement::Development },
+			{ "show VisualizeVolumetricLightmap", "",       "Volumetric lightmap samples", E_Requirement::Development },
+			{ "show VisualizeSkyAtmosphere", "",            "Sky atmosphere", E_Requirement::Development },
+			{ "show VisualizeGPUSkinCache", "",             "GPU skin cache", E_Requirement::Development },
+			{ "show VisualizeNanite",      "",              "Nanite visualization (UE 5.0+)", E_Requirement::Development },
+			{ "show VisualizeLumen",       "",              "Lumen visualization (UE 5.0+)", E_Requirement::Development },
+			{ "show VisualizeVirtualShadowMap", "",         "Virtual shadow maps (UE 5.0+)", E_Requirement::Development },
 
 			/* Rendering cvars. */
 			{ "r.ShadowQuality",           "{int}",         "Shadow quality (0-5)" },
@@ -1290,38 +1452,106 @@ namespace Features
 			{ "r.Color.Mid",               "{float}",       "Color grading midtones" },
 			{ "r.VSync",                   "{int}",         "Vertical sync (0/1)" },
 			{ "r.SetRes",                  "{WxH[f|w|wf]}", "Set resolution and mode" },
+			{ "r.ViewDistanceScale",       "{float}",       "Draw distance multiplier" },
+			{ "r.StaticMeshLODDistanceScale", "{float}",    "Static mesh LOD distance" },
+			{ "r.SkeletalMeshLODBias",     "{int}",         "Skeletal mesh LOD bias" },
+			{ "r.MipMapLODBias",           "{float}",       "Texture mip bias" },
+			{ "r.MaxAnisotropy",           "{0-16}",        "Anisotropic filtering" },
+			{ "r.Streaming.PoolSize",      "{MB}",          "Texture streaming pool" },
+			{ "r.PostProcessAAQuality",    "{0-6}",         "Post process AA quality" },
+			{ "r.AntiAliasingMethod",      "{0-4}",         "AA method: none/FXAA/TAA/MSAA/TSR (UE 5.0+)" },
+			{ "r.MotionBlurQuality",       "{0-4}",         "Motion blur quality" },
+			{ "r.DepthOfFieldQuality",     "{0-4}",         "Depth of field quality" },
+			{ "r.BloomQuality",            "{0-5}",         "Bloom quality" },
+			{ "r.AmbientOcclusionLevels",  "{0-4}",         "SSAO levels" },
+			{ "r.SSR.Quality",             "{0-4}",         "Screen space reflections quality" },
+			{ "r.SceneColorFringeQuality", "{0|1}",         "Chromatic aberration" },
+			{ "r.Tonemapper.Sharpen",      "{float}",       "Image sharpening" },
+			{ "r.Tonemapper.GrainQuantization", "{0|1}",    "Grain dithering" },
+			{ "r.EyeAdaptationQuality",    "{0-3}",         "Auto exposure quality" },
+			{ "r.Shadow.MaxResolution",    "{int}",         "Max shadow map resolution" },
+			{ "r.Shadow.DistanceScale",    "{float}",       "Shadow distance multiplier" },
+			{ "r.LightShaftQuality",       "{0|1}",         "Light shafts" },
+			{ "r.Fog",                     "{0|1}",         "Height fog" },
+			{ "r.VolumetricFog",           "{0|1}",         "Volumetric fog" },
+			{ "r.DefaultFeature.MotionBlur", "{0|1}",       "Default motion blur" },
+			{ "r.DefaultFeature.AutoExposure", "{0|1}",     "Default auto exposure" },
+			{ "foliage.DensityScale",      "{float}",       "Foliage density" },
+			{ "grass.DensityScale",        "{float}",       "Landscape grass density" },
+			{ "r.DynamicGlobalIlluminationMethod", "{0-2}", "GI method: none/Lumen/SSGI (UE 5.0+)" },
+			{ "r.ReflectionMethod",        "{0-2}",         "Reflections: none/Lumen/SSR (UE 5.0+)" },
+			{ "r.Nanite",                  "{0|1}",         "Nanite rendering (UE 5.0+)" },
+			{ "r.FullScreenMode",          "{0-2}",         "Fullscreen / windowed fullscreen / windowed" },
+			{ "t.IdleWhenNotForeground",   "{0|1}",         "Throttle when unfocused" },
+			{ "gamma",                     "{float}",       "Display gamma" },
 			{ "t.MaxFPS",                  "{float}",       "Frame rate cap" },
 
 			/* Camera & gameplay debug. */
 			{ "fov",                       "{degrees}",     "Set camera field of view" },
-			{ "slomo",                     "{scale}",       "Set global time scale" },
+			{ "slomo",                     "{scale}",       "Set global time scale", E_Requirement::CheatManager },
 			{ "demospeed",                 "{scale}",       "Replay playback speed" },
 			{ "pause",                     "",              "Toggle game pause" },
-			{ "ToggleDebugCamera",         "",              "Detach free debug camera" },
-			{ "BugIt",                     "",              "Dump camera transform", true },
-			{ "BugItGo",                   "{x} {y} {z} {pitch} {yaw} {roll}", "Teleport to coordinates" },
-			{ "Teleport",                  "",              "Teleport to trace hit" },
-			{ "God",                       "",              "Toggle god mode", true },
-			{ "Ghost",                     "",              "Noclip free movement", true },
-			{ "Fly",                       "",              "Enable flying", true },
-			{ "Walk",                      "",              "Return to walking", true },
+			{ "ToggleDebugCamera",         "",              "Detach free debug camera", E_Requirement::CheatManager },
+			{ "BugIt",                     "",              "Dump camera transform", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "BugItGo",                   "{x} {y} {z} {pitch} {yaw} {roll}", "Teleport to coordinates", E_Requirement::CheatManager },
+			{ "Teleport",                  "",              "Teleport to trace hit", E_Requirement::CheatManager },
+			{ "God",                       "",              "Toggle god mode", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "Ghost",                     "",              "Noclip free movement", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "Fly",                       "",              "Enable flying", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "Walk",                      "",              "Return to walking", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "PlayersOnly",               "",              "Freeze everything but players", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "ChangeSize",                "{scale}",       "Scale player character", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "Summon",                    "{class}",       "Spawn actor of class", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "DestroyTarget",             "",              "Destroy actor in crosshair", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "DestroyAll",                "{class}",       "Destroy all actors of class", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "DestroyPawns",              "",              "Destroy all non-player pawns", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "DamageTarget",              "{amount}",      "Damage actor in crosshair", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "FreezeFrame",               "{delay}",       "Pause after delay", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "ViewSelf",                  "",              "View from own pawn", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "ViewPlayer",                "{name}",        "View from player", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "ViewActor",                 "{name}",        "View from actor", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "ViewClass",                 "{class}",       "Cycle view through class", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "StreamLevelIn",             "{level}",       "Load streaming level", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "StreamLevelOut",            "{level}",       "Unload streaming level", E_Requirement::CheatManager | E_Requirement::Development },
+			{ "ToggleAILogging",           "",              "AI logging", E_Requirement::CheatManager | E_Requirement::Development },
+
+			/* World & session. */
+			{ "open",                      "{map}",				"Load map" },
+			{ "servertravel",              "{map}",				"Server travel to map" },
+			{ "disconnect",                "",					"Leave current session" },
+			{ "reconnect",                 "",					"Reconnect to last server" },
+			{ "RestartLevel",              "",					"Restart current level" },
+			{ "ce",                        "{event}",			"Call level Blueprint custom event" },
+			{ "HighResShot",               "{multiplier|WxH}",  "High resolution screenshot" },
+			{ "shot",                      "",					"Screenshot" },
+			{ "showhud",                   "",					"Toggle HUD" },
+			{ "fullscreen",                "",					"Toggle fullscreen" },
+			{ "gamever",                   "",					"Print game version" },
+
+			/* Inspection & profiling. */
+			{ "getall",                    "{class} {property}", "Print property of all objects", E_Requirement::Development },
+			{ "set",                       "{class} {property} {value}", "Set property on class objects", E_Requirement::Development },
+			{ "DisplayAll",                "{class} {property}", "Show property on screen", E_Requirement::Development },
+			{ "DisplayAllLocation",        "{class}",       "Show locations on screen", E_Requirement::Development },
+			{ "DisplayAllRotation",        "{class}",       "Show rotations on screen", E_Requirement::Development },
+			{ "DisplayClear",              "",              "Clear on-screen displays", E_Requirement::Development },
+			{ "obj gc",                    "",              "Force garbage collection" },
+			{ "memreport",                 "{-full}",       "Memory report to file", E_Requirement::Development },
+			{ "DumpTicks",                 "",              "List ticking objects", E_Requirement::Development },
+			{ "ListTextures",              "",              "List loaded textures", E_Requirement::Development },
+			{ "ProfileGPU",                "",              "GPU profile of one frame", E_Requirement::Development },
+			{ "showlog",                   "",              "Open log window", E_Requirement::Development },
 
 			/* Utility. */
-			{ "DumpConsoleCommands",       "",              "List all console commands", true },
-			{ "DisableAllScreenMessages",  "",              "Hide on-screen messages", true },
-			{ "obj list",                  "{class}",       "List loaded objects by class", true },
+			{ "DumpConsoleCommands",       "",              "List all console commands", E_Requirement::Development },
+			{ "DisableAllScreenMessages",  "",              "Hide on-screen messages", E_Requirement::Development },
+			{ "obj list",                  "{class}",       "List loaded objects by class", E_Requirement::Development },
 			{ "quit",                      "",              "Exit the game" },
 			{ "exit",                      "",              "Exit the game" },
 		};
 
-		static void Load();
-		static void Save();
-
 		/* Returns entries whose command starts with the given prefix (case insensitive). Empty prefix yields nothing. */
 		static std::vector<const Entry*> Match(const std::string& prefix);
-
-	private:
-		static std::vector<Entry> ParseLines(const std::vector<std::string>& lines);
 	};
 
 
@@ -1343,6 +1573,9 @@ namespace Features
 	private:
 		static bool FpsMax(const std::vector<std::string>& arguments);
 		static bool HostTimescale(const std::vector<std::string>& arguments);
+		static bool Bind(const std::vector<std::string>& arguments);
+		static bool BindToggle(const std::vector<std::string>& arguments);
+		static bool UnBind(const std::vector<std::string>& arguments);
 
 	public:
 		/* Commands handled by UETools itself (Source-style names for convenience). */
@@ -1350,6 +1583,9 @@ namespace Features
 		{
 			{ "fps_max",        "{float}", "Frame rate cap",				&FpsMax },
 			{ "host_timescale", "{float}", "Global time scale",             &HostTimescale },
+			{ "Bind",           "{key} {command} [{release command}]", "Bind key to command(s)", &Bind },
+			{ "BindToggle",     "{key} {command 1} {command 2}", "Alternate two commands on key press", &BindToggle },
+			{ "UnBind",         "{key}", "Remove key binding", &UnBind },
 		};
 
 		/* Case-insensitive lookup by command name. */
@@ -1358,7 +1594,7 @@ namespace Features
 		/* Checks if command is custom and runs it, rest is redirected to title. */
 		static bool Execute(const std::string& commandLine);
 
-	private:
+		/* Splits by whitespace; "quoted text" is a single token (keeps spaces & "|"). */
 		static std::vector<std::string> Tokenize(const std::string& text);
 	};
 
@@ -1374,7 +1610,7 @@ namespace Features
 			std::string displayText;
 			std::string description;
 			bool fromHistory = false;
-			bool developmentOnly = false;
+			ConsoleDictionary::E_Requirement requirements = ConsoleDictionary::E_Requirement::None;
 			bool isCustom = false;
 		};
 
@@ -1400,6 +1636,59 @@ namespace Features
 		static void AddHistory(const std::string& command);
 		static void LoadHistory();
 		static void SaveHistory();
+	};
+
+
+
+
+	class Bindings
+	{
+	public:
+		enum class E_BindMode : uint8_t
+		{
+			Press,          // Command on key press.
+			PressRelease,   // Command #1 on press, #2 on release.
+			Toggle          // Commands #1 / #2 on alternating presses.
+		};
+
+		struct Binding
+		{
+			ImGuiKey key;
+			E_BindMode mode;
+			std::string commandA;   // Press / first toggle command.
+			std::string commandB;   // Release / second toggle command ("" for Press).
+			bool isDown;            // Key state on previous poll.
+			bool toggleState;       // Toggle: next press runs commandB.
+		};
+
+		/* "Bindings" menu form. */
+		static inline ImGui::KeyBinding formKey;
+		static inline int32_t formMode = 0;
+		static inline const size_t formCommandSize = SIZE_BUFFER_CONSOLE;
+		static inline char formCommandA[formCommandSize] = {};
+		static inline char formCommandB[formCommandSize] = {};
+
+		static const char* GetModeName(E_BindMode mode);
+		static ImGuiKey ParseKey(const std::string& name);
+
+		/* Binding an already bound key replaces it. */
+		static bool Set(ImGuiKey key, E_BindMode mode, const std::string& commandA, const std::string& commandB);
+		static bool Remove(ImGuiKey key);
+		static std::vector<Binding> GetAll();
+
+		static void Poll();             // Keybindings worker thread: detects key transitions, queues commands.
+		static void ExecuteQueued();    // Render thread: runs queued commands.
+
+		static void Load();
+		static void Save();
+
+	private:
+		static inline std::mutex mutex;
+		static inline std::vector<Binding> bindings;
+		static inline std::vector<std::string> queue;
+		static inline bool isLoading = false;
+
+		static std::string ToCommandLine(const Binding& binding);
 	};
 
 
@@ -1758,6 +2047,12 @@ namespace Templates
 		};
 
 		class FreeCamera
+		{
+		public:
+			static void Draw();
+		};
+
+		class Bindings
 		{
 		public:
 			static void Draw();
