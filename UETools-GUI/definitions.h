@@ -27,6 +27,8 @@
 #define PATH_CONFIG_FEATURES "UETools\\Features.cfg"
 #define PATH_CONFIG_POSITIONS "UETools\\Positions.cfg"
 #define PATH_CONFIG_KEYBINDINGS "UETools\\Keybindings.cfg"
+#define PATH_CONFIG_CONSOLEHISTORY "UETools\\ConsoleHistory.cfg"
+#define PATH_CONFIG_CONSOLEDICTIONARY "UETools\\ConsoleDictionary.cfg"
 
 #ifdef ENABLE_LOGGING
 	#define PATH_LOG_GENERAL "UETools\\General.log"
@@ -120,6 +122,22 @@
 
 #define SIZE_BUFFER_CONSOLE 2048
 
+#define SIZE_CONSOLE_AUTOCOMPLETE_MAX_VISIBLE 8
+/*
+	Maximum number of console command suggestions shown at once in the autocomplete dropdown.
+*/
+
+#define SIZE_CONSOLE_HISTORY_MAX 50
+/*
+	Maximum number of previously executed commands kept in the console input history.
+*/
+
+#define CONSOLE_SUGGEST_DEVELOPMENT_COMMANDS false
+/*
+	If true, development-only commands (tagged [dev] in the dictionary) are listed in console suggestions.
+	They're stripped from Shipping builds, so they're hidden by default.
+*/
+
 #define KEYBINDING_POLL_TIMEOUT_MS 250
 /*
 	If a key binding wasn't polled for longer than that, its previous key state is considered stale.
@@ -175,4 +193,16 @@
 
 	Enables listing & inspection of an Object's variables (properties), with live editing of Bool / Byte / Int / Float / Double values.
 	Isn't compatible with older versions of the Engine (< 4.25) as they describe properties with UProperty instead of FProperty.
+*/
+
+/*
+	#define ACTOR_HIGHLIGHT
+
+	Enables outlining the bounds of the Actor hovered in Actors List (with its name above).
+*/
+
+/*
+	#define ACTOR_GIZMO
+
+	Enables Live Edit for Actors: a gizmo with move arrows and scale handles, dragged with the mouse while the menu is open.
 */

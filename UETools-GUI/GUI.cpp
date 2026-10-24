@@ -1469,6 +1469,8 @@ void GUI::Init(HMODULE applicationModule)
 	/* Configs must be loaded before window thread reads them (e.g. font settings). */
 	Features::Config::Load();
 	Features::Positions::Load();
+	Features::BootlegConsole::LoadHistory();
+	Features::ConsoleDictionary::Load();
 	Inputs::Config::Load();
 
 	StartWindowThread();
@@ -1589,7 +1591,17 @@ void GUI::Draw()
 	/* Restore full opacity. */
 	ImGui::GetStyle().Alpha = 1.0f;
 
+	Templates::Menus::BootlegConsole::DrawSuggestions();
+
 	Features::ActorTrace::Draw_ThreadSafe();
+
+#ifdef ACTOR_HIGHLIGHT
+	Features::ActorHighlight::Draw_ThreadSafe();
+#endif
+
+#ifdef ACTOR_GIZMO
+	Features::ActorGizmo::Draw_ThreadSafe();
+#endif
 
 	if (Features::ActorsTracker::enabled)
 		Features::ActorsTracker::Draw_ThreadSafe();
@@ -1802,6 +1814,8 @@ void Features::Config::Load()
 
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_CollisionVisualizer_thickness", &Features::CollisionVisualizer::thickness);
+	ReadFeatureFromConfig(&featuresConfig, "Features_CollisionVisualizer_fill", &Features::CollisionVisualizer::fill);
+	ReadFeatureFromConfig(&featuresConfig, "Features_CollisionVisualizer_fillOpacity", &Features::CollisionVisualizer::fillOpacity);
 #endif
 
 	std::array<float, 4> actorColor = { Features::ActorsTracker::actorColor[0], Features::ActorsTracker::actorColor[1],
@@ -1814,6 +1828,10 @@ void Features::Config::Load()
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_ActorsTracker_showDistance", &Features::ActorsTracker::showDistance);
 	ReadFeatureFromConfig(&featuresConfig, "Features_ActorsTracker_fadeOnCloseup", &Features::ActorsTracker::fadeOnCloseup);
+	
+#ifdef ACTOR_HIGHLIGHT
+	ReadFeatureFromConfig(&featuresConfig, "Features_ActorHighlight_enabled", &Features::ActorHighlight::enabled);
+#endif
 
 	ReadFeatureFromConfig(&featuresConfig, "Features_FreeCamera_forceFreezePlayer", &Features::FreeCamera::forceFreezePlayer);
 
@@ -1903,6 +1921,8 @@ void Features::Config::Save()
 
 
 	featuresConfig.SetKey("Features_CollisionVisualizer_thickness", Features::CollisionVisualizer::thickness);
+	featuresConfig.SetKey("Features_CollisionVisualizer_fill", Features::CollisionVisualizer::fill);
+	featuresConfig.SetKey("Features_CollisionVisualizer_fillOpacity", Features::CollisionVisualizer::fillOpacity);
 #endif
 
 	std::array<float, 4> actorColor = { Features::ActorsTracker::actorColor[0], Features::ActorsTracker::actorColor[1],
@@ -1911,6 +1931,10 @@ void Features::Config::Save()
 
 	featuresConfig.SetKey("Features_ActorsTracker_showDistance", Features::ActorsTracker::showDistance);
 	featuresConfig.SetKey("Features_ActorsTracker_checkValidness", Features::ActorsTracker::fadeOnCloseup);
+	
+#ifdef ACTOR_HIGHLIGHT
+	featuresConfig.SetKey("Features_ActorHighlight_enabled", Features::ActorHighlight::enabled);
+#endif
 
 	featuresConfig.SetKey("Features_FreeCamera_forceFreezePlayer", Features::FreeCamera::forceFreezePlayer);
 
@@ -2954,7 +2978,419 @@ void Features::ActorsTracker::Draw_ThreadSafe()
 
 
 
+#ifdef ACTOR_HIGHLIGHT
+void Features::ActorHighlight::SetHovered(SDK::AActor* actorReference, const std::string& label)
+{
+	hoveredActor = actorReference;
+	hoveredLabel = label;
+	hoveredFrame = ImGui::GetFrameCount();
+}
+
+
+void Features::ActorHighlight::Draw()
+{
+	/* Actors List refreshes the hover every frame; a stale one means the row isn't hovered anymore. */
+	if (enabled == false || hoveredActor == nullptr || hoveredFrame < ImGui::GetFrameCount() - 1)
+		return;
+
+	if (Unreal::Actor::IsValid(hoveredActor) == false)
+		return;
+
+	/* Kismet variant keeps the same signature across Engine versions (AActor::GetActorBounds gained parameters over time). */
+	SDK::FVector origin, extent;
+	SDK::UKismetSystemLibrary::GetActorBounds(hoveredActor, &origin, &extent);
+
+	/* Actors without primitive components (logic, managers, ...) have empty bounds: mark their location instead. */
+	if (extent.X < 1.0f && extent.Y < 1.0f && extent.Z < 1.0f)
+	{
+		origin = Unreal::Actor::GetLocation(hoveredActor);
+		extent = SDK::FVector(EMPTY_BOUNDS_EXTENT, EMPTY_BOUNDS_EXTENT, EMPTY_BOUNDS_EXTENT);
+	}
+
+	DebugDraw::Style style{};
+	style.lineColor = Math::ColorFloat4_ToU32(color);
+	style.lineThickness = 2.0f;
+	style.fill = true;
+	style.fillOpacity = 0.15f;
+
+	DebugDraw::DrawBounds(origin, extent, style);
+
+	/* Actor name above the box. */
+	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
+	ImDrawList* drawList = ImGui::GetDrawList();
+	if (playerController == nullptr || drawList == nullptr)
+		return;
+
+	SDK::FVector2D labelScreen;
+	if (Unreal::PlayerController::ProjectWorldToScreen(playerController, origin + SDK::FVector(0.0f, 0.0f, extent.Z), &labelScreen) == false)
+		return;
+
+	ImVec2 textSize = ImGui::CalcTextSize(hoveredLabel.c_str());
+	ImVec2 textPosition(labelScreen.X - textSize.x * 0.5f, labelScreen.Y - textSize.y - 6.0f);
+
+	drawList->AddRectFilled(ImVec2(textPosition.x - 4.0f, textPosition.y - 2.0f), ImVec2(textPosition.x + textSize.x + 4.0f, textPosition.y + textSize.y + 2.0f), IM_COL32(0, 0, 0, 160), 3.0f);
+	drawList->AddText(textPosition, style.lineColor, hoveredLabel.c_str());
+}
+
+
+void Features::ActorHighlight::Draw_ThreadSafe()
+{
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
+	__try
+	{
+		Features::ActorHighlight::Draw();
+	}
+	__except (EXCEPTION())
+	{
+		ImGui::RecoverFromException(&recoveryState);
+	}
+}
+#endif
+
+
+
+
+#ifdef ACTOR_GIZMO
+bool Features::ActorGizmo::IsEditing(SDK::AActor* actorReference)
+{
+	return actorReference != nullptr && target == actorReference;
+}
+
+
+void Features::ActorGizmo::SetEditing(SDK::AActor* actorReference, bool enabled)
+{
+	if (enabled)
+		target = actorReference;
+	else if (target == actorReference)
+		target = nullptr;
+
+	hoveredHandle = E_Handle::None;
+	activeHandle = E_Handle::None;
+}
+
+
+void Features::ActorGizmo::Draw()
+{
+	/* Mouse is only available while the menu is shown. */
+	if (target == nullptr || GUI::GetIsMenuActive() == false)
+	{
+		hoveredHandle = E_Handle::None;
+		activeHandle = E_Handle::None;
+		return;
+	}
+
+	if (Unreal::Actor::IsValid(target) == false)
+	{
+		SetEditing(target, false);
+		return;
+	}
+
+	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
+	if (playerController == nullptr || playerController->PlayerCameraManager == nullptr)
+		return;
+
+	ImDrawList* drawList = ImGui::GetDrawList();
+	if (drawList == nullptr)
+		return;
+
+	/* CameraCachePrivate isn't present in older versions of the Engine (e.g. 4.19.0). Use PlayerCameraManager->CameraCache.POV instead. */
+	const SDK::FMinimalViewInfo& cameraPOV = playerController->PlayerCameraManager->CameraCachePrivate.POV;
+
+	Unreal::Transform transform = Unreal::Actor::GetTransform(target);
+	SDK::FVector origin = transform.location;
+
+	float depth = Math::Vector_Dot(Math::Vector_Subtract(origin, cameraPOV.Location), Math::Rotator_ForwardVector(cameraPOV.Rotation));
+	if (depth < 1.0f) // Actor is behind the camera.
+	{
+		activeHandle = E_Handle::None;
+		return;
+	}
+
+	/* World length that appears as `size` pixels at the Actor's depth, so the gizmo keeps a constant on-screen size. */
+	SDK::FVector2D viewportSize = Math::GetViewportSize();
+	float focalLength = (viewportSize.X * 0.5f) / tanf(cameraPOV.FOV * Math::PI / 360.0f);
+	float axisLength = size * depth / focalLength;
+
+	auto Project = [playerController](const SDK::FVector& worldLocation, ImVec2* outScreenLocation)
+	{
+		SDK::FVector2D screenLocation;
+		if (Unreal::PlayerController::ProjectWorldToScreen(playerController, worldLocation, &screenLocation) == false)
+			return false;
+
+		*outScreenLocation = ImVec2(screenLocation.X, screenLocation.Y);
+		return true;
+	};
+
+	ImVec2 originScreen;
+	if (Project(origin, &originScreen) == false)
+		return;
+
+	/* Move axes are world-aligned (like the editor default), scale axes follow the Actor's rotation. */
+	const SDK::FVector moveAxes[3] = { SDK::FVector(1.f, 0.f, 0.f), SDK::FVector(0.f, 1.f, 0.f), SDK::FVector(0.f, 0.f, 1.f) };
+	const SDK::FVector scaleAxes[3] = { Math::Rotator_ForwardVector(transform.rotation), Math::Rotator_RightVector(transform.rotation), Math::Rotator_UpVector(transform.rotation) };
+	const ImU32 axisColors[3] = { ImGui::Color::Red, ImGui::Color::Green, ImGui::Color::Blue };
+	const char* axisNames[3] = { "X", "Y", "Z" };
+
+	ImVec2 moveTips[3], scaleKnobs[3];
+	bool isMoveVisible[3], isScaleVisible[3];
+	for (int32_t i = 0; i < 3; ++i)
+	{
+		isMoveVisible[i] = Project(origin + moveAxes[i] * axisLength, &moveTips[i]);
+		isScaleVisible[i] = Project(origin + scaleAxes[i] * (axisLength * GIZMO_SCALE_KNOB_POSITION), &scaleKnobs[i]);
+	}
+
+	auto Distance = [](const ImVec2& A, const ImVec2& B)
+	{
+		return sqrtf((A.x - B.x) * (A.x - B.x) + (A.y - B.y) * (A.y - B.y));
+	};
+
+	auto DistanceToSegment = [&Distance](const ImVec2& point, const ImVec2& A, const ImVec2& B)
+	{
+		float segmentX = B.x - A.x;
+		float segmentY = B.y - A.y;
+		float lengthSquared = segmentX * segmentX + segmentY * segmentY;
+		if (lengthSquared < 1.0f)
+			return Distance(point, A);
+
+		float t = std::clamp(((point.x - A.x) * segmentX + (point.y - A.y) * segmentY) / lengthSquared, 0.0f, 1.0f);
+		return Distance(point, ImVec2(A.x + segmentX * t, A.y + segmentY * t));
+	};
+
+	ImGuiIO& io = ImGui::GetIO();
+	ImVec2 mouse = io.MousePos;
+
+	if (activeHandle == E_Handle::None)
+	{
+		hoveredHandle = E_Handle::None;
+
+		/* Clicks on UETools windows belong to the interface. */
+		bool isMouseOverInterface = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive();
+		if (isMouseOverInterface == false)
+		{
+			/* Priority: center (uniform scale) -> scale knobs -> move arrows. */
+			if (Distance(mouse, originScreen) <= GIZMO_PICK_RADIUS)
+			{
+				hoveredHandle = E_Handle::ScaleUniform;
+			}
+			else
+			{
+				float closestDistance = GIZMO_PICK_RADIUS;
+				for (int32_t i = 0; i < 3; ++i)
+				{
+					float knobDistance = isScaleVisible[i] ? Distance(mouse, scaleKnobs[i]) : 1.0e9f;
+					if (knobDistance <= closestDistance)
+					{
+						closestDistance = knobDistance;
+						hoveredHandle = static_cast<E_Handle>(static_cast<int32_t>(E_Handle::ScaleX) + i);
+					}
+				}
+
+				if (hoveredHandle == E_Handle::None)
+				{
+					closestDistance = GIZMO_PICK_RADIUS * 0.7f;
+					for (int32_t i = 0; i < 3; ++i)
+					{
+						float arrowDistance = isMoveVisible[i] ? DistanceToSegment(mouse, originScreen, moveTips[i]) : 1.0e9f;
+						if (arrowDistance <= closestDistance)
+						{
+							closestDistance = arrowDistance;
+							hoveredHandle = static_cast<E_Handle>(static_cast<int32_t>(E_Handle::MoveX) + i);
+						}
+					}
+				}
+			}
+		}
+
+		if (hoveredHandle != E_Handle::None && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+		{
+			dragStartMouse = mouse;
+			dragStartLocation = Unreal::Actor::GetLocation(target);
+			dragStartScale = Unreal::Actor::GetScale3D(target);
+			dragAxisScreen = ImVec2(0.0f, 0.0f);
+			dragHandleLength = 1.0f;
+
+			int32_t axisIndex = -1;
+			ImVec2 handleScreen;
+			float handleWorldLength = 1.0f;
+
+			if (hoveredHandle >= E_Handle::MoveX && hoveredHandle <= E_Handle::MoveZ)
+			{
+				axisIndex = static_cast<int32_t>(hoveredHandle) - static_cast<int32_t>(E_Handle::MoveX);
+				handleScreen = moveTips[axisIndex];
+				handleWorldLength = axisLength;
+			}
+			else if (hoveredHandle >= E_Handle::ScaleX && hoveredHandle <= E_Handle::ScaleZ)
+			{
+				axisIndex = static_cast<int32_t>(hoveredHandle) - static_cast<int32_t>(E_Handle::ScaleX);
+				handleScreen = scaleKnobs[axisIndex];
+				handleWorldLength = axisLength * GIZMO_SCALE_KNOB_POSITION;
+			}
+
+			bool canDrag = true;
+			if (axisIndex >= 0)
+			{
+				float handleLength = Distance(originScreen, handleScreen);
+
+				/* Axis points (almost) straight at the camera: dragging along it isn't meaningful. */
+				if (handleLength < 4.0f)
+				{
+					canDrag = false;
+				}
+				else
+				{
+					dragAxisScreen = ImVec2((handleScreen.x - originScreen.x) / handleLength, (handleScreen.y - originScreen.y) / handleLength);
+					dragHandleLength = handleLength;
+					dragPixelsPerUnit = handleLength / handleWorldLength;
+				}
+			}
+
+			if (canDrag)
+				activeHandle = hoveredHandle;
+		}
+	}
+	else if (ImGui::IsMouseDown(ImGuiMouseButton_Left) == false)
+	{
+		activeHandle = E_Handle::None;
+	}
+	else
+	{
+		bool isSnapping = io.KeyCtrl;
+		float axisDelta = (mouse.x - dragStartMouse.x) * dragAxisScreen.x + (mouse.y - dragStartMouse.y) * dragAxisScreen.y; // Pixels along the dragged axis.
+
+		if (activeHandle >= E_Handle::MoveX && activeHandle <= E_Handle::MoveZ)
+		{
+			int32_t axisIndex = static_cast<int32_t>(activeHandle) - static_cast<int32_t>(E_Handle::MoveX);
+
+			float units = axisDelta / dragPixelsPerUnit;
+			if (isSnapping && snapLocation > 0.0f)
+				units = roundf(units / snapLocation) * snapLocation;
+
+			Unreal::Actor::TeleportTo(target, dragStartLocation + moveAxes[axisIndex] * units);
+		}
+		else
+		{
+			/* Dragging a knob by its own distance from the center doubles the scale. */
+			float factor = (activeHandle == E_Handle::ScaleUniform)
+				? 1.0f + ((mouse.x - dragStartMouse.x) - (mouse.y - dragStartMouse.y)) / size
+				: 1.0f + axisDelta / dragHandleLength;
+
+			auto ScaleComponent = [isSnapping](double startValue, float scaleFactor)
+			{
+				float value = static_cast<float>(startValue) * scaleFactor;
+				if (isSnapping && snapScale > 0.0f)
+					value = roundf(value / snapScale) * snapScale;
+
+				return (std::max)(value, 0.01f);
+			};
+
+			SDK::FVector newScale = dragStartScale;
+			if (activeHandle == E_Handle::ScaleUniform || activeHandle == E_Handle::ScaleX)
+				newScale.X = ScaleComponent(dragStartScale.X, factor);
+			if (activeHandle == E_Handle::ScaleUniform || activeHandle == E_Handle::ScaleY)
+				newScale.Y = ScaleComponent(dragStartScale.Y, factor);
+			if (activeHandle == E_Handle::ScaleUniform || activeHandle == E_Handle::ScaleZ)
+				newScale.Z = ScaleComponent(dragStartScale.Z, factor);
+
+			Unreal::Actor::SetScale3D(target, newScale);
+		}
+	}
+
+	auto HandleColor = [](E_Handle handle, ImU32 baseColor)
+	{
+		return (handle == activeHandle || (activeHandle == E_Handle::None && handle == hoveredHandle)) ? ImGui::Color::Yellow : baseColor;
+	};
+
+	/* Scale stems and knobs (local axes). */
+	for (int32_t i = 0; i < 3; ++i)
+	{
+		if (isScaleVisible[i] == false)
+			continue;
+
+		ImU32 color = HandleColor(static_cast<E_Handle>(static_cast<int32_t>(E_Handle::ScaleX) + i), axisColors[i]);
+		drawList->AddLine(originScreen, scaleKnobs[i], color, 1.5f);
+		drawList->AddRectFilled(ImVec2(scaleKnobs[i].x - 4.5f, scaleKnobs[i].y - 4.5f), ImVec2(scaleKnobs[i].x + 4.5f, scaleKnobs[i].y + 4.5f), color);
+	}
+
+	/* Move arrows (world axes). */
+	for (int32_t i = 0; i < 3; ++i)
+	{
+		if (isMoveVisible[i] == false)
+			continue;
+
+		ImU32 color = HandleColor(static_cast<E_Handle>(static_cast<int32_t>(E_Handle::MoveX) + i), axisColors[i]);
+		drawList->AddLine(originScreen, moveTips[i], color, 2.5f);
+
+		float arrowLength = Distance(originScreen, moveTips[i]);
+		if (arrowLength < 1.0f)
+			continue;
+
+		ImVec2 direction((moveTips[i].x - originScreen.x) / arrowLength, (moveTips[i].y - originScreen.y) / arrowLength);
+		ImVec2 headBase(moveTips[i].x - direction.x * 12.0f, moveTips[i].y - direction.y * 12.0f);
+		ImVec2 headSide(-direction.y * 5.0f, direction.x * 5.0f);
+
+		drawList->AddTriangleFilled(moveTips[i], ImVec2(headBase.x - headSide.x, headBase.y - headSide.y), ImVec2(headBase.x + headSide.x, headBase.y + headSide.y), color);
+		drawList->AddText(ImVec2(moveTips[i].x + direction.x * 8.0f - 4.0f, moveTips[i].y + direction.y * 8.0f - 7.0f), color, axisNames[i]);
+	}
+
+	/* Center (uniform scale). */
+	ImU32 centerColor = HandleColor(E_Handle::ScaleUniform, ImGui::Color::White);
+	drawList->AddRectFilled(ImVec2(originScreen.x - 6.0f, originScreen.y - 6.0f), ImVec2(originScreen.x + 6.0f, originScreen.y + 6.0f), centerColor);
+	drawList->AddRect(ImVec2(originScreen.x - 6.0f, originScreen.y - 6.0f), ImVec2(originScreen.x + 6.0f, originScreen.y + 6.0f), ImGui::Color::Black);
+
+	/* Current value next to the gizmo while dragging. */
+	if (activeHandle != E_Handle::None)
+	{
+		char valueText[128];
+		if (activeHandle >= E_Handle::MoveX && activeHandle <= E_Handle::MoveZ)
+		{
+			SDK::FVector location = Unreal::Actor::GetLocation(target);
+			std::snprintf(valueText, sizeof(valueText), "%.1f, %.1f, %.1f", location.X, location.Y, location.Z);
+		}
+		else
+		{
+			SDK::FVector scale = Unreal::Actor::GetScale3D(target);
+			std::snprintf(valueText, sizeof(valueText), "%.2f, %.2f, %.2f", scale.X, scale.Y, scale.Z);
+		}
+
+		drawList->AddText(ImVec2(originScreen.x + 12.0f, originScreen.y + 10.0f), ImGui::Color::White, valueText);
+	}
+}
+
+
+void Features::ActorGizmo::Draw_ThreadSafe()
+{
+	ImGuiErrorRecoveryState recoveryState;
+	ImGui::ErrorRecoveryStoreState(&recoveryState);
+
+	__try
+	{
+		Features::ActorGizmo::Draw();
+	}
+	__except (EXCEPTION())
+	{
+		ImGui::RecoverFromException(&recoveryState);
+	}
+}
+#endif
+
+
+
+
 #ifdef COLLISION_VISUALIZER
+/* Line/fill style of a Collision Visualizer shape with the given color. */
+static DebugDraw::Style GetCollisionStyle(float color[4])
+{
+	DebugDraw::Style style{};
+	style.lineColor = Math::ColorFloat4_ToU32(color);
+	style.lineThickness = Features::CollisionVisualizer::thickness;
+	style.fill = Features::CollisionVisualizer::fill;
+	style.fillOpacity = Features::CollisionVisualizer::fillOpacity;
+	return style;
+}
+
+
 void Features::CollisionVisualizer::Draw()
 {
 	/* UGameplayStatics::ProjectWorldToScreen() verify Player Controller reference within its code. */
@@ -2972,29 +3408,29 @@ void Features::CollisionVisualizer::Draw()
 			{
 				if (actor.reference->IsA(SDK::APhysicsVolume::StaticClass()))
 				{
-					DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_PhysicsVolume), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), GetCollisionStyle(Features::CollisionVisualizer::color_PhysicsVolume));
 					continue;
 				}
 	
 				if (actor.reference->IsA(SDK::ABlockingVolume::StaticClass()))
 				{
-					DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_BlockingVolume), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), GetCollisionStyle(Features::CollisionVisualizer::color_BlockingVolume));
 					continue;
 				}
 	
 				if (actor.reference->IsA(SDK::ATriggerVolume::StaticClass()))
 				{
-					DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_TriggerVolume), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), GetCollisionStyle(Features::CollisionVisualizer::color_TriggerVolume));
 					continue;
 				}
 	
 				if (actor.reference->IsA(SDK::APostProcessVolume::StaticClass()))
 				{
-					DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_PostProcessVolume), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), GetCollisionStyle(Features::CollisionVisualizer::color_PostProcessVolume));
 					continue;
 				}
 	
-				DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_Other), Features::CollisionVisualizer::thickness);
+				DebugDraw::DrawVolume(static_cast<SDK::AVolume*>(actor.reference), GetCollisionStyle(Features::CollisionVisualizer::color_Other));
 				continue;
 			}
 	
@@ -3007,49 +3443,49 @@ void Features::CollisionVisualizer::Draw()
 				/* #1 Static Mesh. */
 				if (actorComponent.reference->IsA(SDK::UStaticMeshComponent::StaticClass()))
 				{
-					DebugDraw::DrawStaticMeshComponent(static_cast<SDK::UStaticMeshComponent*>(actorComponent.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_StaticMesh), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawStaticMeshComponent(static_cast<SDK::UStaticMeshComponent*>(actorComponent.reference), GetCollisionStyle(Features::CollisionVisualizer::color_StaticMesh));
 					continue;
 				}
 	
 				/* #2 Instanced Static Mesh. */
 				if (actorComponent.reference->IsA(SDK::UInstancedStaticMeshComponent::StaticClass()))
 				{
-					DebugDraw::DrawInstancedStaticMeshComponent(static_cast<SDK::UInstancedStaticMeshComponent*>(actorComponent.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_StaticMesh), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawInstancedStaticMeshComponent(static_cast<SDK::UInstancedStaticMeshComponent*>(actorComponent.reference), GetCollisionStyle(Features::CollisionVisualizer::color_StaticMesh));
 					continue;
 				}
 	
 				/* #3 Skeletal Mesh. */
 				if (actorComponent.reference->IsA(SDK::USkeletalMeshComponent::StaticClass()))
 				{
-					DebugDraw::DrawSkeletalMeshComponent(static_cast<SDK::USkeletalMeshComponent*>(actorComponent.reference), false, Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_Other), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawSkeletalMeshComponent(static_cast<SDK::USkeletalMeshComponent*>(actorComponent.reference), false, GetCollisionStyle(Features::CollisionVisualizer::color_Other));
 					continue;
 				}
 	
 				/* #4 Capsule Component. */
 				if (actorComponent.reference->IsA(SDK::UCapsuleComponent::StaticClass()))
 				{
-					DebugDraw::DrawCapsuleComponent(static_cast<SDK::UCapsuleComponent*>(actorComponent.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_Primitive), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawCapsuleComponent(static_cast<SDK::UCapsuleComponent*>(actorComponent.reference), GetCollisionStyle(Features::CollisionVisualizer::color_Primitive));
 					continue;
 				}
 	
 				/* #5 Sphere Component. */
 				if (actorComponent.reference->IsA(SDK::USphereComponent::StaticClass()))
 				{
-					DebugDraw::DrawSphereComponent(static_cast<SDK::USphereComponent*>(actorComponent.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_Primitive), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawSphereComponent(static_cast<SDK::USphereComponent*>(actorComponent.reference), GetCollisionStyle(Features::CollisionVisualizer::color_Primitive));
 					continue;
 				}
 	
 				/* #6 Box Component. */
 				if (actorComponent.reference->IsA(SDK::UBoxComponent::StaticClass()))
 				{
-					DebugDraw::DrawBoxComponent(static_cast<SDK::UBoxComponent*>(actorComponent.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_Primitive), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawBoxComponent(static_cast<SDK::UBoxComponent*>(actorComponent.reference), GetCollisionStyle(Features::CollisionVisualizer::color_Primitive));
 					continue;
 				}
 	
 				/* #1 Spline Component. */
 				if (actorComponent.reference->IsA(SDK::USplineComponent::StaticClass()))
 				{
-					DebugDraw::DrawSplineComponent(static_cast<SDK::USplineComponent*>(actorComponent.reference), Math::ColorFloat4_ToU32(Features::CollisionVisualizer::color_Primitive), Features::CollisionVisualizer::thickness);
+					DebugDraw::DrawSplineComponent(static_cast<SDK::USplineComponent*>(actorComponent.reference), GetCollisionStyle(Features::CollisionVisualizer::color_Primitive));
 					continue;
 				}
 			}
@@ -3401,6 +3837,154 @@ void Features::ConsoleCommands::Update()
 	});
 
 	commands.erase(last, commands.end());
+}
+
+
+
+
+std::string Features::ConsoleDictionary::Entry::DisplayText() const
+{
+	std::string text = command;
+
+	if (hint.empty() == false)
+		text += " " + hint;
+
+	return text;
+}
+
+
+std::vector<Features::ConsoleDictionary::Entry> Features::ConsoleDictionary::ParseLines(const std::vector<std::string>& lines)
+{
+	std::vector<Entry> result;
+
+	for (const std::string& rawLine : lines)
+	{
+		/* Trim surrounding whitespace. */
+		size_t begin = rawLine.find_first_not_of(" \t\r\n");
+		if (begin == std::string::npos)
+			continue;
+		size_t end = rawLine.find_last_not_of(" \t\r\n");
+		std::string line = rawLine.substr(begin, end - begin + 1);
+
+		/* Skip comment lines. */
+		if (line.rfind("#", 0) == 0 || line.rfind("//", 0) == 0)
+			continue;
+
+		Entry entry{};
+
+		/* Optional trailing description after "//". */
+		size_t descPos = line.find("//");
+		if (descPos != std::string::npos)
+		{
+			std::string descPart = line.substr(descPos + 2);
+			size_t db = descPart.find_first_not_of(" \t");
+			size_t de = descPart.find_last_not_of(" \t");
+			if (db != std::string::npos)
+				entry.description = descPart.substr(db, de - db + 1);
+
+			line = line.substr(0, descPos);
+			size_t e2 = line.find_last_not_of(" \t");
+			line = (e2 == std::string::npos) ? "" : line.substr(0, e2 + 1);
+
+			if (line.empty())
+				continue;
+		}
+
+		/* Development-only marker: "[dev]" anywhere on the line (case insensitive). */
+		std::string lowered = Utilities::String::ToLowerCase(line);
+		size_t devPos = lowered.find("[dev]");
+		if (devPos != std::string::npos)
+		{
+			entry.developmentOnly = true;
+			line.erase(devPos, 5);
+
+			/* Re-trim after removing the tag. */
+			size_t b = line.find_first_not_of(" \t");
+			size_t e = line.find_last_not_of(" \t");
+			line = (b == std::string::npos) ? "" : line.substr(b, e - b + 1);
+
+			if (line.empty())
+				continue;
+		}
+
+		/* Everything from the first '{' onward is a free-form hint (supports multiple arguments). */
+		size_t hintPos = line.find('{');
+		if (hintPos != std::string::npos)
+		{
+			std::string commandPart = line.substr(0, hintPos);
+			size_t commandEnd = commandPart.find_last_not_of(" \t");
+
+			entry.command = (commandEnd == std::string::npos) ? "" : commandPart.substr(0, commandEnd + 1);
+			entry.hint = line.substr(hintPos);
+		}
+		else
+		{
+			entry.command = line;
+		}
+
+		if (entry.command.empty())
+			continue;
+
+		result.push_back(entry);
+	}
+
+	return result;
+}
+
+
+void Features::ConsoleDictionary::Load()
+{
+	FileInstance file(PATH_CONFIG_CONSOLEDICTIONARY);
+
+	std::vector<std::string> lines;
+	if (file.ReadLines(&lines) == false) // File doesn't exist yet: seed it with defaults so it's ready to edit.
+	{
+		entries = DEFAULT_ENTRIES;
+		Save();
+		return;
+	}
+
+	entries = ParseLines(lines); // Respect user edits as-is (an intentionally empty file disables suggestions).
+}
+
+
+void Features::ConsoleDictionary::Save()
+{
+	std::vector<std::string> lines;
+
+	for (const Entry& entry : entries)
+	{
+		std::string line = entry.DisplayText();
+		if (entry.developmentOnly)
+			line += " [dev]";
+
+		if (entry.description.empty() == false)
+			line += "  // " + entry.description;
+
+		lines.push_back(line);
+	}
+
+	FileInstance file(PATH_CONFIG_CONSOLEDICTIONARY);
+	file.SaveLines(lines);
+}
+
+
+std::vector<const Features::ConsoleDictionary::Entry*> Features::ConsoleDictionary::Match(const std::string& prefix)
+{
+	std::vector<const Entry*> result;
+
+	if (prefix.empty())
+		return result;
+
+	std::string loweredPrefix = Utilities::String::ToLowerCase(prefix);
+	for (const Entry& entry : entries)
+	{
+		std::string loweredCommand = Utilities::String::ToLowerCase(entry.command);
+		if (loweredCommand.rfind(loweredPrefix, 0) == 0) // Command starts with the typed prefix.
+			result.push_back(&entry);
+	}
+
+	return result;
 }
 
 
@@ -4210,14 +4794,685 @@ void Inputs::Config::Save()
 // ==============================
 // |        #DebugDraw			|
 // ==============================
+/* Distance in front of the camera where lines are clipped (instead of being dropped when a point is behind the camera). */
+static constexpr float DEBUGDRAW_NEAR_CLIP_DISTANCE = 1.0f;
+
+/* Faces whose normals are closer than this are treated as one flat face (their shared edge is a triangulation diagonal). */
+static constexpr float DEBUGDRAW_COPLANAR_DOT = 0.999f;
+
+/* Upper bound for cached shapes: unloaded levels/components leave stale addresses behind. */
+static constexpr size_t DEBUGDRAW_CACHE_ENTRIES_MAX = 1024;
+
+
+bool DebugDraw::GetView(View* outView)
+{
+	if (outView == nullptr)
+		return false;
+
+	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
+	if (playerController == nullptr || playerController->PlayerCameraManager == nullptr)
+		return false;
+
+	/*
+		Same POV that Unreal::PlayerController::ProjectWorldToScreen() uses.
+		CameraCachePrivate isn't present in older versions of the Engine (e.g. 4.19.0). Use PlayerCameraManager->CameraCache.POV instead.
+	*/
+	const SDK::FMinimalViewInfo& cameraPOV = playerController->PlayerCameraManager->CameraCachePrivate.POV;
+
+	outView->playerController = playerController;
+	outView->cameraLocation = cameraPOV.Location;
+	outView->cameraForward = Math::Rotator_ForwardVector(cameraPOV.Rotation);
+	return true;
+}
+
+
+float DebugDraw::GetDepth(const View& view, const SDK::FVector& worldLocation)
+{
+	return Math::Vector_Dot(Math::Vector_Subtract(worldLocation, view.cameraLocation), view.cameraForward);
+}
+
+
+bool DebugDraw::ProjectPoint(const View& view, const SDK::FVector& worldLocation, ImVec2* outScreenLocation)
+{
+	SDK::FVector2D screenLocation;
+	if (Unreal::PlayerController::ProjectWorldToScreen(view.playerController, worldLocation, &screenLocation) == false)
+		return false;
+
+	*outScreenLocation = ImVec2(screenLocation.X, screenLocation.Y);
+	return true;
+}
+
+
+uint32_t DebugDraw::GetFillColor(const Style& style)
+{
+	uint32_t lineAlpha = (style.lineColor >> IM_COL32_A_SHIFT) & 0xFF;
+	uint32_t fillAlpha = static_cast<uint32_t>(lineAlpha * std::clamp(style.fillOpacity, 0.0f, 1.0f) + 0.5f);
+
+	return (style.lineColor & ~IM_COL32_A_MASK) | (fillAlpha << IM_COL32_A_SHIFT);
+}
+
+
+
+
+void DebugDraw::DrawSegment(const View& view, ImDrawList* drawList, const SDK::FVector& start, const SDK::FVector& end, uint32_t color, float thickness)
+{
+	SDK::FVector clippedStart = start;
+	SDK::FVector clippedEnd = end;
+
+	/* Clip against the camera near plane, so segments crossing it are shortened instead of disappearing. */
+	float depthStart = GetDepth(view, start) - DEBUGDRAW_NEAR_CLIP_DISTANCE;
+	float depthEnd = GetDepth(view, end) - DEBUGDRAW_NEAR_CLIP_DISTANCE;
+
+	if (depthStart < 0.0f && depthEnd < 0.0f)
+		return;
+
+	if (depthStart < 0.0f)
+		clippedStart = start + (end - start) * (depthStart / (depthStart - depthEnd));
+	else if (depthEnd < 0.0f)
+		clippedEnd = end + (start - end) * (depthEnd / (depthEnd - depthStart));
+
+	ImVec2 startScreen, endScreen;
+	if (ProjectPoint(view, clippedStart, &startScreen) && ProjectPoint(view, clippedEnd, &endScreen))
+		drawList->AddLine(startScreen, endScreen, color, thickness);
+}
+
+
+void DebugDraw::DrawPath(const View& view, ImDrawList* drawList, const std::vector<SDK::FVector>& points, bool closed, uint32_t color, float thickness)
+{
+	size_t pointsCount = points.size();
+	if (pointsCount < 2)
+		return;
+
+	/* Fully in front of the camera: a single polyline gives proper joins between segments. */
+	std::vector<ImVec2> screenPoints;
+	screenPoints.reserve(pointsCount);
+
+	bool isFullyVisible = true;
+	for (const SDK::FVector& point : points)
+	{
+		ImVec2 screenPoint;
+		if (GetDepth(view, point) < DEBUGDRAW_NEAR_CLIP_DISTANCE || ProjectPoint(view, point, &screenPoint) == false)
+		{
+			isFullyVisible = false;
+			break;
+		}
+
+		screenPoints.push_back(screenPoint);
+	}
+
+	if (isFullyVisible)
+	{
+		drawList->AddPolyline(screenPoints.data(), static_cast<int>(pointsCount), color, thickness, closed ? ImDrawFlags_Closed : ImDrawFlags_None);
+		return;
+	}
+
+	/* Partially behind the camera: clip segment by segment. */
+	size_t segmentsCount = closed ? pointsCount : pointsCount - 1;
+	for (size_t i = 0; i < segmentsCount; ++i)
+		DrawSegment(view, drawList, points[i], points[(i + 1) % pointsCount], color, thickness);
+}
+
+
+void DebugDraw::DrawJoints(const View& view, ImDrawList* drawList, const std::vector<SDK::FVector>& points, const Style& style)
+{
+	/* Thick separate lines leave notches at corners: round them off. Thin lines don't need it. */
+	if (style.lineThickness < 2.0f)
+		return;
+
+	for (const SDK::FVector& point : points)
+	{
+		ImVec2 screenPoint;
+		if (GetDepth(view, point) >= DEBUGDRAW_NEAR_CLIP_DISTANCE && ProjectPoint(view, point, &screenPoint))
+			drawList->AddCircleFilled(screenPoint, style.lineThickness * 0.5f, style.lineColor);
+	}
+}
+
+
+void DebugDraw::DrawFill(const View& view, ImDrawList* drawList, const std::vector<SDK::FVector>& points, const Style& style)
+{
+	if (style.fill == false || points.size() < 3)
+		return;
+
+	std::vector<ImVec2> screenPoints;
+	screenPoints.reserve(points.size());
+
+	for (const SDK::FVector& point : points)
+	{
+		/* Shape crosses the camera: skip the fill (it would cover the whole view). */
+		ImVec2 screenPoint;
+		if (GetDepth(view, point) < DEBUGDRAW_NEAR_CLIP_DISTANCE || ProjectPoint(view, point, &screenPoint) == false)
+			return;
+
+		screenPoints.push_back(screenPoint);
+	}
+
+	/*
+		Silhouette of a convex shape is the convex hull of its projected points:
+		a single polygon gives an even fill without overlapping (darker) faces.
+		Monotone chain; resulting order is clockwise on screen, as anti-aliased ImGui fills require.
+	*/
+	std::sort(screenPoints.begin(), screenPoints.end(), [](const ImVec2& A, const ImVec2& B)
+	{
+		return (A.x < B.x) || (A.x == B.x && A.y < B.y);
+	});
+
+	auto Cross = [](const ImVec2& O, const ImVec2& A, const ImVec2& B)
+	{
+		return (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+	};
+
+	size_t pointsCount = screenPoints.size();
+	std::vector<ImVec2> hull(pointsCount * 2);
+	size_t hullCount = 0;
+
+	for (size_t i = 0; i < pointsCount; ++i)
+	{
+		while (hullCount >= 2 && Cross(hull[hullCount - 2], hull[hullCount - 1], screenPoints[i]) <= 0.0f)
+			hullCount--;
+
+		hull[hullCount++] = screenPoints[i];
+	}
+
+	for (size_t i = pointsCount - 1, lowerCount = hullCount + 1; i > 0; --i)
+	{
+		while (hullCount >= lowerCount && Cross(hull[hullCount - 2], hull[hullCount - 1], screenPoints[i - 1]) <= 0.0f)
+			hullCount--;
+
+		hull[hullCount++] = screenPoints[i - 1];
+	}
+
+	if (hullCount < 4) // Closing point is duplicated: less than 3 unique corners means a degenerate (flat) silhouette.
+		return;
+
+	drawList->AddConvexPolyFilled(hull.data(), static_cast<int>(hullCount - 1), GetFillColor(style));
+}
+
+
+void DebugDraw::DrawBone(const View& view, ImDrawList* drawList, const SDK::FVector& parentLocation, const SDK::FVector& childLocation, const Style& style)
+{
+	ImVec2 parentScreen, childScreen;
+	bool isParentVisible = GetDepth(view, parentLocation) >= DEBUGDRAW_NEAR_CLIP_DISTANCE && ProjectPoint(view, parentLocation, &parentScreen);
+	bool isChildVisible = GetDepth(view, childLocation) >= DEBUGDRAW_NEAR_CLIP_DISTANCE && ProjectPoint(view, childLocation, &childScreen);
+
+	/* Can't shape a kite from a clipped bone: fall back to a plain clipped line. */
+	if (isParentVisible == false || isChildVisible == false)
+	{
+		DrawSegment(view, drawList, parentLocation, childLocation, style.lineColor, style.lineThickness);
+		return;
+	}
+
+	float directionX = childScreen.x - parentScreen.x;
+	float directionY = childScreen.y - parentScreen.y;
+	float length = sqrtf(directionX * directionX + directionY * directionY);
+	if (length < 1.0f)
+		return;
+
+	float unitX = directionX / length;
+	float unitY = directionY / length;
+
+	/* Kite shape like the editor's bones: widest near the parent, width grows with on-screen length. */
+	float halfWidth = std::clamp(length * 0.1f, style.lineThickness, 12.0f);
+	ImVec2 shoulder(parentScreen.x + unitX * length * 0.2f, parentScreen.y + unitY * length * 0.2f);
+	ImVec2 normal(-unitY * halfWidth, unitX * halfWidth);
+
+	/* Clockwise on screen (anti-aliased fill requirement). */
+	ImVec2 kite[4] =
+	{
+		parentScreen,
+		ImVec2(shoulder.x - normal.x, shoulder.y - normal.y),
+		childScreen,
+		ImVec2(shoulder.x + normal.x, shoulder.y + normal.y)
+	};
+
+	drawList->AddConvexPolyFilled(kite, 4, GetFillColor(style));
+	drawList->AddPolyline(kite, 4, style.lineColor, style.lineThickness, ImDrawFlags_Closed);
+}
+
+
+
+
+void DebugDraw::DrawOrientedBox(const View& view, ImDrawList* drawList, const SDK::FVector& center, const SDK::FVector& axisX, const SDK::FVector& axisY, const SDK::FVector& axisZ, const SDK::FVector& halfExtent, const Style& style)
+{
+	/* Precompute axis-length vectors. */
+	SDK::FVector extentX = axisX * halfExtent.X;
+	SDK::FVector extentY = axisY * halfExtent.Y;
+	SDK::FVector extentZ = axisZ * halfExtent.Z;
+
+	/* Corners indexed as XYZ bits, where 0/1 mean -/+ along the X/Y/Z extent. */
+	std::vector<SDK::FVector> corners =
+	{
+		center - extentX - extentY - extentZ, // c000
+		center - extentX - extentY + extentZ, // c001
+		center - extentX + extentY - extentZ, // c010
+		center - extentX + extentY + extentZ, // c011
+		center + extentX - extentY - extentZ, // c100
+		center + extentX - extentY + extentZ, // c101
+		center + extentX + extentY - extentZ, // c110
+		center + extentX + extentY + extentZ  // c111
+	};
+
+	DrawFill(view, drawList, corners, style);
+
+	/* Box edges as index pairs (12 edges). */
+	static const int32_t boxEdges[12][2] =
+	{
+		{0,1}, {0,2}, {0,4},
+		{7,3}, {7,5}, {7,6},
+		{1,3}, {1,5},
+		{2,3}, {2,6},
+		{4,5}, {4,6}
+	};
+
+	for (int32_t edge = 0; edge < 12; ++edge)
+		DrawSegment(view, drawList, corners[boxEdges[edge][0]], corners[boxEdges[edge][1]], style.lineColor, style.lineThickness);
+
+	DrawJoints(view, drawList, corners, style);
+}
+
+
+void DebugDraw::DrawOrientedSphere(const View& view, ImDrawList* drawList, const SDK::FVector& center, const SDK::FVector& axisX, const SDK::FVector& axisY, const SDK::FVector& axisZ, float radius, const Style& style)
+{
+	/* Level of detail. */
+	const int32_t meridiansCount = 6;  // Great circles through the poles.
+	const int32_t parallelsCount = 4;  // Horizontal rings (latitudes), poles excluded.
+	const int32_t ringSegments = 32;
+
+	std::vector<std::vector<SDK::FVector>> rings;
+
+	/* Meridians. */
+	for (int32_t i = 0; i < meridiansCount; ++i)
+	{
+		float angle = Math::PI * (float)i / (float)meridiansCount;
+		SDK::FVector U = axisY * cosf(angle) + axisX * sinf(angle);
+
+		std::vector<SDK::FVector> ring;
+		ring.reserve(ringSegments);
+		for (int32_t segment = 0; segment < ringSegments; ++segment)
+		{
+			float ringAngle = (2.0f * Math::PI) * (float)segment / (float)ringSegments;
+			ring.push_back(center + (U * cosf(ringAngle) + axisZ * sinf(ringAngle)) * radius);
+		}
+		rings.push_back(std::move(ring));
+	}
+
+	/* Parallels. */
+	for (int32_t i = 1; i < parallelsCount; ++i)
+	{
+		float phi = Math::PI * (float)i / (float)parallelsCount;
+		SDK::FVector planeCenter = center + axisZ * (cosf(phi) * radius);
+		float planeRadius = sinf(phi) * radius;
+
+		std::vector<SDK::FVector> ring;
+		ring.reserve(ringSegments);
+		for (int32_t segment = 0; segment < ringSegments; ++segment)
+		{
+			float ringAngle = (2.0f * Math::PI) * (float)segment / (float)ringSegments;
+			ring.push_back(planeCenter + (axisY * cosf(ringAngle) + axisX * sinf(ringAngle)) * planeRadius);
+		}
+		rings.push_back(std::move(ring));
+	}
+
+	if (style.fill)
+	{
+		std::vector<SDK::FVector> allPoints;
+		for (const std::vector<SDK::FVector>& ring : rings)
+			allPoints.insert(allPoints.end(), ring.begin(), ring.end());
+
+		DrawFill(view, drawList, allPoints, style);
+	}
+
+	for (const std::vector<SDK::FVector>& ring : rings)
+		DrawPath(view, drawList, ring, true, style.lineColor, style.lineThickness);
+}
+
+
+void DebugDraw::DrawOrientedCapsule(const View& view, ImDrawList* drawList, const SDK::FVector& center, const SDK::FVector& axisUp, float radius, float halfHeight, const Style& style)
+{
+	/* Orthonormal basis (axisUp, U, V) for building capsule rings. */
+	SDK::FVector temporary = (fabsf(axisUp.Z) < 0.99f) ? SDK::FVector(0.f, 0.f, 1.f) : SDK::FVector(0.f, 1.f, 0.f); // Not parallel to the axis.
+	SDK::FVector U = Math::Vector_Normal(Math::Vector_Cross(axisUp, temporary), 0.01f);
+	SDK::FVector V = Math::Vector_Normal(Math::Vector_Cross(axisUp, U), 0.01f);
+
+	/* Centers of the hemispherical caps (radius units away from the tips toward the middle). */
+	float capOffset = (std::max)(halfHeight - radius, 0.0f);
+	SDK::FVector topCenter = center + axisUp * capOffset;
+	SDK::FVector bottomCenter = center - axisUp * capOffset;
+
+	const int32_t ringSegments = 24;
+	const int32_t hemisphereSegments = 6; // Steps from a seam to a tip.
+
+	std::vector<std::vector<SDK::FVector>> loops;
+
+	/* Seam rings (equators of both caps). */
+	std::vector<SDK::FVector> topRing, bottomRing;
+	for (int32_t segment = 0; segment < ringSegments; ++segment)
+	{
+		float angle = (2.0f * Math::PI) * (float)segment / (float)ringSegments;
+		SDK::FVector direction = U * cosf(angle) + V * sinf(angle);
+
+		topRing.push_back(topCenter + direction * radius);
+		bottomRing.push_back(bottomCenter + direction * radius);
+	}
+	loops.push_back(std::move(topRing));
+	loops.push_back(std::move(bottomRing));
+
+	/*
+		Profile loops: each one passes over the top tip and under the bottom tip in the plane of a given azimuth,
+		so cap meridians and side lines join into one continuous outline (two meridians per loop).
+	*/
+	for (int32_t i = 0; i < ringSegments / 2; ++i)
+	{
+		float azimuth = Math::PI * (float)i / (float)(ringSegments / 2);
+		SDK::FVector direction = U * cosf(azimuth) + V * sinf(azimuth);
+
+		std::vector<SDK::FVector> loop;
+		loop.reserve((hemisphereSegments * 2 + 1) * 2);
+
+		/* Top cap: seam (+direction) -> tip -> seam (-direction). */
+		for (int32_t step = 0; step <= hemisphereSegments * 2; ++step)
+		{
+			float theta = Math::PI * (float)step / (float)(hemisphereSegments * 2);
+			loop.push_back(topCenter + (direction * cosf(theta) + axisUp * sinf(theta)) * radius);
+		}
+
+		/* Bottom cap: seam (-direction) -> tip -> seam (+direction). Closing the loop draws the opposite side line. */
+		for (int32_t step = 0; step <= hemisphereSegments * 2; ++step)
+		{
+			float theta = Math::PI + Math::PI * (float)step / (float)(hemisphereSegments * 2);
+			loop.push_back(bottomCenter + (direction * cosf(theta) + axisUp * sinf(theta)) * radius);
+		}
+
+		loops.push_back(std::move(loop));
+	}
+
+	if (style.fill)
+	{
+		std::vector<SDK::FVector> allPoints;
+		for (const std::vector<SDK::FVector>& loop : loops)
+			allPoints.insert(allPoints.end(), loop.begin(), loop.end());
+
+		DrawFill(view, drawList, allPoints, style);
+	}
+
+	for (const std::vector<SDK::FVector>& loop : loops)
+		DrawPath(view, drawList, loop, true, style.lineColor, style.lineThickness);
+}
+
+
+
+
+void DebugDraw::DrawBounds(const SDK::FVector& center, const SDK::FVector& halfExtent, const Style& style)
+{
+	View view;
+	if (GetView(&view) == false)
+		return;
+
+	ImDrawList* drawList = ImGui::GetDrawList();
+	if (drawList == nullptr)
+		return;
+
+	DrawOrientedBox(view, drawList, center, SDK::FVector(1.f, 0.f, 0.f), SDK::FVector(0.f, 1.f, 0.f), SDK::FVector(0.f, 0.f, 1.f), halfExtent, style);
+}
+
+
+
+
 #ifdef COLLISION_VISUALIZER
-void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal::Transform& componentTransform, uint32_t drawColor, float drawThickness)
+const DebugDraw::ConvexShape& DebugDraw::GetConvexShape(SDK::FKConvexElem* convexElement)
+{
+	SDK::TArray<SDK::FVector>& vertexData = convexElement->VertexData;
+	int32_t vertexCount = vertexData.Num();
+
+	auto cacheIterator = convexCache.find(convexElement);
+	if (cacheIterator != convexCache.end() && cacheIterator->second.vertexCount == vertexCount)
+		return cacheIterator->second;
+
+	if (convexCache.size() >= DEBUGDRAW_CACHE_ENTRIES_MAX)
+		convexCache.clear();
+
+	ConvexShape& shape = convexCache[convexElement];
+	shape = ConvexShape{};
+	shape.vertexCount = vertexCount;
+
+	if (vertexCount < 3)
+		return shape;
+
+	/* Triangles: from the Engine when available, otherwise rebuilt from the vertices (external faces only). */
+	std::vector<int32_t> indices;
+
+	/*
+		IndexData isn't present in older versions of the Engine (e.g. 4.22.3). Use following code:
+		SDK::TArray<int32_t> indexData;
+	*/
+	SDK::TArray<int32_t>& indexData = convexElement->IndexData;
+	int32_t indexCount = indexData.Num();
+
+	if (indexCount >= 3 && indexCount % 3 == 0)
+	{
+		indices.reserve(indexCount);
+		for (int32_t i = 0; i < indexCount; ++i)
+			indices.push_back(indexData[i]);
+	}
+	else if (vertexCount >= 4)
+	{
+		for (int32_t A = 0; A < vertexCount; ++A)
+		{
+			for (int32_t B = A + 1; B < vertexCount; ++B)
+			{
+				for (int32_t C = B + 1; C < vertexCount; ++C)
+				{
+					SDK::FVector normal = Math::Vector_Cross(Math::Vector_Subtract(vertexData[B], vertexData[A]), Math::Vector_Subtract(vertexData[C], vertexData[A]));
+
+					/* Skip if points are collinear (normal is zero). */
+					if (normal.X == 0.0f && normal.Y == 0.0f && normal.Z == 0.0f)
+						continue;
+
+					bool hasPositive = false;
+					bool hasNegative = false;
+
+					/* Check which side of the plane (A, B, C) the remaining vertices lie on. */
+					for (int32_t testIndex = 0; testIndex < vertexCount; ++testIndex)
+					{
+						if (testIndex == A || testIndex == B || testIndex == C)
+							continue;
+
+						float dot = Math::Vector_Dot(normal, Math::Vector_Subtract(vertexData[testIndex], vertexData[A]));
+
+						/* Use a small tolerance for floating-point inaccuracies. */
+						if (dot > 0.01f)
+							hasPositive = true;
+						else if (dot < -0.01f)
+							hasNegative = true;
+
+						/* Points on both sides: internal triangle. */
+						if (hasPositive && hasNegative)
+							break;
+					}
+
+					/* All other vertices on one side: external face. */
+					if (hasPositive == false || hasNegative == false)
+					{
+						indices.push_back(A);
+						indices.push_back(B);
+						indices.push_back(C);
+					}
+				}
+			}
+		}
+	}
+
+	/* Interior reference point: the vertex centroid always lies inside a convex shape. */
+	SDK::FVector centroid(0.f, 0.f, 0.f);
+	for (int32_t i = 0; i < vertexCount; ++i)
+		centroid = centroid + vertexData[i];
+	centroid = Math::Vector_Divide(centroid, (float)vertexCount);
+
+	struct EdgeInfo
+	{
+		SDK::FVector normal;    // Outward normal of the first triangle using this edge.
+		int32_t usesCount;
+		bool isFeature;
+	};
+
+	std::unordered_map<uint64_t, EdgeInfo> edges;
+	std::vector<uint64_t> edgesOrder; // Keeps a stable drawing order.
+
+	for (size_t i = 0; i + 2 < indices.size(); i += 3)
+	{
+		int32_t triangle[3] = { indices[i], indices[i + 1], indices[i + 2] };
+
+		/* Ensure referenced triangle indices remain strictly within known boundaries. */
+		if (triangle[0] < 0 || triangle[0] >= vertexCount ||
+			triangle[1] < 0 || triangle[1] >= vertexCount ||
+			triangle[2] < 0 || triangle[2] >= vertexCount)
+			continue;
+
+		if (triangle[0] == triangle[1] || triangle[1] == triangle[2] || triangle[2] == triangle[0])
+			continue;
+
+		const SDK::FVector& A = vertexData[triangle[0]];
+		const SDK::FVector& B = vertexData[triangle[1]];
+		const SDK::FVector& C = vertexData[triangle[2]];
+
+		SDK::FVector normal = Math::Vector_Normal(Math::Vector_Cross(Math::Vector_Subtract(B, A), Math::Vector_Subtract(C, A)));
+		if (normal.X == 0.0f && normal.Y == 0.0f && normal.Z == 0.0f)
+			continue;
+
+		/* Orient outward, so coplanar triangles of one face share the same normal regardless of their winding. */
+		SDK::FVector triangleCenter = Math::Vector_Divide(A + B + C, 3.0f);
+		if (Math::Vector_Dot(normal, Math::Vector_Subtract(triangleCenter, centroid)) < 0.0f)
+			normal = normal * -1.0f;
+
+		for (int32_t side = 0; side < 3; ++side)
+		{
+			int32_t first = triangle[side];
+			int32_t second = triangle[(side + 1) % 3];
+			uint64_t key = (static_cast<uint64_t>(static_cast<uint32_t>((std::min)(first, second))) << 32) | static_cast<uint32_t>((std::max)(first, second));
+
+			auto edgeIterator = edges.find(key);
+			if (edgeIterator == edges.end())
+			{
+				edges.emplace(key, EdgeInfo{ normal, 1, false });
+				edgesOrder.push_back(key);
+				continue;
+			}
+
+			EdgeInfo& edge = edgeIterator->second;
+			edge.usesCount++;
+
+			/* Edge between differently oriented faces is a real (feature) edge. */
+			if (Math::Vector_Dot(edge.normal, normal) < DEBUGDRAW_COPLANAR_DOT)
+				edge.isFeature = true;
+		}
+	}
+
+	/* Keep feature edges and open borders; drop diagonals of flat faces and duplicates. */
+	for (uint64_t key : edgesOrder)
+	{
+		const EdgeInfo& edge = edges[key];
+		if (edge.isFeature || edge.usesCount == 1)
+			shape.featureEdges.emplace_back(static_cast<int32_t>(key >> 32), static_cast<int32_t>(key & 0xFFFFFFFF));
+	}
+
+	return shape;
+}
+
+
+const DebugDraw::SkeletonShape& DebugDraw::GetSkeletonShape(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets)
+{
+	SDK::TArray<SDK::FName> socketNames = skeletalMeshComponent->GetAllSocketNames();
+	int32_t socketCount = socketNames.Num();
+
+	auto cacheIterator = skeletonCache.find(skeletalMeshComponent);
+	if (cacheIterator != skeletonCache.end() && cacheIterator->second.socketCount == socketCount && cacheIterator->second.allSockets == drawAllSockets)
+		return cacheIterator->second;
+
+	if (skeletonCache.size() >= DEBUGDRAW_CACHE_ENTRIES_MAX)
+		skeletonCache.clear();
+
+	SkeletonShape& shape = skeletonCache[skeletalMeshComponent];
+	shape = SkeletonShape{};
+	shape.socketCount = socketCount;
+	shape.allSockets = drawAllSockets;
+
+	static const std::vector<std::string> commonBoneNames =
+	{
+		"root", "pelvis", "spine", "neck", "head",
+		"hand", "foot", "calf", "thigh", "arm",
+		"clavicle", "joint"
+	};
+
+	/* Unique bones: every socket attached to the same bone collapses into that bone. */
+	std::unordered_map<std::string, int32_t> boneIndices;
+	for (SDK::FName socketName : socketNames)
+	{
+		SDK::FName boneName = skeletalMeshComponent->GetSocketBoneName(socketName);
+		std::string boneKey = boneName.ToString();
+
+		if (boneKey.empty() || boneKey == "None" || boneIndices.count(boneKey) > 0)
+			continue;
+
+		if (drawAllSockets == false)
+		{
+			std::string loweredBoneName = Utilities::String::ToLowerCase(boneKey);
+
+			bool isCommonBone = false;
+			for (const std::string& commonBoneName : commonBoneNames)
+			{
+				if (loweredBoneName.find(commonBoneName) != std::string::npos)
+				{
+					isCommonBone = true;
+					break;
+				}
+			}
+
+			if (isCommonBone == false)
+				continue;
+		}
+
+		boneIndices.emplace(boneKey, static_cast<int32_t>(shape.bones.size()));
+		shape.bones.push_back(SkeletonBone{ boneName, -1 });
+	}
+
+	/* Link each bone to its nearest drawn ancestor, so filtered intermediate bones (twist, IK, ...) don't break the chain. */
+	for (SkeletonBone& bone : shape.bones)
+	{
+		SDK::FName currentName = bone.name;
+		std::string currentKey = currentName.ToString();
+
+		for (int32_t depth = 0; depth < 256; ++depth)
+		{
+			SDK::FName parentName = skeletalMeshComponent->GetParentBone(currentName);
+			std::string parentKey = parentName.ToString();
+
+			if (parentKey.empty() || parentKey == "None" || parentKey == currentKey)
+				break;
+
+			auto parentIterator = boneIndices.find(parentKey);
+			if (parentIterator != boneIndices.end())
+			{
+				bone.parentIndex = parentIterator->second;
+				break;
+			}
+
+			currentName = parentName;
+			currentKey = parentKey;
+		}
+	}
+
+	return shape;
+}
+
+
+
+
+void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal::Transform& componentTransform, const Style& style)
 {
 	if (convexElement == nullptr)
 		return;
 
-	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-	if (playerController == nullptr)
+	View view;
+	if (GetView(&view) == false)
 		return;
 
 	ImDrawList* drawList = ImGui::GetDrawList();
@@ -4226,165 +5481,40 @@ void DebugDraw::DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal
 
 	SDK::TArray<SDK::FVector>& vertexData = convexElement->VertexData;
 	int32_t vertexCount = vertexData.Num();
-
 	if (vertexCount == 0)
 		return;
 
-	/* Check if indices for this element are already computed and cached. */
-	auto cacheIterator = convexIndicesCache.find(convexElement);
-	if (cacheIterator == convexIndicesCache.end())
+	const ConvexShape& shape = GetConvexShape(convexElement);
+
+	/* Transform every vertex once; edges share them. */
+	std::vector<SDK::FVector> worldVertices(vertexCount);
+	for (int32_t i = 0; i < vertexCount; ++i)
+		worldVertices[i] = Math::Vector_LocalToWorld(componentTransform, vertexData[i]);
+
+	DrawFill(view, drawList, worldVertices, style);
+
+	for (const std::pair<int32_t, int32_t>& edge : shape.featureEdges)
 	{
-		std::vector<int32_t> indices;
-
-		/*
-			IndexData isn't present in older versions of the Engine (e.g. 4.22.3). Use following code:
-			SDK::TArray<int32_t> indexData;
-		*/
-		SDK::TArray<int32_t>& indexData = convexElement->IndexData;
-		int32_t indexCount = indexData.Num();
-
-		/* If Engine provides valid indices, copy them to our cache. */
-		if (indexCount > 3 && indexCount % 3 == 0)
-		{
-			indices.reserve(indexCount);
-			for (int32_t i = 0; i < indexCount; ++i)
-			{
-				indices.push_back(indexData[i]);
-			}
-		}
-		else if (vertexCount >= 4)
-		{
-			for (int32_t A = 0; A < vertexCount; ++A)
-			{
-				for (int32_t B = A + 1; B < vertexCount; ++B)
-				{
-					for (int32_t C = B + 1; C < vertexCount; ++C)
-					{
-						SDK::FVector vA = vertexData[A];
-						SDK::FVector vB = vertexData[B];
-						SDK::FVector vC = vertexData[C];
-
-						/* Calculate edge vectors. */
-						SDK::FVector edge1 = Math::Vector_Subtract(vB, vA);
-						SDK::FVector edge2 = Math::Vector_Subtract(vC, vA);
-
-						/* Compute cross product to get the normal of the plane. */
-						SDK::FVector normal = Math::Vector_Cross(edge1, edge2);
-
-						/* Skip if points are collinear (normal is zero). */
-						if (normal.X == 0.0f && normal.Y == 0.0f && normal.Z == 0.0f)
-							continue;
-
-						bool hasPositive = false;
-						bool hasNegative = false;
-
-						/* Check which side of the plane (A, B, C) the remaining vertices lie on. */
-						for (int32_t testIndex = 0; testIndex < vertexCount; ++testIndex)
-						{
-							/* Skip the vertices that form the plane itself. */
-							if (testIndex == A || testIndex == B || testIndex == C)
-								continue;
-
-							SDK::FVector currentPoint = vertexData[testIndex];
-							SDK::FVector toPoint = Math::Vector_Subtract(currentPoint, vA);
-
-							/* Compute dot product using custom Math function. */
-							float dot = Math::Vector_Dot(normal, toPoint);
-
-							/* Use a small tolerance for floating-point inaccuracies. */
-							if (dot > 0.01f)
-							{
-								hasPositive = true;
-							}
-							else if (dot < -0.01f)
-							{
-								hasNegative = true;
-							}
-
-							/* If points exist on both sides, this is an internal triangle. */
-							if (hasPositive == true && hasNegative == true)
-							{
-								break;
-							}
-						}
-
-						/* If all other vertices are strictly on one side, we found an external face. */
-						if (hasPositive == false || hasNegative == false)
-						{
-							indices.push_back(static_cast<int32_t>(A));
-							indices.push_back(static_cast<int32_t>(B));
-							indices.push_back(static_cast<int32_t>(C));
-						}
-					}
-				}
-			}
-		}
-
-		/* Cache generated indices and reuse the iterator to skip redundant map lookups. */
-		cacheIterator = convexIndicesCache.emplace(convexElement, std::move(indices)).first;
+		if (edge.first < vertexCount && edge.second < vertexCount)
+			DrawSegment(view, drawList, worldVertices[edge.first], worldVertices[edge.second], style.lineColor, style.lineThickness);
 	}
 
-	std::vector<int32_t>& indicesToDraw = cacheIterator->second;
-	size_t indexCount = indicesToDraw.size();
-
-	if (indexCount < 3 || indexCount % 3 != 0)
-		return;
-
-	/* Batch project all unique vertices to avoid converting identical shared points multiple times.*/
-	std::vector<SDK::FVector2D> projectedVertices(vertexCount);
-	std::vector<bool> isProjected(vertexCount);
-	for (size_t i = 0; i < vertexCount; ++i)
-	{
-		SDK::FVector worldPos = Math::Vector_LocalToWorld(componentTransform, vertexData[i]);
-		isProjected[i] = Unreal::PlayerController::ProjectWorldToScreen(playerController, worldPos, &projectedVertices[i]);
-	}
-
-	for (int32_t i = 0; i + 2 < indexCount; i += 3)
-	{
-		int32_t A_Index = indicesToDraw[i];
-		int32_t B_Index = indicesToDraw[i + 1];
-		int32_t C_Index = indicesToDraw[i + 2];
-
-		/* Ensure referenced triangle indices remain strictly within known boundaries. */
-		if (A_Index < 0 || A_Index >= vertexCount ||
-			B_Index < 0 || B_Index >= vertexCount ||
-			C_Index < 0 || C_Index >= vertexCount)
-			continue;
-
-		if (A_Index == B_Index || B_Index == C_Index || C_Index == A_Index)
-			continue;
-
-		SDK::FVector A_Local = vertexData[A_Index];
-		SDK::FVector B_Local = vertexData[B_Index];
-		SDK::FVector C_Local = vertexData[C_Index];
-
-		/* Utilize pre-calculated screen coordinates if all components are visible. */
-		if (isProjected[A_Index] && isProjected[B_Index] && isProjected[C_Index])
-		{
-			ImVec2 A_Screen(projectedVertices[A_Index].X, projectedVertices[A_Index].Y);
-			ImVec2 B_Screen(projectedVertices[B_Index].X, projectedVertices[B_Index].Y);
-			ImVec2 C_Screen(projectedVertices[C_Index].X, projectedVertices[C_Index].Y);
-
-			drawList->AddLine(A_Screen, B_Screen, drawColor, drawThickness);
-			drawList->AddLine(B_Screen, C_Screen, drawColor, drawThickness);
-			drawList->AddLine(C_Screen, A_Screen, drawColor, drawThickness);
-		}
-	}
+	DrawJoints(view, drawList, worldVertices, style);
 }
 
 
-void DebugDraw::DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, uint32_t drawColor, const float drawThickness)
+void DebugDraw::DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, const Style& style)
 {
 	if (bodySetup == nullptr)
 		return;
 
 	for (SDK::FKConvexElem& convexElement : bodySetup->AggGeom.ConvexElems)
 	{
-		DrawConvexElement(&convexElement, componentTransform, drawColor, drawThickness);
+		DrawConvexElement(&convexElement, componentTransform, style);
 	}
 }
 
-void DebugDraw::DrawVolume(SDK::AVolume* volume, uint32_t drawColor, const float drawThickness)
+void DebugDraw::DrawVolume(SDK::AVolume* volume, const Style& style)
 {
 	if (volume == nullptr)
 		return;
@@ -4399,13 +5529,13 @@ void DebugDraw::DrawVolume(SDK::AVolume* volume, uint32_t drawColor, const float
 	SDK::UBodySetup* bodySetup = brushComponent->BrushBodySetup;
 	Unreal::Transform componentTransform = Unreal::ActorComponent::GetTransform(brushComponent);
 
-	DrawBodySetup(bodySetup, componentTransform, drawColor, drawThickness);
+	DrawBodySetup(bodySetup, componentTransform, style);
 }
 
 
 
 
-void DebugDraw::DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, uint32_t drawColor, const float drawThickness)
+void DebugDraw::DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, const Style& style)
 {
 	if (staticMeshComponent == nullptr)
 		return;
@@ -4420,10 +5550,10 @@ void DebugDraw::DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshCom
 	SDK::UBodySetup* bodySetup = staticMesh->BodySetup;
 	Unreal::Transform componentTransform = Unreal::ActorComponent::GetTransform(staticMeshComponent);
 
-	DrawBodySetup(bodySetup, componentTransform, drawColor, drawThickness);
+	DrawBodySetup(bodySetup, componentTransform, style);
 }
 
-void DebugDraw::DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, uint32_t drawColor, const float drawThickness)
+void DebugDraw::DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, const Style& style)
 {
 	if (instancedStaticMeshComponent == nullptr)
 		return;
@@ -4438,442 +5568,156 @@ void DebugDraw::DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshCompon
 	SDK::UBodySetup* bodySetup = staticMesh->BodySetup;
 	Unreal::Transform componentTransform = Unreal::ActorComponent::GetTransform(instancedStaticMeshComponent);
 
-	DrawBodySetup(bodySetup, componentTransform, drawColor, drawThickness);
+	DrawBodySetup(bodySetup, componentTransform, style);
 }
 
 
 
 
-void DebugDraw::DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets, uint32_t drawColor, const float drawThickness)
+void DebugDraw::DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets, const Style& style)
 {
 	if (skeletalMeshComponent == nullptr)
 		return;
 
-	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-	if (playerController == nullptr)
+	View view;
+	if (GetView(&view) == false)
 		return;
 
 	ImDrawList* drawList = ImGui::GetDrawList();
 	if (drawList == nullptr)
 		return;
 
-	static const std::vector<std::string> commonBoneNames =
+	const SkeletonShape& shape = GetSkeletonShape(skeletalMeshComponent, drawAllSockets);
+	size_t bonesCount = shape.bones.size();
+	if (bonesCount == 0)
+		return;
+
+	/* Bone name works as a socket name: returns the bone itself, not an offset socket attached to it. */
+	std::vector<SDK::FVector> boneLocations(bonesCount);
+	for (size_t i = 0; i < bonesCount; ++i)
+		boneLocations[i] = skeletalMeshComponent->GetSocketLocation(shape.bones[i].name);
+
+	/* Bones first, joints on top. */
+	for (size_t i = 0; i < bonesCount; ++i)
 	{
-		"root", "pelvis", "spine", "neck", "head",
-		"hand", "foot", "calf", "thigh", "arm",
-		"clavicle", "joint"
-	};
-
-	/* Local structure to cache projected screen coordinates and reduce redundant math. */
-	struct CachedBone
-	{
-		SDK::FName boneName;
-		ImVec2 screenPosition;
-	};
-
-	std::vector<CachedBone> validBones;
-	std::vector<SDK::FName> spottedBonesNames;
-
-	SDK::TArray<SDK::FName> socketNamesCollection = skeletalMeshComponent->GetAllSocketNames();
-	for (SDK::FName socketName : socketNamesCollection)
-	{
-		SDK::FName boneName = skeletalMeshComponent->GetSocketBoneName(socketName);
-
-		bool isUniqueBone = true;
-		for (SDK::FName spottedBoneName : spottedBonesNames)
-		{
-			if (boneName == spottedBoneName)
-			{
-				isUniqueBone = false;
-				break;
-			}
-		}
-
-		if (isUniqueBone == false)
+		int32_t parentIndex = shape.bones[i].parentIndex;
+		if (parentIndex < 0)
 			continue;
 
-		if (drawAllSockets == false)
-		{
-			bool isCommonBone = false;
-			std::string sBoneName = boneName.ToString();
-			std::string lowerBoneName = Utilities::String::ToLowerCase(sBoneName);
-
-			for (const std::string& cmnBoneName : commonBoneNames)
-			{
-				if (lowerBoneName.find(cmnBoneName) != std::string::npos)
-				{
-					isCommonBone = true;
-					break;
-				}
-			}
-
-			if (isCommonBone == false)
-				continue;
-		}
-
-		spottedBonesNames.push_back(boneName);
-
-		/* GetSocketLocation() returns world location out of the box. */
-		SDK::FVector socket_World = skeletalMeshComponent->GetSocketLocation(socketName);
-
-		SDK::FVector2D socket_Screen;
-		if (Unreal::PlayerController::ProjectWorldToScreen(playerController, socket_World, &socket_Screen))
-		{
-			CachedBone cachedBone;
-			cachedBone.boneName = boneName;
-			cachedBone.screenPosition = ImVec2(socket_Screen.X, socket_Screen.Y);
-
-			validBones.push_back(cachedBone);
-		}
+		if (style.fill)
+			DrawBone(view, drawList, boneLocations[parentIndex], boneLocations[i], style);
+		else
+			DrawSegment(view, drawList, boneLocations[parentIndex], boneLocations[i], style.lineColor, style.lineThickness);
 	}
 
-	/* Draw bones and connect them with lines to form a skeletal hierarchy. */
-	for (const CachedBone& bone : validBones)
+	for (const SDK::FVector& boneLocation : boneLocations)
 	{
-		/* Draw joint circle. */
-		drawList->AddCircleFilled(bone.screenPosition, drawThickness * 1.5f, drawColor);
-
-		/* Attempt to retrieve the parent bone and draw a connection line. */
-		SDK::FName parentBoneName = skeletalMeshComponent->GetParentBone(bone.boneName);
-
-		for (const CachedBone& potentialParent : validBones)
-		{
-			/* If parent bone is found among projected valid bones, connect them. */
-			if (potentialParent.boneName == parentBoneName)
-			{
-				drawList->AddLine(bone.screenPosition, potentialParent.screenPosition, drawColor, drawThickness);
-				break; /* Parent found and line drawn, no need to keep searching. */
-			}
-		}
+		ImVec2 boneScreen;
+		if (GetDepth(view, boneLocation) >= DEBUGDRAW_NEAR_CLIP_DISTANCE && ProjectPoint(view, boneLocation, &boneScreen))
+			drawList->AddCircleFilled(boneScreen, style.lineThickness * 1.5f, style.lineColor);
 	}
 }
 
 
 
 
-void DebugDraw::DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, uint32_t drawColor, const float drawThickness)
+void DebugDraw::DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, const Style& style)
 {
 	if (capsuleComponent == nullptr)
 		return;
 
-	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-	if (playerController == nullptr)
+	View view;
+	if (GetView(&view) == false)
 		return;
 
 	ImDrawList* drawList = ImGui::GetDrawList();
 	if (drawList == nullptr)
 		return;
 
-	float capsuleRadius = capsuleComponent->GetScaledCapsuleRadius();
-	float capsuleHalfHeight = capsuleComponent->GetScaledCapsuleHalfHeight();
-
 	Unreal::Transform capsuleTransform = Unreal::ActorComponent::GetTransform(capsuleComponent);
-	SDK::FVector capsuleUpVector = Math::Rotator_UpVector(capsuleTransform.rotation);
-
-	/* Construct an orthonormal basis (axis, U, V) for building capsule rings. */
-	SDK::FVector ortho_Temp = (fabsf(capsuleUpVector.Z) < 0.99f) ? SDK::FVector(0.f, 0.f, 1.f) : SDK::FVector(0.f, 1.f, 0.f); // Choose a temporary vector that is not parallel to the capsule axis.
-	SDK::FVector ortho_U = Math::Vector_Normal(Math::Vector_Cross(capsuleUpVector, ortho_Temp), 0.01f); // Compute 'U' as a normalized vector perpendicular to 'axis'.
-	SDK::FVector ortho_V = Math::Vector_Normal(Math::Vector_Cross(capsuleUpVector, ortho_U), 0.01f); // Compute 'V' as a normalized vector perpendicular to both 'axis' and 'U'.
-
-	/* True top/bottom endpoints of the capsule (tips). */
-	const SDK::FVector capsuleTopTip = capsuleTransform.location + capsuleUpVector * capsuleHalfHeight;
-	const SDK::FVector capsuleBottomTip = capsuleTransform.location - capsuleUpVector * capsuleHalfHeight;
-
-	/* Centers of the hemispherical caps. These are located radius units away from the tips toward the middle. */
-	const SDK::FVector sphereTopCenter = capsuleTransform.location + capsuleUpVector * (capsuleHalfHeight - capsuleRadius);
-	const SDK::FVector sphereBottomCenter = capsuleTransform.location - capsuleUpVector * (capsuleHalfHeight - capsuleRadius);
-
-	/* Project tips to optionally use for hemisphere polylines. */
-	SDK::FVector2D capsuleTopTip_Screen, capsuleBottomTip_Screen;
-	bool capsuleTopTip_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, capsuleTopTip, &capsuleTopTip_Screen);
-	bool capsuleBottomTip_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, capsuleBottomTip, &capsuleBottomTip_Screen);
-
-	const int32_t capsuleSegments = 24;
-	const int32_t hemisphereSegments = 6; // Number of segments from tip to seam to approximate the spherical rounding.
-	for (int32_t i = 0; i < capsuleSegments; i++)
-	{
-		/*
-			A ----------> B
-
-			A - Current ring angle (azimuth).
-			B - Next ring angle (azimuth).
-		*/
-
-		/* Compute the start (ringA_Angle) and end (ringB_Angle) angles for the current ring segment in radians. */
-		const float ringA_Angle = (2.0f * Math::PI) * (float)i / (float)capsuleSegments;
-		const float ringB_Angle = (2.0f * Math::PI) * (float)(i + 1) / (float)capsuleSegments;
-
-		/* Unit directions around the capsule axis for current and next azimuths. */
-		const SDK::FVector unitDirectionA = ortho_U * cosf(ringA_Angle) + ortho_V * sinf(ringA_Angle);
-		const SDK::FVector unitDirectionB = ortho_U * cosf(ringB_Angle) + ortho_V * sinf(ringB_Angle);
-
-		/* Rings at the cylinder/hemisphere seam (equators of the spherical caps). */
-		SDK::FVector ringA_Top = sphereTopCenter + unitDirectionA * capsuleRadius;
-		SDK::FVector ringB_Top = sphereTopCenter + unitDirectionB * capsuleRadius;
-		SDK::FVector ringA_Bottom = sphereBottomCenter + unitDirectionA * capsuleRadius;
-		SDK::FVector ringB_Bottom = sphereBottomCenter + unitDirectionB * capsuleRadius;
-
-		SDK::FVector2D ringA_Top_Screen, ringB_Top_Screen, ringA_Bottom_Screen, ringB_Bottom_Screen;
-		bool ringA_Top_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, ringA_Top, &ringA_Top_Screen);
-		bool ringB_Top_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, ringB_Top, &ringB_Top_Screen);
-		bool ringA_Bottom_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, ringA_Bottom, &ringA_Bottom_Screen);
-		bool ringB_Bottom_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, ringB_Bottom, &ringB_Bottom_Screen);
-
-		/* Outlines the top seam ring. */
-		if (ringA_Top_Project && ringB_Top_Project)
-			drawList->AddLine(ImVec2(ringA_Top_Screen.X, ringA_Top_Screen.Y), ImVec2(ringB_Top_Screen.X, ringB_Top_Screen.Y), drawColor, drawThickness);
-
-		/* Outlines the bottom seam ring. */
-		if (ringA_Bottom_Project && ringB_Bottom_Project)
-			drawList->AddLine(ImVec2(ringA_Bottom_Screen.X, ringA_Bottom_Screen.Y), ImVec2(ringB_Bottom_Screen.X, ringB_Bottom_Screen.Y), drawColor, drawThickness);
-
-		/* Outlines side walls (cylindrical part). */
-		if (ringA_Top_Project && ringA_Bottom_Project)
-			drawList->AddLine(ImVec2(ringA_Top_Screen.X, ringA_Top_Screen.Y), ImVec2(ringA_Bottom_Screen.X, ringA_Bottom_Screen.Y), drawColor, drawThickness);
-
-		/* Draw spherical rounding for top and bottom by tracing meridian polylines from tip to seam. */
-		for (int32_t segment = 0; segment < hemisphereSegments; ++segment)
-		{
-			/*
-				phi goes from 0 (tip) to PI/2 (seam). We connect successive samples to approximate a meridian.
-				Top hemisphere position (for azimuth dirA): P(phi) = sphereTopCenter + capsuleRadius * ( dirA * sin(phi) + capsuleUpVector * cos(phi) )
-				Bottom hemisphere: P(phi) = sphereBottomCenter + capsuleRadius * ( dirA * sin(phi) - capsuleUpVector * cos(phi) )
-			*/
-			float phi0 = (Math::PI * 0.5f) * (float)segment / (float)hemisphereSegments;
-			float phi1 = (Math::PI * 0.5f) * (float)(segment + 1) / (float)hemisphereSegments;
-
-			SDK::FVector pointA_Top = sphereTopCenter + (unitDirectionA * sinf(phi0) + capsuleUpVector * cosf(phi0)) * capsuleRadius;
-			SDK::FVector pointB_Top = sphereTopCenter + (unitDirectionA * sinf(phi1) + capsuleUpVector * cosf(phi1)) * capsuleRadius;
-
-			SDK::FVector pointA_Bottom = sphereBottomCenter + (unitDirectionA * sinf(phi0) - capsuleUpVector * cosf(phi0)) * capsuleRadius;
-			SDK::FVector pointB_Bottom = sphereBottomCenter + (unitDirectionA * sinf(phi1) - capsuleUpVector * cosf(phi1)) * capsuleRadius;
-
-			SDK::FVector2D PointA_Top_Screen, PointB_Top_Screen, PointA_Bottom_Screen, PointB_Bottom_Screen;
-			bool pointA_Top_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA_Top, &PointA_Top_Screen);
-			bool pointB_Top_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB_Top, &PointB_Top_Screen);
-			bool pointA_Bottom_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA_Bottom, &PointA_Bottom_Screen);
-			bool pointB_Bottom_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB_Bottom, &PointB_Bottom_Screen);
-
-			if (pointA_Top_Project && pointB_Top_Project)
-				drawList->AddLine(ImVec2(PointA_Top_Screen.X, PointA_Top_Screen.Y), ImVec2(PointB_Top_Screen.X, PointB_Top_Screen.Y), drawColor, drawThickness);
-
-			if (pointA_Bottom_Project && pointB_Bottom_Project)
-				drawList->AddLine(ImVec2(PointA_Bottom_Screen.X, PointA_Bottom_Screen.Y), ImVec2(PointB_Bottom_Screen.X, PointB_Bottom_Screen.Y), drawColor, drawThickness);
-		}
-	}
+	DrawOrientedCapsule(view, drawList, capsuleTransform.location, Math::Rotator_UpVector(capsuleTransform.rotation),
+		capsuleComponent->GetScaledCapsuleRadius(), capsuleComponent->GetScaledCapsuleHalfHeight(), style);
 }
 
 
-void DebugDraw::DrawSphereComponent(SDK::USphereComponent* sphereComponent, uint32_t drawColor, const float drawThickness)
+void DebugDraw::DrawSphereComponent(SDK::USphereComponent* sphereComponent, const Style& style)
 {
 	if (sphereComponent == nullptr)
 		return;
 
-	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-	if (playerController == nullptr)
+	View view;
+	if (GetView(&view) == false)
 		return;
 
 	ImDrawList* drawList = ImGui::GetDrawList();
 	if (drawList == nullptr)
 		return;
 
-	/* Get sphere data. */
-	float sphereRadius = sphereComponent->GetScaledSphereRadius();
 	Unreal::Transform sphereTransform = Unreal::ActorComponent::GetTransform(sphereComponent);
-	SDK::FVector sphereCenter = sphereTransform.location;
-
-	/* Build local orthonormal frame from component rotation. */
-	SDK::FVector sphereForwardVector = Math::Rotator_ForwardVector(sphereTransform.rotation);
-	SDK::FVector sphereRightVector = Math::Rotator_RightVector(sphereTransform.rotation);
-	SDK::FVector sphereUpVector = Math::Rotator_UpVector(sphereTransform.rotation);
-
-	/* Determine level of detail for volume. */
-	const int32_t numMeridians = 6; // Number of vertical rings (from pole to pole).
-	const int32_t numParallels = 4; // Number of horizontal rings (latitudes).
-	const int32_t sphereSegments = 32;
-
-	/* Draw Meridians (great circles passing through the poles). */
-	for (int32_t i = 0; i < numMeridians; ++i)
-	{
-		float angle = Math::PI * (float)i / (float)numMeridians;
-
-		/* Create basis for the current meridian. */
-		SDK::FVector U = sphereRightVector * cosf(angle) + sphereForwardVector * sinf(angle);
-		SDK::FVector V = sphereUpVector;
-
-		for (int32_t segment = 0; segment < sphereSegments; ++segment)
-		{
-			/* Parametric angles for current and next segment. */
-			float angleA = (2.0f * Math::PI) * (float)segment / (float)sphereSegments;
-			float angleB = (2.0f * Math::PI) * (float)(segment + 1) / (float)sphereSegments;
-
-			/* Points on the ring in world space. */
-			SDK::FVector pointA = sphereCenter + (U * cosf(angleA) + V * sinf(angleA)) * sphereRadius;
-			SDK::FVector pointB = sphereCenter + (U * cosf(angleB) + V * sinf(angleB)) * sphereRadius;
-
-			/* Project and draw segment if visible. */
-			SDK::FVector2D pointA_Screen, pointB_Screen;
-			bool pointA_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA, &pointA_Screen);
-			bool pointB_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB, &pointB_Screen);
-
-			if (pointA_Project && pointB_Project)
-				drawList->AddLine(ImVec2(pointA_Screen.X, pointA_Screen.Y), ImVec2(pointB_Screen.X, pointB_Screen.Y), drawColor, drawThickness);
-		}
-	}
-
-	/* Draw Parallels (horizontal rings at different heights). */
-	for (int32_t i = 1; i < numParallels; ++i)
-	{
-		float phi = Math::PI * (float)i / (float)numParallels;
-		float zOffset = cosf(phi) * sphereRadius;
-		float currentRadius = sinf(phi) * sphereRadius;
-
-		SDK::FVector planeCenter = sphereCenter + sphereUpVector * zOffset;
-
-		/* Basis for parallels matches the equatorial plane. */
-		SDK::FVector U = sphereRightVector;
-		SDK::FVector V = sphereForwardVector;
-
-		for (int32_t segment = 0; segment < sphereSegments; ++segment)
-		{
-			/* Parametric angles for current and next segment. */
-			float angleA = (2.0f * Math::PI) * (float)segment / (float)sphereSegments;
-			float angleB = (2.0f * Math::PI) * (float)(segment + 1) / (float)sphereSegments;
-
-			/* Points on the ring in world space. */
-			SDK::FVector pointA = planeCenter + (U * cosf(angleA) + V * sinf(angleA)) * currentRadius;
-			SDK::FVector pointB = planeCenter + (U * cosf(angleB) + V * sinf(angleB)) * currentRadius;
-
-			/* Project and draw segment if visible. */
-			SDK::FVector2D pointA_Screen, pointB_Screen;
-			bool pointA_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA, &pointA_Screen);
-			bool pointB_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB, &pointB_Screen);
-
-			if (pointA_Project && pointB_Project)
-				drawList->AddLine(ImVec2(pointA_Screen.X, pointA_Screen.Y), ImVec2(pointB_Screen.X, pointB_Screen.Y), drawColor, drawThickness);
-		}
-	}
+	DrawOrientedSphere(view, drawList, sphereTransform.location,
+		Math::Rotator_ForwardVector(sphereTransform.rotation), Math::Rotator_RightVector(sphereTransform.rotation), Math::Rotator_UpVector(sphereTransform.rotation),
+		sphereComponent->GetScaledSphereRadius(), style);
 }
 
-void DebugDraw::DrawBoxComponent(SDK::UBoxComponent* boxComponent, uint32_t drawColor, const float drawThickness)
+void DebugDraw::DrawBoxComponent(SDK::UBoxComponent* boxComponent, const Style& style)
 {
 	if (boxComponent == nullptr)
 		return;
 
-	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-	if (playerController == nullptr)
+	View view;
+	if (GetView(&view) == false)
 		return;
 
 	ImDrawList* drawList = ImGui::GetDrawList();
 	if (drawList == nullptr)
 		return;
 
-	/* Get box transform and half extents in world units. */
 	Unreal::Transform boxTransform = Unreal::ActorComponent::GetTransform(boxComponent);
-	SDK::FVector boxLocation = boxTransform.location;
-	SDK::FVector boxExtent = boxComponent->GetScaledBoxExtent();
-
-	/* Local basis vectors from rotation (orthonormal). */
-	SDK::FVector boxForwardVector = Math::Rotator_ForwardVector(boxTransform.rotation);
-	SDK::FVector boxRightVector = Math::Rotator_RightVector(boxTransform.rotation);
-	SDK::FVector boxUpVector = Math::Rotator_UpVector(boxTransform.rotation);
-
-	/* Precompute axis-length vectors. */
-	SDK::FVector boxForwardExtent = boxForwardVector * boxExtent.X;
-	SDK::FVector boxRightExtent = boxRightVector * boxExtent.Y;
-	SDK::FVector boxUpExtent = boxUpVector * boxExtent.Z;
-
-	/* Compute the 8 corners of the oriented box. Indexing convention: XYZ, where X/Y/Z in {0, 1} mean -/+ along UpExtent/RightExtent/ForwardExtent. */
-	SDK::FVector boxCorners_Location[8];
-	boxCorners_Location[0] = boxLocation - boxForwardExtent - boxRightExtent - boxUpExtent; // c000
-	boxCorners_Location[1] = boxLocation - boxForwardExtent - boxRightExtent + boxUpExtent; // c001
-	boxCorners_Location[2] = boxLocation - boxForwardExtent + boxRightExtent - boxUpExtent; // c010
-	boxCorners_Location[3] = boxLocation - boxForwardExtent + boxRightExtent + boxUpExtent; // c011
-	boxCorners_Location[4] = boxLocation + boxForwardExtent - boxRightExtent - boxUpExtent; // c100
-	boxCorners_Location[5] = boxLocation + boxForwardExtent - boxRightExtent + boxUpExtent; // c101
-	boxCorners_Location[6] = boxLocation + boxForwardExtent + boxRightExtent - boxUpExtent; // c110
-	boxCorners_Location[7] = boxLocation + boxForwardExtent + boxRightExtent + boxUpExtent; // c111
-
-	/* Project all corners once. */
-	SDK::FVector2D boxCorners_Screen[8];
-	bool boxCorners_Project[8];
-	for (int32_t i = 0; i < 8; ++i)
-		boxCorners_Project[i] = Unreal::PlayerController::ProjectWorldToScreen(playerController, boxCorners_Location[i], &boxCorners_Screen[i]);
-
-	/* Box edges as index pairs (12 edges). */
-	static const int32_t boxEdges[12][2] = {
-		{0,1}, {0,2}, {0,4}, // from c000
-		{7,3}, {7,5}, {7,6}, // from c111
-		{1,3}, {1,5},        // edges on -F face
-		{2,3}, {2,6},        // edges on +R face
-		{4,5}, {4,6}         // edges on +F / -R faces
-	};
-
-	for (int32_t edge = 0; edge < 12; ++edge)
-	{
-		int32_t i0 = boxEdges[edge][0];
-		int32_t i1 = boxEdges[edge][1];
-		if (boxCorners_Project[i0] && boxCorners_Project[i1])
-		{
-			SDK::FVector2D p0 = boxCorners_Screen[i0];
-			SDK::FVector2D p1 = boxCorners_Screen[i1];
-			drawList->AddLine(ImVec2(p0.X, p0.Y), ImVec2(p1.X, p1.Y), drawColor, drawThickness);
-		}
-	}
+	DrawOrientedBox(view, drawList, boxTransform.location,
+		Math::Rotator_ForwardVector(boxTransform.rotation), Math::Rotator_RightVector(boxTransform.rotation), Math::Rotator_UpVector(boxTransform.rotation),
+		boxComponent->GetScaledBoxExtent(), style);
 }
 
-void DebugDraw::DrawSplineComponent(SDK::USplineComponent* splineComponent, uint32_t drawColor, const float drawThickness)
+void DebugDraw::DrawSplineComponent(SDK::USplineComponent* splineComponent, const Style& style)
 {
 	if (splineComponent == nullptr)
 		return;
 
-	SDK::APlayerController* playerController = Unreal::PlayerController::Get();
-	if (playerController == nullptr)
+	View view;
+	if (GetView(&view) == false)
 		return;
 
 	ImDrawList* drawList = ImGui::GetDrawList();
 	if (drawList == nullptr)
 		return;
 
-	/* Get spline data. */
 	int32_t splinePointsCount = splineComponent->GetNumberOfSplinePoints();
 	if (splinePointsCount < 2)
 		return;
 
-	/* Get spline world transform. */
-	Unreal::Transform splineTransform = Unreal::ActorComponent::GetTransform(splineComponent);
-
-	/* Number of segments per spline section for smoothness. */
+	/* Sample the whole spline into one path (one query per sample; segments join properly). */
 	const int32_t splineSegments = 16;
+
+	std::vector<SDK::FVector> points;
+	points.reserve((splinePointsCount - 1) * splineSegments + 1);
+
 	for (int32_t pointIndex = 0; pointIndex < splinePointsCount - 1; ++pointIndex)
 	{
-		/* Get distances along the spline for this segment. */
 		float segmentStartDistance = splineComponent->GetDistanceAlongSplineAtSplinePoint(pointIndex);
 		float segmentEndDistance = splineComponent->GetDistanceAlongSplineAtSplinePoint(pointIndex + 1);
 		float segmentLength = segmentEndDistance - segmentStartDistance;
 
-		/* Subdivide spline segment for a smooth visual curve. */
 		for (int32_t segment = 0; segment < splineSegments; ++segment)
 		{
-			float tA = (float)segment / (float)splineSegments;
-			float tB = (float)(segment + 1) / (float)splineSegments;
-
-			float distanceA = segmentStartDistance + tA * segmentLength;
-			float distanceB = segmentStartDistance + tB * segmentLength;
-
-			/* Get world-space positions along the spline. */
-			SDK::FVector pointA = splineComponent->GetLocationAtDistanceAlongSpline(distanceA, SDK::ESplineCoordinateSpace::World);
-			SDK::FVector pointB = splineComponent->GetLocationAtDistanceAlongSpline(distanceB, SDK::ESplineCoordinateSpace::World);
-
-			/* Project and draw the segment if visible. */
-			SDK::FVector2D pointA_Screen, pointB_Screen;
-			bool pointA_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointA, &pointA_Screen);
-			bool pointB_Project = Unreal::PlayerController::ProjectWorldToScreen(playerController, pointB, &pointB_Screen);
-
-			if (pointA_Project && pointB_Project)
-				drawList->AddLine(ImVec2(pointA_Screen.X, pointA_Screen.Y), ImVec2(pointB_Screen.X, pointB_Screen.Y), drawColor, drawThickness);
+			float distance = segmentStartDistance + segmentLength * (float)segment / (float)splineSegments;
+			points.push_back(splineComponent->GetLocationAtDistanceAlongSpline(distance, SDK::ESplineCoordinateSpace::World));
 		}
 	}
+
+	float lastPointDistance = splineComponent->GetDistanceAlongSplineAtSplinePoint(splinePointsCount - 1);
+	points.push_back(splineComponent->GetLocationAtDistanceAlongSpline(lastPointDistance, SDK::ESplineCoordinateSpace::World));
+
+	DrawPath(view, drawList, points, false, style.lineColor, style.lineThickness);
 }
 #endif
 
@@ -6390,6 +7234,18 @@ void Templates::Menus::Debug::Sub_Actors()
 			Features::ActorsList::Filter();
 		}
 
+#ifdef ACTOR_HIGHLIGHT
+		if (ImGui::Checkbox("Highlight on Hover##Actors", &Features::ActorHighlight::enabled))
+		{
+			Features::Config::Save();
+		}
+		ImGui::SameLine();
+		ImGui::QuestionMarkHint("Outlines the bounds of the Actor under the mouse cursor in the list below.");
+		ImGui::SameLine();
+		ImGui::Spacing();
+		ImGui::SameLine();
+#endif
+
 #ifdef COLLISION_VISUALIZER
 		bool isUnlimitedFilterDistance = Features::ActorsList::filterDistance == 0.0f;
 		if (isUnlimitedFilterDistance)
@@ -6463,6 +7319,23 @@ void Templates::Menus::Debug::Sub_Actors()
 
 				Features::Config::Save();
 			}
+
+			if (ImGui::Checkbox("Fill Shapes", &Features::CollisionVisualizer::fill))
+			{
+				Features::Config::Save();
+			}
+			ImGui::SameLine();
+			ImGui::QuestionMarkHint("Fills shape silhouettes with a translucent line color. Bones are drawn as filled kites.");
+
+			ImGui::BeginDisabled(Features::CollisionVisualizer::fill == false);
+			ImGui::Text("Fill Opacity:");
+			ImGui::SameLine();
+			ImGui::SliderFloat("##FillOpacity", &Features::CollisionVisualizer::fillOpacity, 0.05f, 1.0f, "%.2f");
+			if (ImGui::IsItemDeactivatedAfterEdit())
+			{
+				Features::Config::Save();
+			}
+			ImGui::EndDisabled();
 
 			ImGui::EndPopup();
 		}
@@ -6642,6 +7515,11 @@ void Templates::Menus::Debug::Sub_Actors()
 			bool isTreeNodeOpen = ImGui::TreeNode(actor.objectName.c_str());
 			ImGui::PopStyleColor();
 
+#ifdef ACTOR_HIGHLIGHT
+			if (ImGui::IsItemHovered())
+				Features::ActorHighlight::SetHovered(actor.reference, actor.objectName);
+#endif
+
 			if (isTreeNodeOpen)
 			{
 				ImGui::BeginDisabled(std::strcmp(Features::ActorsList::filterBuffer, actor.objectName.c_str()) == 0);
@@ -6681,6 +7559,19 @@ void Templates::Menus::Debug::Sub_Actors()
 				if (isValid)
 				{
 					Templates::LocationRotationScale::Draw(actor.reference);
+
+#ifdef ACTOR_GIZMO
+					bool isLiveEditing = Features::ActorGizmo::IsEditing(actor.reference);
+					if (ImGui::Checkbox("Live Edit##ActorGizmo", &isLiveEditing))
+					{
+						Features::ActorGizmo::SetEditing(actor.reference, isLiveEditing);
+						GUI::PlayActionSound(true);
+					}
+					ImGui::SameLine();
+					ImGui::QuestionMarkHint("Shows a gizmo on the Actor while the menu is open (any tab).\n"
+						"Arrows - move along world axes. Squares - scale along local axes. Center square - uniform scale.\n"
+						"Hold Ctrl to snap. One Actor at a time; it has to be Movable to change location.");
+#endif
 				}
 
 				ImGui::NewLine();
@@ -9942,22 +10833,459 @@ void Templates::Menus::Settings::Draw()
 
 
 
+std::vector<std::string> Features::ConsoleCustomCommands::Tokenize(const std::string& text)
+{
+	std::vector<std::string> tokens;
+
+	size_t position = 0;
+	while (position < text.size())
+	{
+		size_t begin = text.find_first_not_of(" \t", position);
+		if (begin == std::string::npos)
+			break;
+
+		size_t end = text.find_first_of(" \t", begin);
+		if (end == std::string::npos)
+			end = text.size();
+
+		tokens.push_back(text.substr(begin, end - begin));
+		position = end;
+	}
+
+	return tokens;
+}
+
+
+const Features::ConsoleCustomCommands::Command* Features::ConsoleCustomCommands::Find(const std::string& name)
+{
+	std::string loweredName = Utilities::String::ToLowerCase(name);
+	for (const Command& command : COMMANDS)
+	{
+		if (Utilities::String::ToLowerCase(command.name) == loweredName)
+			return &command;
+	}
+
+	return nullptr;
+}
+
+
+bool Features::ConsoleCustomCommands::Execute(const std::string& commandLine)
+{
+	bool anyExecuted = false;
+	bool allSucceeded = true;
+
+	/* Same "|" separation as the engine console; each segment is routed on its own. */
+	size_t start = 0;
+	while (start <= commandLine.size())
+	{
+		size_t separator = commandLine.find('|', start);
+		std::string segment = commandLine.substr(start, (separator == std::string::npos) ? std::string::npos : separator - start);
+		start = (separator == std::string::npos) ? commandLine.size() + 1 : separator + 1;
+
+		std::vector<std::string> tokens = Tokenize(segment);
+		if (tokens.empty())
+			continue;
+
+		anyExecuted = true;
+
+		if (const Command* command = Find(tokens[0]))
+		{
+			std::vector<std::string> arguments(tokens.begin() + 1, tokens.end());
+			if (command->handler(arguments) == false)
+				allSucceeded = false;
+		}
+		else
+		{
+			/* Not ours: forward the trimmed segment to the title's console. */
+			size_t begin = segment.find_first_not_of(" \t");
+			size_t end = segment.find_last_not_of(" \t");
+			std::string trimmed = segment.substr(begin, end - begin + 1);
+
+			if (Unreal::Console::ExecuteConsoleCommand(Utilities::String::ToWString(trimmed)) == false)
+				allSucceeded = false;
+		}
+	}
+
+	return anyExecuted && allSucceeded;
+}
+
+
+bool Features::ConsoleCustomCommands::FpsMax(const std::vector<std::string>& arguments)
+{
+	float value = 0.0f;
+	if (arguments.empty() || Utilities::String::ToFloat(arguments[0], &value) == false || value < 0.0f)
+		return false;
+
+	return Unreal::Console::ExecuteConsoleCommand(L"t.MaxFPS " + std::to_wstring(value));
+}
+
+
+bool Features::ConsoleCustomCommands::HostTimescale(const std::vector<std::string>& arguments)
+{
+	float value = 0.0f;
+	if (arguments.empty() || Utilities::String::ToFloat(arguments[0], &value) == false || value <= 0.0f)
+		return false;
+
+	SDK::UWorld* world = SDK::UWorld::GetWorld();
+	SDK::ULevel* persistentLevel = world ? world->PersistentLevel : nullptr;
+	SDK::AWorldSettings* worldSettings = persistentLevel ? persistentLevel->WorldSettings : nullptr;
+	if (worldSettings == nullptr)
+		return false;
+
+	/* Direct World Time Dilation (unlike "slomo", doesn't need the Cheat Manager). Engine clamps it by Min/Max Global Time Dilation. */
+	worldSettings->TimeDilation = value;
+	return true;
+}
+
+
+
+
+void Features::BootlegConsole::RefreshSuggestions()
+{
+	suggestions.clear();
+
+	std::string prefix = buffer;
+
+	if (prefix.empty())
+	{
+		/* Empty field: offer the input history (most recent first). */
+		for (const std::string& command : history)
+		{
+			Suggestion suggestion{};
+			suggestion.insertText = command;
+			suggestion.displayText = command;
+			suggestion.fromHistory = true;
+			suggestions.push_back(suggestion);
+		}
+		return;
+	}
+
+	/* Otherwise: offer custom (UETools-side) commands first, then dictionary commands matching the typed prefix. */
+	std::string loweredPrefix = Utilities::String::ToLowerCase(prefix);
+	for (const ConsoleCustomCommands::Command& command : ConsoleCustomCommands::COMMANDS)
+	{
+		if (Utilities::String::ToLowerCase(command.name).rfind(loweredPrefix, 0) != 0)
+			continue;
+
+		Suggestion suggestion{};
+		suggestion.insertText = command.name;
+		suggestion.displayText = command.hint.empty() ? command.name : command.name + " " + command.hint;
+		suggestion.description = command.description;
+		suggestion.isCustom = true;
+		suggestions.push_back(suggestion);
+	}
+
+	std::vector<const ConsoleDictionary::Entry*> matches = ConsoleDictionary::Match(prefix);
+	for (const ConsoleDictionary::Entry* entry : matches)
+	{
+		/* Custom commands take precedence over same-named dictionary entries. */
+		if (ConsoleCustomCommands::Find(entry->command) != nullptr)
+			continue;
+
+		/* Development-only commands are hidden unless explicitly enabled. */
+		if (entry->developmentOnly && CONSOLE_SUGGEST_DEVELOPMENT_COMMANDS == false)
+			continue;
+
+		Suggestion suggestion{};
+		suggestion.insertText = entry->command;
+		suggestion.displayText = entry->DisplayText();
+		suggestion.description = entry->description;
+		suggestion.developmentOnly = entry->developmentOnly;
+		suggestions.push_back(suggestion);
+	}
+}
+
+
+void Features::BootlegConsole::AddHistory(const std::string& command)
+{
+	if (command.empty())
+		return;
+
+	/* Move an existing identical entry to the front instead of duplicating it. */
+	for (size_t i = 0; i < history.size(); i++)
+	{
+		if (history[i] == command)
+		{
+			history.erase(history.begin() + i);
+			break;
+		}
+	}
+
+	history.insert(history.begin(), command);
+
+	if (history.size() > static_cast<size_t>(SIZE_CONSOLE_HISTORY_MAX))
+		history.resize(SIZE_CONSOLE_HISTORY_MAX);
+
+	SaveHistory();
+}
+
+
+void Features::BootlegConsole::LoadHistory()
+{
+	FileInstance file(PATH_CONFIG_CONSOLEHISTORY);
+
+	std::vector<std::string> lines;
+	if (file.ReadLines(&lines) == false)
+		return;
+
+	history.clear();
+	for (const std::string& rawLine : lines)
+	{
+		size_t begin = rawLine.find_first_not_of(" \t\r\n");
+		if (begin == std::string::npos)
+			continue;
+		size_t end = rawLine.find_last_not_of(" \t\r\n");
+		history.push_back(rawLine.substr(begin, end - begin + 1));
+
+		if (history.size() >= static_cast<size_t>(SIZE_CONSOLE_HISTORY_MAX))
+			break;
+	}
+}
+
+
+void Features::BootlegConsole::SaveHistory()
+{
+	FileInstance file(PATH_CONFIG_CONSOLEHISTORY);
+	file.SaveLines(history);
+}
+
+
+/* Autocomplete callback for the bootleg console input (arrow navigation, Tab completion, edit tracking). */
+static int BootlegConsoleInputCallback(ImGuiInputTextCallbackData* data)
+{
+	switch (data->EventFlag)
+	{
+	case ImGuiInputTextFlags_CallbackAlways:
+	{
+		/* After re-activation the whole text gets selected: collapse the selection to the end instead. */
+		if (Features::BootlegConsole::moveCursorToEnd)
+		{
+			data->CursorPos = data->BufTextLen;
+			data->SelectionStart = data->BufTextLen;
+			data->SelectionEnd = data->BufTextLen;
+			Features::BootlegConsole::moveCursorToEnd = false;
+		}
+		break;
+	}
+
+	case ImGuiInputTextFlags_CallbackEdit:
+	{
+		/* Text changed: recompute suggestions next frame from the live buffer. */
+		Features::BootlegConsole::suggestionsDirty = true;
+		break;
+	}
+
+	case ImGuiInputTextFlags_CallbackHistory:
+	{
+		std::vector<Features::BootlegConsole::Suggestion>& suggestions = Features::BootlegConsole::suggestions;
+		if (suggestions.empty())
+			break;
+
+		int count = static_cast<int>(suggestions.size());
+		int& index = Features::BootlegConsole::suggestionIndex;
+
+		if (data->EventKey == ImGuiKey_UpArrow)
+			index = (index <= 0) ? count - 1 : index - 1;
+		else if (data->EventKey == ImGuiKey_DownArrow)
+			index = (index + 1) % count;
+
+		/* Write the highlighted suggestion into the console field. */
+		if (index >= 0 && index < count)
+		{
+			const std::string& command = suggestions[index].insertText;
+			data->DeleteChars(0, data->BufTextLen);
+			data->InsertChars(0, command.c_str());
+
+			/* Keep the current match list (don't let this edit re-filter and collapse it). */
+			Features::BootlegConsole::suggestionsDirty = false;
+		}
+		break;
+	}
+
+	case ImGuiInputTextFlags_CallbackCompletion:
+	{
+		std::vector<Features::BootlegConsole::Suggestion>& suggestions = Features::BootlegConsole::suggestions;
+		if (suggestions.empty())
+			break;
+
+		int index = Features::BootlegConsole::suggestionIndex;
+		if (index < 0)
+			index = 0;
+
+		if (index < static_cast<int>(suggestions.size()))
+		{
+			const std::string& command = suggestions[index].insertText;
+			data->DeleteChars(0, data->BufTextLen);
+			data->InsertChars(0, command.c_str());
+			Features::BootlegConsole::suggestionIndex = index;
+			Features::BootlegConsole::suggestionsDirty = false;
+		}
+		break;
+	}
+	}
+
+	return 0;
+}
+
+
 void Templates::Menus::BootlegConsole::Draw()
 {
 	ImGui::Text("Console:");
 	ImGui::SameLine();
+
 	ImGui::PushItemWidth(320);
-	ImGui::InputText("##BootlegConsole", Features::BootlegConsole::buffer, Features::BootlegConsole::bufferSize);
+
+	const ImGuiInputTextFlags flags =
+		ImGuiInputTextFlags_EnterReturnsTrue |
+		ImGuiInputTextFlags_CallbackAlways |
+		ImGuiInputTextFlags_CallbackEdit |
+		ImGuiInputTextFlags_CallbackHistory |
+		ImGuiInputTextFlags_CallbackCompletion;
+
+	bool executeRequested = ImGui::InputText("##BootlegConsole", Features::BootlegConsole::buffer, Features::BootlegConsole::bufferSize, flags, BootlegConsoleInputCallback);
+
+	Features::BootlegConsole::inputId = ImGui::GetItemID();
+
+	/* Anchor the suggestion dropdown just below the input field. */
+	Features::BootlegConsole::suggestionsAnchor = ImVec2(ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y);
+	Features::BootlegConsole::suggestionsWidth = ImGui::GetItemRectSize().x;
+
+	bool inputActive = ImGui::IsItemActive();
+
+	ImGui::PopItemWidth();
+
 	ImGui::SameLine();
 	if (ImGui::Button("Execute"))
+		executeRequested = true;
+
+	/* Recompute suggestions when the text changed (empty field -> history, otherwise -> dictionary). */
+	if (Features::BootlegConsole::suggestionsDirty)
 	{
-		std::wstring command = Utilities::String::ToWString(Features::BootlegConsole::buffer);
-		if (command.size() > 0)
+		Features::BootlegConsole::RefreshSuggestions();
+		Features::BootlegConsole::suggestionIndex = -1;
+		Features::BootlegConsole::suggestionsDirty = false;
+	}
+
+	/* The dropdown stays visible while the input is active or the list itself is hovered. */
+	Features::BootlegConsole::suggestionsVisible =
+		(inputActive || Features::BootlegConsole::suggestionsKeepOpen) && (Features::BootlegConsole::suggestions.empty() == false);
+
+	if (executeRequested)
+	{
+		std::string command = Features::BootlegConsole::buffer;
+		if (command.empty() == false)
 		{
-			GUI::PlayActionSound(Unreal::Console::ExecuteConsoleCommand(command));
+			GUI::PlayActionSound(Features::ConsoleCustomCommands::Execute(command));
+			Features::BootlegConsole::AddHistory(command);
 		}
 		else
 			GUI::PlayActionSound(false);
+
+		/* Reset state after executing; the history is offered again on the next empty prompt. */
+		Features::BootlegConsole::suggestions.clear();
+		Features::BootlegConsole::suggestionIndex = -1;
+		Features::BootlegConsole::suggestionsVisible = false;
+		Features::BootlegConsole::suggestionsDirty = true;
 	}
-	ImGui::PopItemWidth();
+}
+
+
+void Templates::Menus::BootlegConsole::DrawSuggestions()
+{
+	Features::BootlegConsole::suggestionsKeepOpen = false;
+
+	if (Features::BootlegConsole::suggestionsVisible == false)
+		return;
+
+	const std::vector<Features::BootlegConsole::Suggestion>& suggestions = Features::BootlegConsole::suggestions;
+	if (suggestions.empty())
+		return;
+
+	int visibleCount = static_cast<int>(suggestions.size());
+	if (visibleCount > SIZE_CONSOLE_AUTOCOMPLETE_MAX_VISIBLE)
+		visibleCount = SIZE_CONSOLE_AUTOCOMPLETE_MAX_VISIBLE;
+
+	/* Measure columns: command (+hint+[dev]) on the left, dimmed description on the right. */
+	float commandColumnWidth = 0.0f;
+	float descriptionWidth = 0.0f;
+	for (const Features::BootlegConsole::Suggestion& entry : suggestions)
+	{
+		commandColumnWidth = (std::max)(commandColumnWidth, ImGui::CalcTextSize(entry.displayText.c_str()).x);
+		if (entry.description.empty() == false)
+			descriptionWidth = (std::max)(descriptionWidth, ImGui::CalcTextSize(entry.description.c_str()).x);
+	}
+
+	float descriptionColumn = commandColumnWidth + (ImGui::GetFontSize() * 2.0f);
+	float contentWidth = descriptionColumn + descriptionWidth + (ImGui::GetStyle().WindowPadding.x * 2.0f);
+	float windowWidth = (std::max)(Features::BootlegConsole::suggestionsWidth, contentWidth);
+
+	float lineHeight = ImGui::GetTextLineHeightWithSpacing();
+	float windowHeight = (lineHeight * visibleCount) + (ImGui::GetStyle().WindowPadding.y * 2.0f);
+
+	ImGui::SetNextWindowPos(ImVec2(Features::BootlegConsole::suggestionsAnchor.x, Features::BootlegConsole::suggestionsAnchor.y + 2.0f));
+	ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight));
+
+	const ImGuiWindowFlags windowFlags =
+		ImGuiWindowFlags_NoTitleBar |
+		ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoSavedSettings |
+		ImGuiWindowFlags_NoFocusOnAppearing |
+		ImGuiWindowFlags_NoNavInputs |
+		ImGuiWindowFlags_NoNavFocus;
+
+	if (ImGui::Begin("##BootlegConsoleSuggestions", nullptr, windowFlags))
+	{
+		/* Keep the dropdown alive while the mouse is over it (so clicks register). */
+		if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+			Features::BootlegConsole::suggestionsKeepOpen = true;
+
+		for (int i = 0; i < static_cast<int>(suggestions.size()); i++)
+		{
+			const Features::BootlegConsole::Suggestion& entry = suggestions[i];
+			ImGui::PushID(i);
+
+			bool isSelected = (i == Features::BootlegConsole::suggestionIndex);
+			/* Tint: history -> grey, development-only -> pink, UETools custom -> cyan. */
+			bool isTinted = entry.fromHistory || entry.developmentOnly || entry.isCustom;
+			if (isTinted)
+			{
+				const ImVec4& tint = entry.fromHistory ? ImGui::LinearColor::Grey : (entry.developmentOnly ? ImGui::LinearColor::Pink : ImGui::LinearColor::Cyan);
+				ImGui::PushStyleColor(ImGuiCol_Text, tint);
+			}
+
+			bool isClicked = ImGui::Selectable(entry.displayText.c_str(), isSelected, ImGuiSelectableFlags_SpanAvailWidth);
+
+			if (isTinted)
+				ImGui::PopStyleColor();
+
+			if (isClicked)
+			{
+				/* Fill the picked command into the console field. */
+				std::snprintf(Features::BootlegConsole::buffer, Features::BootlegConsole::bufferSize, "%s", entry.insertText.c_str());
+				Features::BootlegConsole::suggestionIndex = i;
+				Features::BootlegConsole::suggestionsDirty = false;
+				Features::BootlegConsole::suggestionsKeepOpen = true;
+
+				/* The click deactivated the input: re-activate it by ID for text input and keep the caret at the end. */
+				ImGui::ActivateItemByID(Features::BootlegConsole::inputId);
+				GImGui->NavNextActivateFlags |= ImGuiActivateFlags_PreferInput;
+				Features::BootlegConsole::moveCursorToEnd = true;
+			}
+
+			/* Short description, dimmed, in the right column. */
+			if (entry.description.empty() == false)
+			{
+				ImGui::SameLine(descriptionColumn);
+				ImGui::TextDisabled("%s", entry.description.c_str());
+			}
+
+			/* Keep the keyboard-highlighted item in view. */
+			if (isSelected)
+				ImGui::SetScrollHereY(0.5f);
+
+			ImGui::PopID();
+		}
+	}
+	ImGui::End();
 }

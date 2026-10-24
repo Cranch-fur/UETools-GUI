@@ -69,6 +69,10 @@ namespace ImGui
 		static inline ImU32 Red = IM_COL32(204, 77, 51, 255);
 		static inline ImU32 Green = IM_COL32(51, 204, 77, 255);
 		static inline ImU32 Blue = IM_COL32(51, 102, 204, 255);
+		static inline ImU32 Cyan = IM_COL32(77, 204, 204, 255);
+		static inline ImU32 Yellow = IM_COL32(255, 214, 51, 255);
+		static inline ImU32 Pink = IM_COL32(255, 140, 199, 255);
+		static inline ImU32 Grey = IM_COL32(158, 158, 158, 255);
 		static inline ImU32 White = IM_COL32(255, 255, 255, 255);
 		static inline ImU32 Black = IM_COL32(0, 0, 0, 255);
 		static inline ImU32 Alpha = IM_COL32(0, 0, 0, 0);
@@ -80,6 +84,10 @@ namespace ImGui
 		static inline ImVec4 Red = ImGui::ColorConvertU32ToFloat4(Color::Red);
 		static inline ImVec4 Green = ImGui::ColorConvertU32ToFloat4(Color::Green);
 		static inline ImVec4 Blue = ImGui::ColorConvertU32ToFloat4(Color::Blue);
+		static inline ImVec4 Cyan = ImGui::ColorConvertU32ToFloat4(Color::Cyan);
+		static inline ImVec4 Yellow = ImGui::ColorConvertU32ToFloat4(Color::Yellow);
+		static inline ImVec4 Pink = ImGui::ColorConvertU32ToFloat4(Color::Pink);
+		static inline ImVec4 Grey = ImGui::ColorConvertU32ToFloat4(Color::Grey);
 		static inline ImVec4 White = ImGui::ColorConvertU32ToFloat4(Color::White);
 		static inline ImVec4 Black = ImGui::ColorConvertU32ToFloat4(Color::Black);
 		static inline ImVec4 Alpha = ImGui::ColorConvertU32ToFloat4(Color::Alpha);
@@ -855,6 +863,78 @@ namespace Features
 
 
 
+#ifdef ACTOR_GIZMO
+	class ActorGizmo
+	{
+	public:
+		enum class E_Handle 
+		{
+			None, 
+			MoveX, 
+			MoveY, 
+			MoveZ, 
+			ScaleX, 
+			ScaleY, 
+			ScaleZ, 
+			ScaleUniform 
+		};
+
+		static inline SDK::AActor* target = nullptr;
+
+		static inline float size = 110.0f; // Axis length on screen, in pixels.
+		static inline float snapLocation = 10.0f; // Location step while Ctrl is held (units).
+		static inline float snapScale = 0.1f; // Scale step while Ctrl is held.
+
+		static bool IsEditing(SDK::AActor* actorReference);
+		static void SetEditing(SDK::AActor* actorReference, bool enabled);
+
+		static void Draw();
+		static void Draw_ThreadSafe();
+
+	private:
+		static constexpr float GIZMO_PICK_RADIUS = 9.0f; // Mouse distance (pixels) to grab a handle.
+		static constexpr float GIZMO_SCALE_KNOB_POSITION = 0.6f; // Scale knobs sit at this fraction of the axis length.
+
+		static inline E_Handle hoveredHandle = E_Handle::None;
+		static inline E_Handle activeHandle = E_Handle::None;
+
+		static inline ImVec2 dragStartMouse;
+		static inline ImVec2 dragAxisScreen; // Normalized screen direction of the dragged axis.
+		static inline float dragPixelsPerUnit = 1.0f; // Screen pixels per world unit along the dragged move axis.
+		static inline float dragHandleLength = 1.0f; // Screen distance from the center to the dragged scale knob.
+		static inline SDK::FVector dragStartLocation;
+		static inline SDK::FVector dragStartScale;
+	};
+#endif
+
+
+
+
+#ifdef ACTOR_HIGHLIGHT
+	class ActorHighlight
+	{
+	public:
+		static inline bool enabled = true;
+		static inline float color[4] = { 1.0f, 0.6f, 0.1f, 1.0f };
+
+		/* Called by Actors List while the Actor's row is hovered. */
+		static void SetHovered(SDK::AActor* actorReference, const std::string& label);
+
+		static void Draw();
+		static void Draw_ThreadSafe();
+
+	private:
+		static constexpr float EMPTY_BOUNDS_EXTENT = 25.0f;
+
+		static inline SDK::AActor* hoveredActor = nullptr;
+		static inline std::string hoveredLabel;
+		static inline int32_t hoveredFrame = -1;
+	};
+#endif
+
+
+
+
 #ifdef COLLISION_VISUALIZER
 	class CollisionVisualizer
 	{
@@ -879,6 +959,8 @@ namespace Features
 		static inline float color_Other[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 		static inline float thickness = 1.0f;
+		static inline bool fill = false;
+		static inline float fillOpacity = 0.25f;
 
 
 		static void Draw();
@@ -1148,12 +1230,176 @@ namespace Features
 
 
 
+	class ConsoleDictionary
+	{
+	public:
+		struct Entry
+		{
+			std::string command;
+			std::string hint; // Free-form argument hint, e.g. "{x} {y} {z}" ("" = none).
+			std::string description;
+			bool developmentOnly = false;
+
+			std::string DisplayText() const;
+		};
+
+		static inline std::vector<Entry> entries;
+
+		/* Built-in command set, used to seed the dictionary file on first run. */
+		static inline const std::vector<Entry> DEFAULT_ENTRIES =
+		{
+			/* Performance & timing stats. */
+			{ "stat FPS",                  "",              "Show frame rate (FPS)" },
+			{ "stat Unit",                 "",              "Frame/game/render/GPU times" },
+			{ "stat UnitGraph",            "",              "Graph of unit frame times" },
+			{ "stat UnitMax",              "",              "Peak unit frame times" },
+			{ "stat Hitches",              "",              "Highlight frame hitches" },
+			{ "stat NamedEvents",          "",              "Emit profiler named events" },
+			{ "stat Summary",              "",              "General performance summary" },
+			{ "stat Game",                 "",              "Gameplay tick timings", true },
+			{ "stat Engine",               "",              "Engine frame timings", true },
+			{ "stat SceneRendering",       "",              "Scene rendering breakdown", true },
+			{ "stat GPU",                  "",              "GPU pass timings", true },
+			{ "stat Memory",               "",              "Memory usage breakdown", true },
+			{ "stat Levels",               "",              "Loaded & streaming levels" },
+			{ "stat ColorList",            "",              "Named color reference", true },
+			{ "stat AI",                   "",              "AI system timings" },
+			{ "stat Anim",                 "",              "Animation timings", true },
+			{ "stat Physics",              "",              "Physics simulation timings", true },
+			{ "stat Audio",                "",              "Audio system stats", true },
+			{ "stat ColorList",            "",              "List named engine colors" },
+			{ "stat None",                 "",              "Hide all stat overlays", true },
+
+			/* View modes & visualization. */
+			{ "showdebug",                 "{category}",    "Toggle on-screen debug info", true },
+			{ "viewmode Lit",              "",              "Default lit view", true },
+			{ "viewmode Unlit",            "",              "Unlit view (no lighting)", true },
+			{ "viewmode Wireframe",        "",              "Wireframe geometry view", true },
+			{ "viewmode DetailLighting",   "",              "Detail lighting only", true },
+			{ "viewmode LightComplexity",  "",              "Light overdraw heatmap", true },
+			{ "viewmode ShaderComplexity", "",              "Shader cost heatmap", true },
+			{ "prevviewmode",              "",              "Cycle to previous view mode" },
+			{ "nextviewmode",              "",              "Cycle to next view mode" },
+			{ "show Collision",            "",              "Toggle collision drawing", true },
+			{ "show Bounds",               "",              "Toggle actor bounds", true },
+			{ "FreezeRendering",           "",              "Freeze render culling", true },
+
+			/* Rendering cvars. */
+			{ "r.ShadowQuality",           "{int}",         "Shadow quality (0-5)" },
+			{ "r.ScreenPercentage",        "{float}",       "Render resolution scale %" },
+			{ "r.Color.Mid",               "{float}",       "Color grading midtones" },
+			{ "r.VSync",                   "{int}",         "Vertical sync (0/1)" },
+			{ "r.SetRes",                  "{WxH[f|w|wf]}", "Set resolution and mode" },
+			{ "t.MaxFPS",                  "{float}",       "Frame rate cap" },
+
+			/* Camera & gameplay debug. */
+			{ "fov",                       "{degrees}",     "Set camera field of view" },
+			{ "slomo",                     "{scale}",       "Set global time scale" },
+			{ "demospeed",                 "{scale}",       "Replay playback speed" },
+			{ "pause",                     "",              "Toggle game pause" },
+			{ "ToggleDebugCamera",         "",              "Detach free debug camera" },
+			{ "BugIt",                     "",              "Dump camera transform", true },
+			{ "BugItGo",                   "{x} {y} {z} {pitch} {yaw} {roll}", "Teleport to coordinates" },
+			{ "Teleport",                  "",              "Teleport to trace hit" },
+			{ "God",                       "",              "Toggle god mode", true },
+			{ "Ghost",                     "",              "Noclip free movement", true },
+			{ "Fly",                       "",              "Enable flying", true },
+			{ "Walk",                      "",              "Return to walking", true },
+
+			/* Utility. */
+			{ "DumpConsoleCommands",       "",              "List all console commands", true },
+			{ "DisableAllScreenMessages",  "",              "Hide on-screen messages", true },
+			{ "obj list",                  "{class}",       "List loaded objects by class", true },
+			{ "quit",                      "",              "Exit the game" },
+			{ "exit",                      "",              "Exit the game" },
+		};
+
+		static void Load();
+		static void Save();
+
+		/* Returns entries whose command starts with the given prefix (case insensitive). Empty prefix yields nothing. */
+		static std::vector<const Entry*> Match(const std::string& prefix);
+
+	private:
+		static std::vector<Entry> ParseLines(const std::vector<std::string>& lines);
+	};
+
+
+
+
+	class ConsoleCustomCommands
+	{
+	public:
+		using Handler = bool (*)(const std::vector<std::string>& arguments);
+
+		struct Command
+		{
+			std::string name;
+			std::string hint;
+			std::string description;
+			Handler handler; // Implementation inside UETools-GUI.
+		};
+
+	private:
+		static bool FpsMax(const std::vector<std::string>& arguments);
+		static bool HostTimescale(const std::vector<std::string>& arguments);
+
+	public:
+		/* Commands handled by UETools itself (Source-style names for convenience). */
+		static inline const std::vector<Command> COMMANDS =
+		{
+			{ "fps_max",        "{float}", "Frame rate cap",				&FpsMax },
+			{ "host_timescale", "{float}", "Global time scale",             &HostTimescale },
+		};
+
+		/* Case-insensitive lookup by command name. */
+		static const Command* Find(const std::string& name);
+
+		/* Checks if command is custom and runs it, rest is redirected to title. */
+		static bool Execute(const std::string& commandLine);
+
+	private:
+		static std::vector<std::string> Tokenize(const std::string& text);
+	};
+
+
+
+
 	class BootlegConsole
 	{
 	public:
+		struct Suggestion
+		{
+			std::string insertText;
+			std::string displayText;
+			std::string description;
+			bool fromHistory = false;
+			bool developmentOnly = false;
+			bool isCustom = false;
+		};
+
 		/* Allocate large buffer to account for combined console commands (e.g: "stat fps | stat unit") */
 		static inline const size_t bufferSize = SIZE_BUFFER_CONSOLE;
 		static inline char buffer[bufferSize] = {};
+
+		/* Previously executed commands, most recent first (Unreal-style input history). */
+		static inline std::vector<std::string> history;
+
+		/* Autocomplete / history runtime state. */
+		static inline std::vector<Suggestion> suggestions;
+		static inline int suggestionIndex = -1; // Highlighted suggestion (-1 = none selected yet).
+		static inline bool suggestionsDirty = true; // Recompute suggestions from the buffer on the next frame.
+		static inline bool suggestionsVisible = false; // Whether the dropdown should be drawn this frame.
+		static inline bool suggestionsKeepOpen = false; // Keep the dropdown alive while it's hovered (set by DrawSuggestions).
+		static inline ImGuiID inputId = 0; // ID of the console input (used to re-activate it after a click).
+		static inline bool moveCursorToEnd = false; // Place the caret at the end once the input is re-activated.
+		static inline ImVec2 suggestionsAnchor = {}; // Top-left screen position for the dropdown.
+		static inline float suggestionsWidth = 0.0f; // Width of the dropdown (matches the input).
+
+		static void RefreshSuggestions();
+		static void AddHistory(const std::string& command);
+		static void LoadHistory();
+		static void SaveHistory();
 	};
 
 
@@ -1344,29 +1590,85 @@ namespace Inputs
 
 
 
-#ifdef COLLISION_VISUALIZER
 class DebugDraw
 {
+public:
+	struct Style
+	{
+		uint32_t lineColor;
+		float lineThickness;
+		bool fill;          // Fill the projected silhouette (bones: filled kites) with a translucent line color.
+		float fillOpacity;  // Fill alpha relative to the line color alpha.
+	};
+
+	static void DrawBounds(const SDK::FVector& center, const SDK::FVector& halfExtent, const Style& style);
+
 private:
-	static inline std::unordered_map<SDK::FKConvexElem*, std::vector<int32_t>> convexIndicesCache;
+	struct View
+	{
+		SDK::APlayerController* playerController;
+		SDK::FVector cameraLocation;
+		SDK::FVector cameraForward;
+	};
+
+	static bool GetView(View* outView);
+	static float GetDepth(const View& view, const SDK::FVector& worldLocation);
+	static bool ProjectPoint(const View& view, const SDK::FVector& worldLocation, ImVec2* outScreenLocation);
+	static uint32_t GetFillColor(const Style& style);
+
+	static void DrawSegment(const View& view, ImDrawList* drawList, const SDK::FVector& start, const SDK::FVector& end, uint32_t color, float thickness);
+	static void DrawPath(const View& view, ImDrawList* drawList, const std::vector<SDK::FVector>& points, bool closed, uint32_t color, float thickness);
+	static void DrawJoints(const View& view, ImDrawList* drawList, const std::vector<SDK::FVector>& points, const Style& style);
+	static void DrawFill(const View& view, ImDrawList* drawList, const std::vector<SDK::FVector>& points, const Style& style);
+	static void DrawBone(const View& view, ImDrawList* drawList, const SDK::FVector& parentLocation, const SDK::FVector& childLocation, const Style& style);
+
+	static void DrawOrientedBox(const View& view, ImDrawList* drawList, const SDK::FVector& center, const SDK::FVector& axisX, const SDK::FVector& axisY, const SDK::FVector& axisZ, const SDK::FVector& halfExtent, const Style& style);
+	static void DrawOrientedSphere(const View& view, ImDrawList* drawList, const SDK::FVector& center, const SDK::FVector& axisX, const SDK::FVector& axisY, const SDK::FVector& axisZ, float radius, const Style& style);
+	static void DrawOrientedCapsule(const View& view, ImDrawList* drawList, const SDK::FVector& center, const SDK::FVector& axisUp, float radius, float halfHeight, const Style& style);
+
+#ifdef COLLISION_VISUALIZER
+	struct ConvexShape
+	{
+		int32_t vertexCount;
+		std::vector<std::pair<int32_t, int32_t>> featureEdges;
+	};
+
+	struct SkeletonBone
+	{
+		SDK::FName name;
+		int32_t parentIndex;
+	};
+
+	struct SkeletonShape
+	{
+		int32_t socketCount;
+		bool allSockets;
+		std::vector<SkeletonBone> bones;
+	};
+
+	static inline std::unordered_map<SDK::FKConvexElem*, ConvexShape> convexCache;
+	static inline std::unordered_map<SDK::USkeletalMeshComponent*, SkeletonShape> skeletonCache;
+
+	static const ConvexShape& GetConvexShape(SDK::FKConvexElem* convexElement);
+	static const SkeletonShape& GetSkeletonShape(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets);
 
 public:
-	static void DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal::Transform& componentTransform, uint32_t drawColor, float drawThickness);
+	static void DrawConvexElement(SDK::FKConvexElem* convexElement, const Unreal::Transform& componentTransform, const Style& style);
 
-	static void DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, uint32_t drawColor, float drawThickness);
-	static void DrawVolume(SDK::AVolume* volume, uint32_t drawColor, float drawThickness);
+	static void DrawBodySetup(SDK::UBodySetup* bodySetup, const Unreal::Transform& componentTransform, const Style& style);
+	static void DrawVolume(SDK::AVolume* volume, const Style& style);
 
-	static void DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, uint32_t drawColor, float drawThickness);
-	static void DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, uint32_t drawColor, float drawThickness);
+	static void DrawStaticMeshComponent(SDK::UStaticMeshComponent* staticMeshComponent, const Style& style);
+	static void DrawInstancedStaticMeshComponent(SDK::UInstancedStaticMeshComponent* instancedStaticMeshComponent, const Style& style);
 
-	static void DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets, uint32_t drawColor, float drawThickness);
+	static void DrawSkeletalMeshComponent(SDK::USkeletalMeshComponent* skeletalMeshComponent, bool drawAllSockets, const Style& style);
 
-	static void DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, uint32_t drawColor, float drawThickness);
-	static void DrawSphereComponent(SDK::USphereComponent* sphereComponent, uint32_t drawColor, float drawThickness);
-	static void DrawBoxComponent(SDK::UBoxComponent* boxComponent, uint32_t drawColor, float drawThickness);
-	static void DrawSplineComponent(SDK::USplineComponent* splineComponent, uint32_t drawColor, float drawThickness);
-};
+	static void DrawCapsuleComponent(SDK::UCapsuleComponent* capsuleComponent, const Style& style);
+	static void DrawSphereComponent(SDK::USphereComponent* sphereComponent, const Style& style);
+	static void DrawBoxComponent(SDK::UBoxComponent* boxComponent, const Style& style);
+	static void DrawSplineComponent(SDK::USplineComponent* splineComponent, const Style& style);
 #endif
+};
 
 
 
@@ -1471,6 +1773,7 @@ namespace Templates
 		{
 		public:
 			static void Draw();
+			static void DrawSuggestions();
 		};
 	};
 }
