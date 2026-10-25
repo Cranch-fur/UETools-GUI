@@ -82,6 +82,15 @@ namespace Unreal
 		static bool Print(const std::wstring& wString);
 		static bool Print(const std::string& string);
 
+		template <typename... Args>
+		static bool Print(std::wformat_string<Args...> fmt, Args&&... args) {
+			return Print(std::format(fmt, std::forward<Args>(args)...));
+		}
+		template <typename... Args>
+		static bool Print(std::format_string<Args...> fmt, Args&&... args) {
+			return Print(std::format(fmt, std::forward<Args>(args)...));
+		}
+
 		static bool Print(int32_t integer);
 		static bool Print(uint32_t unsignedInteger);
 

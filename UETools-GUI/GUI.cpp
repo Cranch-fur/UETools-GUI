@@ -10966,8 +10966,37 @@ bool Features::ConsoleCustomCommands::HostTimescale(const std::vector<std::strin
 	return true;
 }
 
+bool Features::ConsoleCustomCommands::Noclip(const std::vector<std::string>& arguments)
+{
+	SDK::ACharacter* character = Unreal::Character::Get(0);
+	if (character == nullptr || character->CharacterMovement == nullptr)
+		return false;
 
+	if (character->CharacterMovement->bCheatFlying)
+		return Unreal::Character::Walk(character);
+	else
+		return Unreal::Character::Ghost(character);
+}
 
+bool Features::ConsoleCustomCommands::Restart(const std::vector<std::string>& arguments)
+{
+	return Unreal::Console::ExecuteConsoleCommand(L"RestartLevel");
+}
+
+bool Features::ConsoleCustomCommands::Ghost(const std::vector<std::string>& arguments)
+{
+	return Unreal::Character::Ghost(0);
+}
+
+bool Features::ConsoleCustomCommands::Fly(const std::vector<std::string>& arguments)
+{
+	return Unreal::Character::Fly(0);
+}
+
+bool Features::ConsoleCustomCommands::Walk(const std::vector<std::string>& arguments)
+{
+	return Unreal::Character::Walk(0);
+}
 
 bool Features::ConsoleCustomCommands::Bind(const std::vector<std::string>& arguments)
 {
@@ -10982,7 +11011,6 @@ bool Features::ConsoleCustomCommands::Bind(const std::vector<std::string>& argum
 	return Bindings::Set(key, Bindings::E_BindMode::PressRelease, arguments[1], arguments[2]);
 }
 
-
 bool Features::ConsoleCustomCommands::BindToggle(const std::vector<std::string>& arguments)
 {
 	/* BindToggle "Key" "Command" "Command" - #1 on odd presses, #2 on even ones. */
@@ -10992,7 +11020,6 @@ bool Features::ConsoleCustomCommands::BindToggle(const std::vector<std::string>&
 	return Bindings::Set(Bindings::ParseKey(arguments[0]), Bindings::E_BindMode::Toggle, arguments[1], arguments[2]);
 }
 
-
 bool Features::ConsoleCustomCommands::UnBind(const std::vector<std::string>& arguments)
 {
 	if (arguments.size() != 1)
@@ -11001,6 +11028,39 @@ bool Features::ConsoleCustomCommands::UnBind(const std::vector<std::string>& arg
 	return Bindings::Remove(Bindings::ParseKey(arguments[0]));
 }
 
+#ifdef SOFT_PATH
+bool Features::ConsoleCustomCommands::SoftSummon(const std::vector<std::string>& arguments)
+{
+	if (arguments.size() != 1)
+		return false;
+
+	std::wstring actorPath = Utilities::String::ToWString(arguments[0]);
+	std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(actorPath);
+
+	Unreal::Transform summonTransform = Unreal::PlayerController::GetTransform(0);
+	summonTransform.scale = { 1.0f, 1.0f, 1.0f };
+
+	return Unreal::Actor::SoftSummon(normalizedPath, summonTransform);
+}
+
+bool Features::ConsoleCustomCommands::SoftConstruct(const std::vector<std::string>& arguments)
+{
+	if (arguments.size() != 1)
+		return false;
+
+	std::wstring objectPath = Utilities::String::ToWString(arguments[0]);
+	std::wstring normalizedPath = Unreal::Object::NormalizeObjectPath(objectPath);
+
+	if (SDK::UObject* objectReference = Unreal::Object::SoftLoad(normalizedPath))
+	{
+		SDK::UClass* objectClass = objectReference->Class;
+		return Unreal::Object::Construct(objectClass, objectReference);
+	}
+
+	return false;
+}
+#endif
+
 
 
 
@@ -11008,10 +11068,10 @@ const char* Features::Bindings::GetModeName(E_BindMode mode)
 {
 	switch (mode)
 	{
-	case E_BindMode::Press:        return "Press";
-	case E_BindMode::PressRelease: return "Press / Release";
-	case E_BindMode::Toggle:       return "Toggle";
-	default:                       return "?";
+		case E_BindMode::Press:        return "Press";
+		case E_BindMode::PressRelease: return "Press / Release";
+		case E_BindMode::Toggle:       return "Toggle";
+		default:                       return "?";
 	}
 }
 
@@ -11157,7 +11217,10 @@ void Features::Bindings::ExecuteQueued()
 
 	/* Executed outside the lock: a bound command may itself call Bind / UnBind. */
 	for (const std::string& commandLine : pendingCommands)
+	{
 		Features::ConsoleCustomCommands::Execute(commandLine);
+		GUI::PlayActionSound(true);
+	}
 }
 
 

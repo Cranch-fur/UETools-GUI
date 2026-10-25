@@ -1573,19 +1573,36 @@ namespace Features
 	private:
 		static bool FpsMax(const std::vector<std::string>& arguments);
 		static bool HostTimescale(const std::vector<std::string>& arguments);
+		static bool Noclip(const std::vector<std::string>& arguments);
+		static bool Restart(const std::vector<std::string>& arguments);
+		static bool Ghost(const std::vector<std::string>& arguments);
+		static bool Fly(const std::vector<std::string>& arguments);
+		static bool Walk(const std::vector<std::string>& arguments);
 		static bool Bind(const std::vector<std::string>& arguments);
 		static bool BindToggle(const std::vector<std::string>& arguments);
 		static bool UnBind(const std::vector<std::string>& arguments);
+		static bool SoftSummon(const std::vector<std::string>& arguments);
+		static bool SoftConstruct(const std::vector<std::string>& arguments);
 
 	public:
 		/* Commands handled by UETools itself (Source-style names for convenience). */
 		static inline const std::vector<Command> COMMANDS =
 		{
-			{ "fps_max",        "{float}", "Frame rate cap",				&FpsMax },
-			{ "host_timescale", "{float}", "Global time scale",             &HostTimescale },
+			{ "fps_max",        "{float}", "Frame rate cap", &FpsMax },
+			{ "host_timescale", "{float}", "Global time scale", &HostTimescale },
+			{ "noclip",			"", "Noclip free movement", &Noclip },
+			{ "tcl",			"", "Noclip free movement", &Noclip },
+			{ "restart",		"", "Restart current level", &Restart },
+			{ "GhostC",			"", "Noclip free movement", &Ghost },
+			{ "FlyC",			"", "Enable flying", &Fly },
+			{ "WalkC",			"", "Return to walking", &Walk },
 			{ "Bind",           "{key} {command} [{release command}]", "Bind key to command(s)", &Bind },
 			{ "BindToggle",     "{key} {command 1} {command 2}", "Alternate two commands on key press", &BindToggle },
 			{ "UnBind",         "{key}", "Remove key binding", &UnBind },
+#ifdef SOFT_PATH
+			{ "SoftSummon",     "{actor path}", "Spawn actor from path", &SoftSummon },
+			{ "SoftConstruct",  "{object path}", "Construct object from path", &SoftConstruct },
+#endif
 		};
 
 		/* Case-insensitive lookup by command name. */
