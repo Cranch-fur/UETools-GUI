@@ -11504,6 +11504,9 @@ void Templates::Menus::BootlegConsole::Draw()
 		{
 			GUI::PlayActionSound(Features::ConsoleCustomCommands::Execute(command));
 			Features::BootlegConsole::AddHistory(command);
+
+			/* Flush console input after execution. */
+			Features::BootlegConsole::buffer[0] = '\0';
 		}
 		else
 			GUI::PlayActionSound(false);
